@@ -3,20 +3,21 @@ layout: home
 permalink: index.html
 
 # Please update this with your repository name and project title
-repository-name: eYY-3yp-project-template
-title: Project Template
+repository-name: e21-3yp-RAID
+title: RAID
 ---
 
 [comment]: # "This is the standard layout for the project, but you can clean this and use your own template"
 
-# Project Title
+# Autonomous IoT-Based Railway Track Crack Detection Robot
 
 ---
 
 ## Team
--  eNumber, Name, [email](mailto:name@email.com)
--  eNumber, Name, [email](mailto:name@email.com)
--  eNumber, Name, [email](mailto:name@email.com)
+-  E21/096,Chamodi Dikela,e21096@eng.pdn.ac.lk
+-  E/21/127,Navoda Erandi,e21127@eng.pdn.ac.lk
+-  E/21/140,Suvini Fonseka,e21140@eng.pdn.ac.lk
+-  E/21/363,Tharushi Savindi,e21363@eng.pdn.ac.lk
 
 <!-- Image (photo/drawing of the final hardware) should be here -->
 
