@@ -36,33 +36,37 @@ title: RAID
 
 ## Introduction
 
-# Real-World Problem
+### Real-World Problem
 
 Railway track failures caused by cracks, wear, and structural defects are a major reason for train derailments and service disruptions worldwide. Traditional inspection methods rely heavily on manual patrols and scheduled checks, which are time-consuming, expensive, and expose workers to dangerous environments. These methods often fail to detect small or early-stage cracks, allowing defects to worsen over time and increasing the risk of accidents.
 
 Additionally, the lack of real-time monitoring and precise location tracking makes it difficult for maintenance teams to respond quickly and efficiently when issues are detected.
 
-# Proposed Solution
+---
 
-This project introduces an autonomous IoT-based railway track crack detection robot that continuously monitors railway tracks in real time. The robot uses a combination of IR sensors and ultrasonic sensors to detect cracks and surface irregularities with high accuracy.
+###  Proposed Solution
+
+This project introduces an **autonomous IoT-based railway track crack detection robot** that continuously monitors railway tracks in real time. The robot uses a combination of **IR sensors** and **ultrasonic sensors** to detect cracks and surface irregularities with high accuracy.
 
 When a defect is detected:
 
-1)An onboard camera captures clear images of the affected track section
-2)GPS data is recorded to identify the exact location of the defect
-3)All data is instantly uploaded to a cloud platform, where alerts are displayed on a monitoring dashboard
+1. An onboard camera captures clear images of the affected track section  
+2. GPS data is recorded to identify the exact location of the defect  
+3. All data is instantly uploaded to a cloud platform, where alerts are displayed on a monitoring dashboard  
 
 This enables railway authorities to identify issues early, prioritize maintenance tasks, and respond without sending personnel into hazardous areas.
 
-# Impact and Benefits
+---
 
-Improved Safety: Early crack detection significantly reduces the risk of derailments and accidents
-Reduced Human Risk: Minimizes the need for manual track inspections in dangerous environments
-Real-Time Monitoring: Enables immediate alerts and faster decision-making
-Cost-Effective Maintenance: Prevents minor defects from developing into major infrastructure failures
-Scalable Solution: Can be deployed across large railway networks and integrated with existing maintenance systems
+###  Impact and Benefits
 
-By leveraging automation, IoT connectivity, and cloud analytics, this system contributes to safer, smarter, and more efficient railway infrastructure management.
+- **Improved Safety:** Early crack detection significantly reduces the risk of derailments and accidents  
+- **Reduced Human Risk:** Minimizes the need for manual track inspections in dangerous environments  
+- **Real-Time Monitoring:** Enables immediate alerts and faster decision-making  
+- **Cost-Effective Maintenance:** Prevents minor defects from developing into major infrastructure failures  
+- **Scalable Solution:** Can be deployed across large railway networks and integrated with existing maintenance systems  
+
+By leveraging **automation, IoT connectivity, and cloud analytics**, this system contributes to **safer, smarter, and more efficient railway infrastructure management**.
 
 ## Solution Architecture
 
