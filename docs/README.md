@@ -84,9 +84,27 @@ Testing done on hardware and software, detailed + summarized results
 
 All items and costs
 
-| Item          | Quantity  | Unit Cost  | Total  |
-| ------------- |:---------:|:----------:|-------:|
-| Sample item   | 5         | 10 LKR     | 50 LKR |
+## All Items and Costs
+
+| Item                                                                 | Quantity | Unit Cost (LKR) | Total (LKR) |
+|----------------------------------------------------------------------|:--------:|:---------------:|:-----------:|
+| ESP32 Development Board - WROOM                                      | 1        | 1340            | 1340        |
+| ESP32-CAM Module                                                     | 1        | 2190            | 2190        |
+| Ultrasonic Sensors (HC-SR04)                                         | 6        | 230             | 1380        |
+| DC Geared Motors (TT / BO Motors, 100–200 RPM)                       | 4        | 1290            | 5160        |
+| Motor Driver Module (L298N / L293D)                                  | 1        | 440             | 440         |
+| GPS Module (NEO-6M / NEO-7M)                                         | 1        | 2590            | 2590        |
+| Rechargeable Battery                                                 | 1        | 1377            | 1377        |
+| Buck Converter (DC-DC Step-Down Module)                              | 1        | 1275            | 1275        |
+| PCB / Perfboard (for prototyping or final soldering)                 | 1        | 1000            | 1000        |
+| Switch / Power Button                                                | 1        | 85              | 85          |
+| Buzzer (Audible alert)                                               | 1        | 500             | 500         |
+| 16x2 LCD Display with I2C Module                                     | 1        | 1200            | 1200        |
+| Micro SD Card Module                                                 | 1        | 330             | 330         |
+| Other miscellaneous components (wires, mounts, fasteners, etc.)      | –        | –               | 3000        |
+| **Total Estimated Cost**                                             |          |                 | **23717**   |
+
+
 
 ## Conclusion
 
