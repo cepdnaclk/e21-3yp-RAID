@@ -89,7 +89,7 @@ All items and costs
 | Item                                                                 | Quantity | Unit Cost (LKR) | Total (LKR) |
 |----------------------------------------------------------------------|:--------:|:---------------:|:-----------:|
 | ESP32-S3-N16R8                                                       | 1        | 1840            | 1340        |
-| ESP32-CAM Module                                                     | 1        | 2190            | 2190        |
+| ESP32-CAM Module OV2640                                              | 1        | 2190            | 2190        |
 | Ultrasonic Sensors (HC-SR04)                                         | 2        | 230             | 460         |
 | DC Geared Motors (TT / BO Motors, 100–200 RPM)                       | 4        | 1290            | 5160        |
 | Motor Driver Module (L298N / L293D)                                  | 1        | 440             | 440         |
