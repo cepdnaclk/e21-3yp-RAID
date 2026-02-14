@@ -90,7 +90,7 @@ All items and costs
 |----------------------------------------------------------------------|:--------:|:---------------:|:-----------:|
 | ESP32 Development Board - WROOM                                      | 1        | 1340            | 1340        |
 | ESP32-CAM Module                                                     | 1        | 2190            | 2190        |
-| Ultrasonic Sensors (HC-SR04)                                         | 6        | 230             | 1380        |
+| Ultrasonic Sensors (HC-SR04)                                         | 2        | 230             | 460         |
 | DC Geared Motors (TT / BO Motors, 100–200 RPM)                       | 4        | 1290            | 5160        |
 | Motor Driver Module (L298N / L293D)                                  | 1        | 440             | 440         |
 | GPS Module (NEO-6M / NEO-7M)                                         | 1        | 2590            | 2590        |
@@ -102,7 +102,7 @@ All items and costs
 | 16x2 LCD Display with I2C Module                                     | 1        | 1200            | 1200        |
 | Micro SD Card Module                                                 | 1        | 330             | 330         |
 | Other miscellaneous components (wires, mounts, fasteners, etc.)      | –        | –               | 3000        |
-| **Total Estimated Cost**                                             |          |                 | **23717**   |
+| **Total Estimated Cost**                                             |          |                 | **22797**   |
 
 
 
