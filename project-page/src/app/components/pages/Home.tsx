@@ -10,7 +10,9 @@ import {
   MapPin,
   Cloud
 } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { ImageWithFallback } from "../figma/ImageWithFallback";
+import heroImg from '../../../assets/Gemini_Generated_Image_a4956ga4956ga495.png';
 
 export default function Home() {
   const features = [
@@ -21,7 +23,7 @@ export default function Home() {
     },
     {
       icon: Clock,
-      title: "Real-Time Monitoring",
+      title: "Real-Time Monitorinyg",
       description: "Enables immediate alerts and faster decision-making for maintenance teams",
     },
     {
@@ -57,20 +59,26 @@ export default function Home() {
   return (
     <div>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-slate-900 via-blue-900 to-slate-900 text-white overflow-hidden">
-        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjA1IiBzdHJva2Utd2lkdGg9IjEiLz48L3BhdHRlcm4+PC9kZWZzPjxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9InVybCgjZ3JpZCkiLz48L3N2Zz4=')] opacity-40"></div>
+      <section
+        className="relative text-white overflow-hidden"
+        style={{
+          backgroundImage: `linear-gradient(to bottom right, rgba(15,23,42,0.8), rgba(2,6,23,0.7)), url(${heroImg})`,
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }}
+      >
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32 relative z-10">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <div className="inline-flex items-center gap-2 bg-blue-500/20 backdrop-blur-sm border border-blue-400/30 rounded-full px-4 py-2 mb-6">
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span className="text-sm text-blue-200">IoT-Powered Railway Safety</span>
+              <div className="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600/20 to-cyan-500/12 backdrop-blur-sm border border-cyan-600/30 rounded-full px-4 py-2 mb-6">
+                <div className="w-2 h-2 bg-cyan-400 rounded-full animate-pulse"></div>
+                <span className="text-sm text-white">IoT-Powered Railway Safety</span>
               </div>
               
               <h1 className="text-5xl lg:text-6xl font-bold mb-6 leading-tight">
                 Autonomous Railway Track
-                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-400 to-cyan-400">
+                <span className="block text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-cyan-500">
                   Crack Detection
                 </span>
               </h1>
@@ -82,202 +90,135 @@ export default function Home() {
               <div className="flex flex-wrap gap-4">
                 <Link
                   to="/specifications"
-                  className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  className="relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-cyan-500 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-transform transform hover:-translate-y-0.5 shadow-lg hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-cyan-300 group"
                 >
-                  View Specifications
-                  <ArrowRight className="w-4 h-4" />
+                  <span className="absolute inset-0 rounded-lg bg-white/5 opacity-0 group-hover:opacity-20 transition-opacity" aria-hidden="true"></span>
+                  <span className="inline-flex items-center gap-2 relative z-10">
+                    View Specifications
+                    <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+                  </span>
                 </Link>
+
                 <Link
                   to="/architecture"
-                  className="inline-flex items-center gap-2 bg-white/10 hover:bg-white/20 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                  className="relative inline-flex items-center gap-2 bg-white/8 hover:bg-white/16 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-lg font-medium transition transform hover:-translate-y-0.5 shadow-sm hover:shadow-md group"
                 >
-                  See Architecture
+                  <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" aria-hidden="true"></span>
+                  <span className="relative z-10">See Architecture</span>
                 </Link>
               </div>
             </div>
 
             <div className="relative">
-              <div className="absolute -inset-4 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-2xl blur-2xl opacity-20"></div>
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1653813705905-472ea6eac827?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyYWlsd2F5JTIwdHJhY2slMjBpbnNwZWN0aW9uJTIwdGVjaG5vbG9neXxlbnwxfHx8fDE3NzE4NzM1Mjd8MA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Railway Track Inspection"
-                className="relative rounded-2xl shadow-2xl w-full"
-              />
+              <div className="absolute -inset-4 bg-gradient-to-r from-blue-600 to-cyan-500 rounded-2xl blur-2xl opacity-20"></div>
+              <div className="relative rounded-2xl shadow-2xl w-full h-72 md:h-96" aria-hidden="true"></div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Problem Statement */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">The Challenge</span>
-            <h2 className="text-4xl font-bold text-slate-900 mt-3 mb-6">Real-World Problem</h2>
-            <p className="text-lg text-slate-600 leading-relaxed">
-              Railway track failures caused by cracks, wear, and structural defects are a major reason for train derailments and service disruptions worldwide.
-            </p>
-          </div>
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-3 gap-8 md:gap-24 lg:gap-32 auto-rows-min">
+            {/* Challenge */}
+            <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-200 min-h-0 flex flex-col justify-start">
+              <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">The Challenge</span>
+              <h3 className="text-2xl font-bold text-slate-900 mt-3 mb-3">Real-World Problem</h3>
+              <p className="text-slate-600 text-lg mb-4">Railway track failures caused by cracks, wear, and structural defects are a major reason for train derailments and service disruptions worldwide.</p>
 
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-2">Manual Inspection Limitations</h3>
-                  <p className="text-slate-600">
-                    Traditional methods are time-consuming, expensive, and expose workers to dangerous environments.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-2">Early Detection Failures</h3>
-                  <p className="text-slate-600">
-                    Often fail to detect small or early-stage cracks, allowing defects to worsen and increasing accident risk.
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex gap-4">
-                <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
-                  <div className="w-6 h-6 bg-red-500 rounded-full"></div>
-                </div>
-                <div>
-                  <h3 className="font-semibold text-slate-900 mb-2">Slow Response Times</h3>
-                  <p className="text-slate-600">
-                    Lack of real-time monitoring makes it difficult for teams to respond quickly and efficiently.
-                  </p>
-                </div>
-              </div>
-            </div>
-
-            <div className="relative">
-              <div className="absolute inset-0 bg-gradient-to-br from-slate-200 to-slate-100 rounded-2xl transform rotate-3"></div>
-              <div className="relative bg-white p-8 rounded-2xl shadow-xl border border-slate-200">
-                <div className="text-6xl font-bold text-red-500 mb-2">57%</div>
-                <p className="text-slate-600 mb-6">of railway accidents are related to track defects</p>
-                <div className="text-6xl font-bold text-amber-500 mb-2">$3.2B</div>
-                <p className="text-slate-600">annual cost of railway maintenance globally</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Solution */}
-      <section className="py-20 bg-gradient-to-br from-blue-50 to-slate-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Our Solution</span>
-            <h2 className="text-4xl font-bold text-slate-900 mt-3 mb-6">Intelligent Detection System</h2>
-            <p className="text-lg text-slate-600 leading-relaxed">
-              An autonomous IoT-based robot that continuously monitors railway tracks using advanced sensors and provides real-time alerts through cloud integration.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8 mb-12">
-            {detectionFeatures.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <div key={index} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 hover:shadow-md transition-shadow">
-                  <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center mb-4">
-                    <Icon className="w-6 h-6 text-blue-600" />
+              <ul className="space-y-4">
+                <li className="flex gap-4">
+                  <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-lg flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-500" />
                   </div>
-                  <h3 className="font-semibold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-slate-600 text-sm">{feature.description}</p>
-                </div>
-              );
-            })}
-          </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 text-lg">Manual Inspection Limitations</h4>
+                    <p className="text-slate-600 text-base">Traditional methods are time-consuming, expensive, and expose workers to dangerous environments.</p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 text-lg">Early Detection Failures</h4>
+                    <p className="text-slate-600 text-base">Often fail to detect small or early-stage cracks, allowing defects to worsen and increasing accident risk.</p>
+                  </div>
+                </li>
+                <li className="flex gap-4">
+                  <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-lg flex items-center justify-center">
+                      <AlertTriangle className="w-5 h-5 text-red-500" />
+                  </div>
+                  <div>
+                    <h4 className="font-semibold text-slate-900 text-lg">Slow Response Times</h4>
+                    <p className="text-slate-600 text-base">Lack of real-time monitoring makes it difficult for teams to respond quickly and efficiently.</p>
+                  </div>
+                </li>
+              </ul>
+            </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-8 border border-slate-200">
-            <h3 className="text-2xl font-bold text-slate-900 mb-6">How It Works</h3>
-            <div className="grid md:grid-cols-4 gap-6">
-              <div className="relative">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
-                  1
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Scan</h4>
-                <p className="text-sm text-slate-600">Robot moves along tracks using IR and ultrasonic sensors</p>
-              </div>
-              
-              <div className="relative">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
-                  2
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Detect</h4>
-                <p className="text-sm text-slate-600">Identifies cracks and surface irregularities with high accuracy</p>
-              </div>
-              
-              <div className="relative">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
-                  3
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Capture</h4>
-                <p className="text-sm text-slate-600">Camera takes images and GPS records exact location</p>
-              </div>
-              
-              <div className="relative">
-                <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center text-white font-bold text-lg mb-4">
-                  4
-                </div>
-                <h4 className="font-semibold text-slate-900 mb-2">Alert</h4>
-                <p className="text-sm text-slate-600">Data uploaded to cloud dashboard for immediate action</p>
+            {/* Solution */}
+            <div className="p-6 bg-gradient-to-br from-blue-50 to-slate-50 rounded-2xl shadow-lg border border-slate-200 min-h-0 flex flex-col justify-start">
+              <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Our Solution</span>
+              <h3 className="text-2xl font-bold text-slate-900 mt-3 mb-3">Intelligent Detection System</h3>
+              <p className="text-slate-600 text-lg mb-4">An autonomous IoT-based robot that continuously monitors railway tracks using advanced sensors and provides real-time alerts through cloud integration.</p>
+
+              <div className="grid md:grid-cols-1 gap-4">
+                {detectionFeatures.map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={index} className="bg-white p-3 rounded-lg shadow-sm border border-slate-200 flex items-start gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <Icon className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-900 text-lg">{feature.title}</h4>
+                        <p className="text-slate-600 text-base">{feature.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Impact & Benefits */}
-      <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="max-w-3xl mx-auto text-center mb-16">
-            <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Impact</span>
-            <h2 className="text-4xl font-bold text-slate-900 mt-3 mb-6">Key Benefits</h2>
-            <p className="text-lg text-slate-600">
-              Our system delivers measurable improvements in safety, efficiency, and cost reduction.
-            </p>
-          </div>
+            {/* Impact */}
+            <div className="p-6 bg-white rounded-2xl shadow-lg border border-slate-200 min-h-0 flex flex-col justify-start">
+              <span className="text-sm font-semibold text-blue-600 uppercase tracking-wider">Impact</span>
+              <h3 className="text-2xl font-bold text-slate-900 mt-3 mb-3">Key Benefits</h3>
+              <p className="text-slate-600 text-lg mb-4">Our system delivers measurable improvements in safety, efficiency, and cost reduction.</p>
 
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <div
-                  key={index}
-                  className="bg-gradient-to-br from-white to-slate-50 p-6 rounded-xl border border-slate-200 hover:border-blue-300 hover:shadow-lg transition-all"
-                >
-                  <div className="w-14 h-14 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center mb-4 shadow-lg">
-                    <Icon className="w-7 h-7 text-white" />
+              <div className="grid md:grid-cols-2 lg:grid-cols-1 gap-4 mb-6">
+                {features.map((feature, index) => {
+                  const Icon = feature.icon;
+                  return (
+                    <div key={index} className="flex items-start gap-4">
+                        <div className="w-12 h-12 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center mb-0 shadow-lg">
+                          <Icon className="w-6 h-6 text-white" />
+                        </div>
+                      <div>
+                        <h4 className="font-semibold text-slate-900 text-lg">{feature.title}</h4>
+                        <p className="text-slate-600 text-base">{feature.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="mt-4 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-4 text-white">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                  <div>
+                    <div className="text-xl font-bold">24/7</div>
+                    <p className="text-sm text-blue-100">Continuous Monitoring</p>
                   </div>
-                  <h3 className="font-semibold text-slate-900 mb-2">{feature.title}</h3>
-                  <p className="text-slate-600 text-sm">{feature.description}</p>
+                  <div>
+                    <div className="text-xl font-bold">95%+</div>
+                    <p className="text-sm text-blue-100">Detection Accuracy</p>
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold">60%</div>
+                    <p className="text-sm text-blue-100">Cost Reduction</p>
+                  </div>
                 </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-12 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl p-8 text-white">
-            <div className="grid md:grid-cols-3 gap-8 text-center">
-              <div>
-                <div className="text-4xl font-bold mb-2">24/7</div>
-                <p className="text-blue-100">Continuous Monitoring</p>
-              </div>
-              <div>
-                <div className="text-4xl font-bold mb-2">95%+</div>
-                <p className="text-blue-100">Detection Accuracy</p>
-              </div>
-              <div>
-                <div className="text-4xl font-bold mb-2">60%</div>
-                <p className="text-blue-100">Cost Reduction</p>
               </div>
             </div>
           </div>
@@ -289,38 +230,33 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             <div>
-              <CheckCircle2 className="w-12 h-12 text-green-400 mb-6" />
-              <h2 className="text-4xl font-bold mb-6">Scalable Solution</h2>
-              <p className="text-slate-300 text-lg mb-6 leading-relaxed">
+              <h2 className="text-5xl lg:text-6xl font-bold mb-6">Scalable Solution</h2>
+              <p className="text-slate-300 text-xl mb-6 leading-relaxed">
                 Designed to be deployed across large railway networks and seamlessly integrated with existing maintenance management systems.
               </p>
               <ul className="space-y-4">
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-300">Compatible with all standard gauge tracks</span>
+                  <CheckCircle2 className="w-7 h-7 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-200 text-lg">Compatible with all standard gauge tracks</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-300">Cloud-based centralized monitoring</span>
+                  <CheckCircle2 className="w-7 h-7 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-200 text-lg">Cloud-based centralized monitoring</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-300">API integration with existing systems</span>
+                  <CheckCircle2 className="w-7 h-7 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-200 text-lg">API integration with existing systems</span>
                 </li>
                 <li className="flex items-start gap-3">
-                  <CheckCircle2 className="w-6 h-6 text-green-400 flex-shrink-0 mt-0.5" />
-                  <span className="text-slate-300">Modular design for easy maintenance</span>
+                  <CheckCircle2 className="w-7 h-7 text-green-400 flex-shrink-0 mt-0.5" />
+                  <span className="text-slate-200 text-lg">Modular design for easy maintenance</span>
                 </li>
               </ul>
             </div>
 
             <div className="relative">
               <div className="absolute -inset-4 bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl blur-2xl opacity-20"></div>
-              <ImageWithFallback
-                src="https://images.unsplash.com/photo-1768323275769-6615e7cfcbe4?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhdXRvbm9tb3VzJTIwcm9ib3QlMjBzZW5zb3IlMjB0ZWNobm9sb2d5fGVufDF8fHx8MTc3MTg3MzUyOHww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral"
-                alt="Autonomous Robot Technology"
-                className="relative rounded-2xl shadow-2xl"
-              />
+              <div className="relative rounded-2xl shadow-2xl w-full h-64 md:h-80 lg:h-96 bg-transparent" aria-hidden="true"></div>
             </div>
           </div>
         </div>
@@ -338,16 +274,20 @@ export default function Home() {
           <div className="flex flex-wrap justify-center gap-4">
             <Link
               to="/tech-stack"
-              className="inline-flex items-center gap-2 bg-white text-blue-600 hover:bg-blue-50 px-8 py-4 rounded-lg font-medium transition-colors shadow-lg"
+              className="relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-cyan-500 hover:to-blue-600 text-white px-8 py-4 rounded-lg font-semibold transition-transform transform hover:-translate-y-0.5 shadow-lg hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-blue-300 group"
             >
-              View Tech Stack
-              <ArrowRight className="w-4 h-4" />
+              <span className="absolute inset-0 rounded-lg bg-white/5 opacity-0 group-hover:opacity-20 transition-opacity" aria-hidden="true"></span>
+              <span className="inline-flex items-center gap-2 relative z-10">
+                View Tech Stack
+                <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
+              </span>
             </Link>
             <Link
               to="/contact"
-              className="inline-flex items-center gap-2 bg-blue-800 hover:bg-blue-900 text-white px-8 py-4 rounded-lg font-medium transition-colors"
+              className="relative inline-flex items-center gap-2 bg-white/8 hover:bg-white/16 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-lg font-medium transition transform hover:-translate-y-0.5 shadow-sm hover:shadow-md group"
             >
-              Get in Touch
+              <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" aria-hidden="true"></span>
+              <span className="relative z-10">Get in Touch</span>
             </Link>
           </div>
         </div>
