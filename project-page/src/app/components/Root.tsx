@@ -15,7 +15,6 @@ export default function Root() {
     { path: "/budget", label: "Budget" },
     { path: "/team", label: "Team" },
     { path: "/gallery", label: "Gallery" },
-    { path: "/contact", label: "Contact" },
   ];
 
   const isActive = (path: string) => {
@@ -35,8 +34,8 @@ export default function Root() {
                 <Train className="w-6 h-6 text-white" />
               </div>
               <div className="flex flex-col">
-                <span className="font-bold text-slate-900 text-lg leading-none">RailGuard</span>
-                <span className="text-xs text-slate-500">Track Monitoring System</span>
+                <span className="font-bold text-slate-900 text-lg leading-none">RAID</span>
+                <span className="text-xs text-slate-500">Railway Track Monitoring System</span>
               </div>
             </Link>
 
@@ -103,8 +102,8 @@ export default function Root() {
                   <Train className="w-6 h-6 text-white" />
                 </div>
                 <div>
-                  <div className="font-bold text-white text-lg">RailGuard</div>
-                  <div className="text-xs text-slate-400">Track Monitoring System</div>
+                  <div className="font-bold text-white text-lg">RAID</div>
+                  <div className="text-xs text-slate-400">Railway Track Monitoring System</div>
                 </div>
               </div>
               <p className="text-sm text-slate-400">
@@ -153,7 +152,7 @@ export default function Root() {
           </div>
 
           <div className="border-t border-slate-800 mt-8 pt-8 text-sm text-center text-slate-400">
-            <p>&copy; {new Date().getFullYear()} RailGuard Project. Built for safer railways.</p>
+            <p>&copy; {new Date().getFullYear()} RAID Project. Built for safer railways.</p>
           </div>
         </div>
       </footer>
