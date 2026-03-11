@@ -273,24 +273,60 @@ void setup() {
 }
 
 // ================= Loop =================
+unsigned long lastMsg = 0;
 unsigned long lastHeartbeat = 0;
 
 void loop() {
+  // 1. Maintain Connection
   if (!client.connected()) {
-    Serial.println("\n!! MQTT connection LOST in loop. Reconnecting...");
-    Serial.print("   State: "); Serial.println(mqttStateToString(client.state()));
+    Serial.println("\n!! MQTT connection LOST. Reconnecting...");
     connectAWS();
   }
+  
+  // 2. Process Incoming Messages & Keepalive
+  client.loop();
 
-  // Print a heartbeat every 10 seconds so you know the loop is alive
-  if (millis() - lastHeartbeat >= 10000) {
-    lastHeartbeat = millis();
-    Serial.printf("[Heartbeat] Uptime: %lus | Free Heap: %u | MQTT: %s\n",
-      millis() / 1000,
-      ESP.getFreeHeap(),
-      client.connected() ? "CONNECTED" : "DISCONNECTED"
-    );
+  unsigned long now = millis();
+
+  // 3. Publish Sensor Data every 5 seconds
+  if (now - lastMsg > 5000) {
+    lastMsg = now;
+
+    // Simulate sensor data (Replace these with your actual DHT or Analog sensor reads)
+    float temp = 22.0 + (random(0, 100) / 10.0); 
+    float hum = 40.0 + (random(0, 100) / 10.0);
+
+    /* Constructing the JSON payload. 
+       Note: Ensure the keys ("temperature", "deviceId") match 
+       what you plan to use in your Lambda/DynamoDB logic.
+    */
+    String payload = "{";
+    payload += "\"deviceId\":\"" + DEVICE_ID + "\",";
+    payload += "\"temperature\":" + String(temp) + ",";
+    payload += "\"humidity\":" + String(hum) + ",";
+    payload += "\"uptime\":" + String(now / 1000);
+    payload += "}";
+
+    // Define your publish topic
+    const char* topic = "device/esp32/data";
+
+    if (client.publish(topic, payload.c_str())) {
+      Serial.print("[Publish] Success! Topic: ");
+      Serial.print(topic);
+      Serial.print(" | Payload: ");
+      Serial.println(payload);
+    } else {
+      Serial.println("[Publish] FAILED! Check Buffer Size or Connection.");
+    }
   }
 
-  client.loop();
+  // 4. System Heartbeat every 30 seconds (Diagnostic info)
+  if (now - lastHeartbeat >= 30000) {
+    lastHeartbeat = now;
+    Serial.printf("\n--- System Status ---\n");
+    Serial.printf("Uptime    : %lus\n", now / 1000);
+    Serial.printf("Free Heap : %u bytes\n", ESP.getFreeHeap());
+    Serial.printf("WiFi RSSI : %d dBm\n", WiFi.RSSI());
+    Serial.println("---------------------\n");
+  }
 }
