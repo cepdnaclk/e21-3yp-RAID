@@ -1,236 +1,296 @@
-#include <Arduino.h>
-#include "secrets.h"
+#include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
-#include <ArduinoJson.h>
-#include "WiFi.h"
+#include <Arduino.h>
 #include <time.h>
 
-// --- IR Sensor Configuration ---
-#define IRPIN 14 
 
-#define AWS_IOT_PUBLISH_TOPIC   "ir-array1/pub" // Matches your AWS Policy prefix
-#define AWS_IOT_SUBSCRIBE_TOPIC "ir-array1/sub"
+// ================= Configuration =================
+const char* ssid = "Suvini";
+const char* password = "suvini12345678";
+const char* mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
+const char* CLIENT_ID = "esp32";
+const String DEVICE_ID = "esp-001";
 
-int irStatus;
+// ================= AWS IoT =================
+WiFiClientSecure espClient;
+PubSubClient client(espClient);
 
-WiFiClientSecure net = WiFiClientSecure();
-PubSubClient client(net);
+// ================= Certificates =================
+const char AWS_CERT_CA[] = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDQTCCAimgAwIBAgITBmyfz5m/jAo54vB4ikPmljZbyjANBgkqhkiG9w0BAQsF
+ADA5MQswCQYDVQQGEwJVUzEPMA0GA1UEChMGQW1hem9uMRkwFwYDVQQDExBBbWF6
+b24gUm9vdCBDQSAxMB4XDTE1MDUyNjAwMDAwMFoXDTM4MDExNzAwMDAwMFowOTEL
+MAkGA1UEBhMCVVMxDzANBgNVBAoTBkFtYXpvbjEZMBcGA1UEAxMQQW1hem9uIFJv
+b3QgQ0EgMTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALJ4gHHKeNXj
+ca9HgFB0fW7Y14h29Jlo91ghYPl0hAEvrAIthtOgQ3pOsqTQNroBvo3bSMgHFzZM
+9O6II8c+6zf1tRn4SWiw3te5djgdYZ6k/oI2peVKVuRF4fn9tBb6dNqcmzU5L/qw
+IFAGbHrQgLKm+a/sRxmPUDgH3KKHOVj4utWp+UhnMJbulHheb4mjUcAwhmahRWa6
+VOujw5H5SNz/0egwLX0tdHA114gk957EWW67c4cX8jJGKLhD+rcdqsq08p8kDi1L
+93FcXmn/6pUCyziKrlA4b9v7LWIbxcceVOF34GfID5yHI9Y/QCB/IIDEgEw+OyQm
+jgSubJrIqg0CAwEAAaNCMEAwDwYDVR0TAQH/BAUwAwEB/zAOBgNVHQ8BAf8EBAMC
+AYYwHQYDVR0OBBYEFIQYzIU07LwMlJQuCFmcx7IQTgoIMA0GCSqGSIb3DQEBCwUA
+A4IBAQCY8jdaQZChGsV2USggNiMOruYou6r4lK5IpDB/G/wkjUu0yKGX9rbxenDI
+U5PMCCjjmCXPI6T53iHTfIUJrU6adTrCC2qJeHZERxhlbI1Bjjt/msv0tadQ1wUs
+N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
+o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
+5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
+rqXRfboQnoZsG4q5WTP468SQvvG5
+-----END CERTIFICATE-----
+)EOF";
 
-// --- Function Declarations (Required for PlatformIO/CPP) ---
-void messageHandler(char* topic, byte* payload, unsigned int length);
-void connectWiFi();
-bool syncTime();
-void printLocalTime();
-void logMqttState();
-void connectAWS();
-void publishMessage();
+const char AWS_CERT_CRT[] = R"EOF(
+-----BEGIN CERTIFICATE-----
+MIIDWTCCAkGgAwIBAgIUYU80NJEOmXPqrS9EPdKO4mcmn4YwDQYJKoZIhvcNAQEL
+BQAwTTFLMEkGA1UECwxCQW1hem9uIFdlYiBTZXJ2aWNlcyBPPUFtYXpvbi5jb20g
+SW5jLiBMPVNlYXR0bGUgU1Q9V2FzaGluZ3RvbiBDPVVTMB4XDTI2MDMxMTA3MzIy
+MFoXDTQ5MTIzMTIzNTk1OVowHjEcMBoGA1UEAwwTQVdTIElvVCBDZXJ0aWZpY2F0
+ZTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBALWLZSO5efvXKf5jey57
+UZqrpkcuzi1FX7LdwHMzlTrrxGQlWV2fD75u4E7GOVfcrl9ZAsj8secj/23WMveU
+87xz1UhtmantRwXz6jjpP9VyOkXqD7HjfWhxXW6oIkhuZfNrhacR6cfBc9V8iuje
+bPL28qTidH847d+oPtkS7fRqRyhk91LBsdldqs8h+3Gkit0ZcxVERr7v1/i/ZYOI
+6pvPQ5kGE/mZP3PTap2q58psZI5O6uhMbFf2djn1sPOjdcAupYzyLSwOjw4gJlsb
+5yGPCZM6xgHIBkV8DpTB3kQOetKiDW2dJ6YzeWx7qV6bUYBsY6S79MC6/QX02yoE
+KH8CAwEAAaNgMF4wHwYDVR0jBBgwFoAUj0s/lciho5qMSqh59zVrKWVFDs4wHQYD
+VR0OBBYEFMnmHFwOB9qy+kW+Q7vktG/722EoMAwGA1UdEwEB/wQCMAAwDgYDVR0P
+AQH/BAQDAgeAMA0GCSqGSIb3DQEBCwUAA4IBAQCc/Zsb8le1vJubdmV5V7FZcv7z
+eC0pS7hRIJo/qdzYhojU6aE0zGzYZ/KkjsyRkGkfoPR4pe99kfkPFPGlGFZzmdHz
+4TleCRfVnSoZxhd0kmDxw66iRUyPWeIiRT3NjH70yYrAx9xKf8K4/j4YU3Gq+K5w
+LbqN8Oj1ncYyh2Tnv52L3XVgiY9IWh8bCs1BRe5L+HwegEv5s4x1Py2aRGI5oiyF
+KON0AkQeNm5P+2fLy7Ht2gKwEePDAfB2s9QI5PG99NKcYP0KScgR91UoyeXf0Ymk
+sYTGZwunvQTZCI+Jw5tFttCEJJz7i/rNKkX+iS/lG6h20kKRwynHpztyIBUc
+-----END CERTIFICATE-----
 
-static bool s_tlsConfigured = false;
-static bool s_timeSynced = false;
+)EOF";
 
-void setup() {
-    Serial.begin(115200);
-    delay(500);
-    while (!Serial && millis() < 4000) {
-        delay(10);
-    }
+const char AWS_CERT_PRIVATE[] = R"EOF(
+-----BEGIN RSA PRIVATE KEY-----
+MIIEpAIBAAKCAQEAtYtlI7l5+9cp/mN7LntRmqumRy7OLUVfst3AczOVOuvEZCVZ
+XZ8Pvm7gTsY5V9yuX1kCyPyx5yP/bdYy95TzvHPVSG2Zqe1HBfPqOOk/1XI6ReoP
+seN9aHFdbqgiSG5l82uFpxHpx8Fz1XyK6N5s8vbypOJ0fzjt36g+2RLt9GpHKGT3
+UsGx2V2qzyH7caSK3RlzFURGvu/X+L9lg4jqm89DmQYT+Zk/c9Nqnarnymxkjk7q
+6ExsV/Z2OfWw86N1wC6ljPItLA6PDiAmWxvnIY8JkzrGAcgGRXwOlMHeRA560qIN
+bZ0npjN5bHupXptRgGxjpLv0wLr9BfTbKgQofwIDAQABAoIBAHrX2hY0WUB6NaY3
+NpEbTPq2D4u3NjgX60ujFaheTSpTgs6pHzFkgki/yfRD2WWEpFFMb8AEjXT0PNDb
+0h0Jo2vvjXC3CPWc4yQ6ClF8M3+BDcFlQj2Cy8cyfqB0EM6mNUJjjUqhqmlKk9Dv
+tycf6uT1CPddbKrxoLRoqi5EytNJOuiAST/1PtQK/Qs+Ml+y/i6pKhQc3eUaUn40
+SCndXrgJhToKIDVHYeKDZxwDYtGwLD0SrGmVywsT8akEEDLpOcRFaOFGEuE+eP//
+W6KFheLNW5P9Eiw33pUn1I7DhFVS/HoPm7Dt0T+i7AbUS5BtpO3+7NvlUIiHVi6D
+XoBxcnECgYEA4BO0lKSpEIkMpwt/xi7rohFw1Ujnt9Cx7piSEePV/GYKdZe6ZIJG
+ClwGMk0ihGsItuHI7s0PpvkPtUgQxnaRuu1F8AXj2uyjvOx6DfagCLrXxLkaqDrR
+oEVUd2wyJKiBFEt0ruQlGDpx8lSl8fLPIPQntHBXZAIRs3LyH2YnYN0CgYEAz2h9
+zkWYKHJ+Dyt9jZW6IkV60of1yodwVV60z9SLtPKJmm77ehUzmbaXju7O5GZVhiJ6
+r0Tkg1MzNEeWSJo5o4/77QL7Cg6kFeDOiqL8I0HVB//FlifLg3h1Bz1L/guAjSo/
+FOVurDOQC5pj68miEETBf6e+YD4i/yn1yPZ3iwsCgYEAx0gfKLdMeJ06OHHcoDfo
+bgmOzND665paNHVSK0DydXeWw8A+D9dgTSRMin3ZPeUnKeah2edbjUch9jpyWN7o
+elM9CNtkKracZI/3eOWmrDznWli5YXZ2KlCeb1s1OS73JUJ6MnRKnUKVRkyMDSLB
+nXAmw63JuvKwJWUL+mrSiK0CgYAQ5LfqhyyfjsPJxIcTczCX/gTFBSH1/xYdPfuI
+Og2vDVo74/JDvVpYmNC7aaQcYmFw7XoEsJ3UPICdL3+EJluvgNjKM0XzScH/rjHk
+hOX4kTIi1qhnVJJ1AOi3UDzSUmmEFf7RWuaqzABdkZO17tRucss39JfDCwyar/Y/
+CiQuhQKBgQDR5PJMxcT2ca2WxLOJUOOsEkgZCh4Ybkp4tyRvt7VUQ9jq9PN/Kka8
+SDFxfKE+qwUiPm05dJAiwnJht/aIoU44m4H+1jSm04OX6K9mNj0MLET3NG6gE/Jz
+krMtsh2qcmRX7yFXzYXiFNWahWMUvgJb1bE02EtOawY8itbItBJ6eg==
+-----END RSA PRIVATE KEY-----
+)EOF";
 
-    Serial.println("Booting...");
-    pinMode(IRPIN, INPUT); 
-    connectAWS();
+// ================= Helper: MQTT State to String =================
+String mqttStateToString(int state) {
+  switch (state) {
+    case -4: return "MQTT_CONNECTION_TIMEOUT";
+    case -3: return "MQTT_CONNECTION_LOST";
+    case -2: return "MQTT_CONNECT_FAILED";
+    case -1: return "MQTT_DISCONNECTED";
+    case  0: return "MQTT_CONNECTED";
+    case  1: return "MQTT_CONNECT_BAD_PROTOCOL";
+    case  2: return "MQTT_CONNECT_BAD_CLIENT_ID";
+    case  3: return "MQTT_CONNECT_UNAVAILABLE";
+    case  4: return "MQTT_CONNECT_BAD_CREDENTIALS";
+    case  5: return "MQTT_CONNECT_UNAUTHORIZED";
+    default: return "UNKNOWN (" + String(state) + ")";
+  }
 }
+
+// ================= WiFi Connection =================
+void connectWiFi() {
+  Serial.println("\n========== WiFi ==========");
+  Serial.print("Target SSID  : "); Serial.println(ssid);
+  Serial.print("Chip MAC     : "); Serial.println(WiFi.macAddress());
+  Serial.println("Starting WiFi connection...");
+
+  WiFi.mode(WIFI_STA);
+  WiFi.begin(ssid, password);
+
+  int attempts = 0;
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    attempts++;
+    Serial.printf("  [%2ds] Status: %d", attempts, WiFi.status());
+    // Status codes: 0=IDLE, 1=NO_SSID, 3=CONNECTED, 4=CONNECT_FAILED, 6=DISCONNECTED
+    switch (WiFi.status()) {
+      case WL_NO_SSID_AVAIL:   Serial.print(" -> SSID NOT FOUND"); break;
+      case WL_CONNECT_FAILED:  Serial.print(" -> WRONG PASSWORD / AUTH FAILED"); break;
+      case WL_CONNECTION_LOST: Serial.print(" -> CONNECTION LOST"); break;
+      case WL_DISCONNECTED:    Serial.print(" -> DISCONNECTED (trying...)"); break;
+      default: break;
+    }
+    Serial.println();
+
+    if (attempts >= 30) {
+      Serial.println("  !! TIMEOUT after 30s. Restarting ESP32...");
+      ESP.restart();
+    }
+  }
+
+  Serial.println("  >> WiFi CONNECTED!");
+  Serial.print("  IP Address  : "); Serial.println(WiFi.localIP());
+  Serial.print("  Gateway     : "); Serial.println(WiFi.gatewayIP());
+  Serial.print("  DNS         : "); Serial.println(WiFi.dnsIP());
+  Serial.print("  Signal (dBm): "); Serial.println(WiFi.RSSI());
+  Serial.println("==========================\n");
+}
+
+// ================= AWS IoT Connection =================
+void connectAWS() {
+  Serial.println("========== AWS IoT ==========");
+  Serial.print("Broker       : "); Serial.println(mqtt_server);
+  Serial.print("Port         : 8883");
+  Serial.println();
+  Serial.print("Client ID    : "); Serial.println(CLIENT_ID);
+
+  Serial.println("Loading TLS certificates...");
+  espClient.setCACert(AWS_CERT_CA);
+  espClient.setCertificate(AWS_CERT_CRT);
+  espClient.setPrivateKey(AWS_CERT_PRIVATE);
+  Serial.println("  CA Cert    : Loaded");
+  Serial.println("  Device Cert: Loaded");
+  Serial.println("  Private Key: Loaded");
+
+  client.setServer(mqtt_server, 8883);
+  client.setBufferSize(1024);
+  Serial.println("MQTT server configured. Attempting connection...");
+
+  int attempt = 0;
+  while (!client.connected()) {
+    attempt++;
+    Serial.printf("\n  [Attempt %d] Connecting to AWS IoT...\n", attempt);
+
+    if (client.connect(CLIENT_ID)) {
+      Serial.println("  >> MQTT CONNECTED to AWS IoT Core!");
+    } else {
+      int rc = client.state();
+      Serial.print("  !! FAILED. State code: ");
+      Serial.println(mqttStateToString(rc));
+
+      if (rc == -2) {
+        Serial.println("     >> TLS Handshake likely failed.");
+        Serial.println("        Check: certificate validity, endpoint URL, clock sync.");
+      } else if (rc == 5) {
+        Serial.println("     >> Unauthorized. Check AWS IoT Policy allows clientId & actions.");
+      } else if (rc == 2) {
+        Serial.println("     >> Bad Client ID. Ensure CLIENT_ID matches your AWS IoT Policy.");
+      }
+
+      Serial.println("  Retrying in 5 seconds...");
+      delay(5000);
+
+      if (attempt >= 5) {
+        Serial.println("  !! 5 failed attempts. Restarting ESP32...");
+        ESP.restart();
+      }
+    }
+  }
+  Serial.println("=============================\n");
+}
+
+// ================= MQTT Callback =================
+void mqttCallback(char* topic, byte* payload, unsigned int length) {
+  Serial.println("\n---------- MQTT Message ----------");
+  Serial.print("Topic  : "); Serial.println(topic);
+  Serial.print("Length : "); Serial.println(length);
+  Serial.print("Payload: ");
+  String message;
+  for (unsigned int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  Serial.println(message);
+  Serial.println("----------------------------------\n");
+}
+
+
+
+void syncTime() {
+  Serial.println("Syncing time with NTP...");
+
+  configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+
+  time_t now = time(nullptr);
+  while (now < 8 * 3600 * 2) {
+    delay(500);
+    Serial.print(".");
+    now = time(nullptr);
+  }
+
+  Serial.println("\nTime synchronized!");
+
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+
+  Serial.print("Current time: ");
+  Serial.println(asctime(&timeinfo));
+}
+
+// ================= Setup =================
+void setup() {
+  Serial.begin(115200);
+  delay(1000); // Let Serial stabilize
+  
+  Serial.println("\n\n##############################");
+  Serial.println("#   ESP32 AWS IoT Boot       #");
+  Serial.println("##############################");
+  Serial.print("SDK Version : "); Serial.println(ESP.getSdkVersion());
+  Serial.print("Free Heap   : "); Serial.println(ESP.getFreeHeap());
+  Serial.print("Chip Model  : "); Serial.println(ESP.getChipModel());
+  Serial.println();
+
+  connectWiFi();
+  syncTime();
+  connectAWS();
+  
+
+  client.setCallback(mqttCallback);
+
+  String commandTopic = "device/" + DEVICE_ID + "/command";
+  Serial.print("Subscribing to: "); Serial.println(commandTopic);
+
+  if (client.subscribe(commandTopic.c_str())) {
+    Serial.println("  >> Subscription SUCCESSFUL");
+  } else {
+    Serial.println("  !! Subscription FAILED");
+  }
+
+  Serial.println("\n>>> Setup complete. Entering loop...\n");
+}
+
+// ================= Loop =================
+unsigned long lastHeartbeat = 0;
 
 void loop() {
-    irStatus = digitalRead(IRPIN);
+  if (!client.connected()) {
+    Serial.println("\n!! MQTT connection LOST in loop. Reconnecting...");
+    Serial.print("   State: "); Serial.println(mqttStateToString(client.state()));
+    connectAWS();
+  }
 
-    if (client.connected()) {
-        publishMessage();
-    } else {
-        connectAWS(); // Reconnect if connection drops
-    }
+  // Print a heartbeat every 10 seconds so you know the loop is alive
+  if (millis() - lastHeartbeat >= 10000) {
+    lastHeartbeat = millis();
+    Serial.printf("[Heartbeat] Uptime: %lus | Free Heap: %u | MQTT: %s\n",
+      millis() / 1000,
+      ESP.getFreeHeap(),
+      client.connected() ? "CONNECTED" : "DISCONNECTED"
+    );
+  }
 
-    client.loop();
-    delay(2000); 
-}
-
-// --- Function Definitions ---
-
-void connectAWS() {
-    Serial.println("\n----------------------------");
-    Serial.println("STEP 1: Connecting to Wi-Fi");
-
-    connectWiFi();
-    if (WiFi.status() != WL_CONNECTED) {
-        Serial.println("[ERROR] WiFi Connection Failed. Check hotspot/SSID/password.");
-        Serial.println("----------------------------");
-        return;
-    }
-
-    Serial.println("[SUCCESS] Wi-Fi Connected!");
-    Serial.print("IP Address: ");
-    Serial.println(WiFi.localIP());
-
-    if (!s_timeSynced) {
-        Serial.println("STEP 1b: Syncing time (required for TLS cert validation)");
-        s_timeSynced = syncTime();
-        if (!s_timeSynced) {
-            Serial.println("[ERROR] Time sync failed; TLS to AWS IoT will fail without valid time.");
-            Serial.println("----------------------------");
-            return;
-        }
-    }
-
-    if (!s_tlsConfigured) {
-        // Configure WiFiClientSecure with certificates (do this once)
-        net.setCACert(AWS_CERT_CA);
-        net.setCertificate(AWS_CERT_CRT);
-        net.setPrivateKey(AWS_CERT_PRIVATE);
-        net.setHandshakeTimeout(30);
-
-        client.setServer(AWS_IOT_ENDPOINT, 8883);
-        client.setCallback(messageHandler);
-        client.setSocketTimeout(15);
-        client.setKeepAlive(60);
-        s_tlsConfigured = true;
-    }
-
-    IPAddress resolved;
-    Serial.println("\nSTEP 2: Connecting to AWS IoT Core...");
-    Serial.print("Endpoint: ");
-    Serial.println(AWS_IOT_ENDPOINT);
-    if (WiFi.hostByName(AWS_IOT_ENDPOINT, resolved)) {
-        Serial.print("DNS resolved: ");
-        Serial.println(resolved);
-    } else {
-        Serial.println("[WARN] DNS resolution failed (check Wi-Fi DNS / captive portal). ");
-    }
-
-    if (client.connect(THINGNAME)) {
-        Serial.println("[SUCCESS] AWS IoT Connected!");
-        client.subscribe(AWS_IOT_SUBSCRIBE_TOPIC);
-        Serial.println("----------------------------");
-        return;
-    }
-
-    Serial.println("[ERROR] AWS IoT Connection Failed.");
-    logMqttState();
-    {
-        char sslErr[256];
-        int err = net.lastError(sslErr, sizeof(sslErr));
-        Serial.printf("TLS lastError: %d (%s)\n", err, sslErr);
-    }
-    Serial.println("----------------------------");
-}
-
-void publishMessage() {
-    StaticJsonDocument<200> doc;
-    doc["device_id"] = THINGNAME;
-    doc["status"] = (irStatus == LOW) ? "OBJECT_DETECTED" : "CLEAR";
-    
-    char jsonBuffer[512];
-    serializeJson(doc, jsonBuffer); 
-    client.publish(AWS_IOT_PUBLISH_TOPIC, jsonBuffer);
-}
-
-void messageHandler(char* topic, byte* payload, unsigned int length) {
-    // Handle incoming messages if needed
-}
-
-void connectWiFi() {
-    if (WiFi.status() == WL_CONNECTED) {
-        return;
-    }
-
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
-    Serial.printf("Connecting to Wi-Fi SSID: %s\n", WIFI_SSID);
-
-    int attempt = 0;
-    while (WiFi.status() != WL_CONNECTED && attempt < 30) {
-        attempt++;
-        delay(500);
-        Serial.print(".");
-    }
-
-    Serial.println();
-
-    if (WiFi.status() == WL_CONNECTED) {
-        Serial.printf("Wi-Fi connected. IP address: %s\n", WiFi.localIP().toString().c_str());
-        return;
-    }
-
-    Serial.printf("Wi-Fi connection failed. Status code: %d\n", WiFi.status());
-}
-
-bool syncTime() {
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    Serial.println("Synchronizing time with NTP");
-
-    time_t now = time(nullptr);
-    int attempt = 0;
-    while (now < 8 * 3600 * 2 && attempt < 30) {
-        attempt++;
-        delay(500);
-        Serial.print(".");
-        now = time(nullptr);
-    }
-
-    Serial.println();
-
-    if (now < 8 * 3600 * 2) {
-        Serial.println("NTP time sync failed");
-        return false;
-    }
-
-    printLocalTime();
-    return true;
-}
-
-void printLocalTime() {
-    struct tm timeInfo;
-    if (!getLocalTime(&timeInfo)) {
-        Serial.println("Failed to obtain local time");
-        return;
-    }
-
-    Serial.print("Current UTC time: ");
-    Serial.println(&timeInfo, "%Y-%m-%d %H:%M:%S");
-}
-
-void logMqttState() {
-    Serial.printf("MQTT connect failed, PubSubClient state=%d\n", client.state());
-
-    switch (client.state()) {
-        case MQTT_CONNECTION_TIMEOUT:
-            Serial.println("Reason: broker timeout or TLS handshake did not complete");
-            break;
-        case MQTT_CONNECTION_LOST:
-            Serial.println("Reason: connection was lost after being established");
-            break;
-        case MQTT_CONNECT_FAILED:
-            Serial.println("Reason: network or TLS connection failed before MQTT CONNECT completed");
-            break;
-        case MQTT_DISCONNECTED:
-            Serial.println("Reason: client is disconnected");
-            break;
-        case MQTT_CONNECT_BAD_PROTOCOL:
-            Serial.println("Reason: broker rejected the MQTT protocol version");
-            break;
-        case MQTT_CONNECT_BAD_CLIENT_ID:
-            Serial.println("Reason: AWS IoT rejected the client ID");
-            break;
-        case MQTT_CONNECT_UNAVAILABLE:
-            Serial.println("Reason: broker unavailable");
-            break;
-        case MQTT_CONNECT_BAD_CREDENTIALS:
-            Serial.println("Reason: certificate or private key rejected");
-            break;
-        case MQTT_CONNECT_UNAUTHORIZED:
-            Serial.println("Reason: AWS IoT policy or certificate authorization failed");
-            break;
-        default:
-            Serial.println("Reason: unknown MQTT state");
-            break;
-    }
+  client.loop();
 }
