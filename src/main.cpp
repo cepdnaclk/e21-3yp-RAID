@@ -3,7 +3,7 @@
 #include <PubSubClient.h>
 #include <Arduino.h>
 #include <time.h>
-
+#include "sensor configuration/ir sensors/ir_sensor.h"
 
 // ================= Configuration =================
 const char* ssid = "Suvini";
@@ -256,6 +256,7 @@ void setup() {
   connectWiFi();
   syncTime();
   connectAWS();
+  initIRSensors();
   
 
   client.setCallback(mqttCallback);
@@ -293,8 +294,7 @@ void loop() {
     lastMsg = now;
 
     // Simulate sensor data (Replace these with your actual DHT or Analog sensor reads)
-    float temp = 22.0 + (random(0, 100) / 10.0); 
-    float hum = 40.0 + (random(0, 100) / 10.0);
+    int irValue = readIRSensor();
 
     /* Constructing the JSON payload. 
        Note: Ensure the keys ("temperature", "deviceId") match 
@@ -302,9 +302,7 @@ void loop() {
     */
     String payload = "{";
     payload += "\"deviceId\":\"" + DEVICE_ID + "\",";
-    payload += "\"temperature\":" + String(temp) + ",";
-    payload += "\"humidity\":" + String(hum) + ",";
-    payload += "\"uptime\":" + String(now / 1000);
+    payload += "\"irSensor\":" + String(irValue);
     payload += "}";
 
     // Define your publish topic
@@ -330,3 +328,4 @@ void loop() {
     Serial.println("---------------------\n");
   }
 }
+
