@@ -1,4 +1,12 @@
------BEGIN RSA PRIVATE KEY-----
+# this is the private key for simulation since private key did not work due to an formatting issue i created this with UFT-8 encoding
+
+import os
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+key_path = os.path.join(BASE_DIR, "private.pem.key")
+
+# We embed the exact text here so Windows cannot mess with the encoding
+key_data = """-----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAtYtlI7l5+9cp/mN7LntRmqumRy7OLUVfst3AczOVOuvEZCVZ
 XZ8Pvm7gTsY5V9yuX1kCyPyx5yP/bdYy95TzvHPVSG2Zqe1HBfPqOOk/1XI6ReoP
 seN9aHFdbqgiSG5l82uFpxHpx8Fz1XyK6N5s8vbypOJ0fzjt36g+2RLt9GpHKGT3
@@ -24,4 +32,10 @@ hOX4kTIi1qhnVJJ1AOi3UDzSUmmEFf7RWuaqzABdkZO17tRucss39JfDCwyar/Y/
 CiQuhQKBgQDR5PJMxcT2ca2WxLOJUOOsEkgZCh4Ybkp4tyRvt7VUQ9jq9PN/Kka8
 SDFxfKE+qwUiPm05dJAiwnJht/aIoU44m4H+1jSm04OX6K9mNj0MLET3NG6gE/Jz
 krMtsh2qcmRX7yFXzYXiFNWahWMUvgJb1bE02EtOawY8itbItBJ6eg==
------END RSA PRIVATE KEY-----
+-----END RSA PRIVATE KEY-----"""
+
+# Write the file strictly as Linux-style UTF-8
+with open(key_path, 'w', encoding='utf-8', newline='\n') as f:
+    f.write(key_data.strip() + '\n')
+
+print("SUCCESS: private.pem.key has been perfectly recreated by Python!")

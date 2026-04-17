@@ -306,9 +306,9 @@ void loop() {
     payload += "}";
 
     // Define your publish topic
-    const char* topic = "device/esp32/data";
+    String topic = "device/" + DEVICE_ID + "/ir";
 
-    if (client.publish(topic, payload.c_str())) {
+    if (client.publish(topic.c_str(), payload.c_str())) {
       Serial.print("[Publish] Success! Topic: ");
       Serial.print(topic);
       Serial.print(" | Payload: ");
