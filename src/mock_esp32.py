@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import random
+from datetime import datetime
 from AWSIoTPythonSDK.MQTTLib import AWSIoTMQTTClient
 
 # ----------------- Certificate Check -----------------
@@ -20,8 +21,10 @@ print("All certificate files found!")
 
 # ----------------- MQTT Setup -----------------
 IOT_ENDPOINT = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com"  # replace this
-CLIENT_ID = "mockESP32"
-TOPIC = "device/esp32/data"
+CLIENT_ID = "esp32"
+
+DEVICE_ID = "esp-001"
+TOPIC = f"device/{DEVICE_ID}/ir"
 
 client = AWSIoTMQTTClient(CLIENT_ID)
 client.configureEndpoint(IOT_ENDPOINT, 8883)
@@ -29,7 +32,7 @@ client.configureCredentials(ROOT_CA, KEY_FILE, CERT_FILE)
 client.configureOfflinePublishQueueing(-1)  # Infinite offline queue
 client.configureDrainingFrequency(2)  # 2 Hz
 client.configureConnectDisconnectTimeout(10)  # 10 sec
-client.configureMQTTOperationTimeout(5)  # 5 sec
+client.configureMQTTOperationTimeout(20)  # 5 sec
 
 try:
     client.connect()
@@ -44,11 +47,15 @@ except Exception as e:
 count = 0
 try:
     while True:
+        is_crack_detected = random.random() > 0.90
         payload = {
             "deviceId": "esp-001",
-            "temperature": round(20 + random.random()*5, 2),
-            "humidity": round(40 + random.random()*10, 2),
+            "timestamp": datetime.now().isoformat(),
+            "sensor": "IR_Bottom",
+            "crack_detected": is_crack_detected,
+            "status": "CRACK FOUND" if is_crack_detected else "NORMAL",
             "uptime": count * 5
+           
         }
         try:
             client.publish(TOPIC, json.dumps(payload), 1)
