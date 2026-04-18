@@ -1,14 +1,69 @@
+// IRSensorDataDTO.java
 package com.dto.sensor;
 
-import lombok.Data;
-
-/**
- * Transport object used both by REST endpoints and MQTT payload parsing.
- */
-@Data
 public class IRSensorDataDTO {
-    private String deviceId;
-    private int irValue;
-    private String timestamp;
 
+    private String sensorId;
+    private String timestamp;
+    private String deviceId;
+    private boolean crackDetected;
+    private String status;
+
+    // Empty constructor needed by Spring
+    public IRSensorDataDTO() {
+    }
+
+    // Constructor to quickly build the object
+    public IRSensorDataDTO(String sensorId, String timestamp, String deviceId, boolean crackDetected, String status) {
+        this.sensorId = sensorId;
+        this.timestamp = timestamp;
+        this.deviceId = deviceId;
+        this.crackDetected = crackDetected;
+        this.status = status;
+    }
+
+    // Standard Getters and Setters
+    public String getSensorId() {
+        return sensorId;
+    }
+
+    public void setSensorId(String sensorId) {
+        this.sensorId = sensorId;
+    }
+
+    public String getTimestamp() {
+        return timestamp;
+    }
+
+    public void setTimestamp(String timestamp) {
+        this.timestamp = timestamp;
+    }
+
+    public String getDeviceId() {
+        return deviceId;
+    }
+
+    public void setDeviceId(String deviceId) {
+        this.deviceId = deviceId;
+    }
+
+    public boolean isCrackDetected() {
+        return crackDetected;
+    }
+
+    public void setCrackDetected(boolean crackDetected) {
+        this.crackDetected = crackDetected;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
 }
+
+// The DTO is a clean, lightweight, plain Java object with zero database logic.
+// The Mapper takes the heavy DB Entity, copies only the safe data into the DTO,
+// and ships the DTO to the frontend.

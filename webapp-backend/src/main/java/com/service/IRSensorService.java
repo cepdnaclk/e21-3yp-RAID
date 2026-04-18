@@ -1,34 +1,99 @@
 package com.service;
 
 import com.dto.sensor.IRSensorDataDTO;
+import com.mapper.IRSensorMapper;
+import com.model.IRSensorData;
+import com.repositary.IRSensorRepository;
+import org.springframework.stereotype.Service;
+
 import java.util.List;
+import java.util.stream.Collectors;
 
-/**
- * Service contract for persisting and retrieving IR sensor readings.
- */
-public interface IRSensorService {
+// 1. The Annotation
+@Service
+public class IRSensorService {
 
-    /**
-     * Saves a single IR sensor payload for a device.
-     *
-     * @param dto sensor data transfer object to persist
-     * @return the saved sensor data (typically including generated metadata)
-     */
-    IRSensorDataDTO saveIRData(IRSensorDataDTO dto);
+    // 2. The Dependencies
+    private final IRSensorRepository repository;
+    private final IRSensorMapper mapper;
 
-    /**
-     * Fetches every IR sensor record available in storage.
-     *
-     * @return list of all IR sensor data records
-     */
-    List<IRSensorDataDTO> getAllIRData();
+    // 3. Dependency Injection (Constructor)
+    public IRSensorService(IRSensorRepository repository, IRSensorMapper mapper) {
+        this.repository = repository;
+        this.mapper = mapper;
+    }
 
-    /**
-     * Fetches IR sensor records associated with one device.
-     *
-     * @param deviceId unique identifier of the device
-     * @return list of IR sensor data records for the given device
-     */
-    List<IRSensorDataDTO> getIRDataByDevice(String deviceId);
+    // 4. The Business Logic
+    public List<IRSensorDataDTO> getAllCrackData() {
+
+        // Step A: Fetch the raw, heavy entities from the database
+        List<IRSensorData> rawData = repository.getAllData();
+
+        // Step B: Transform the raw entities into lightweight DTOs
+        return rawData.stream()
+                .map(entity -> mapper.toDTO(entity))
+                .collect(Collectors.toList());
+    }
+
+    public List<IRSensorDataDTO> getSpecificCracks(String deviceId, String sensorId) {
+
+        // 1. Ask the repository for the filtered data
+        List<IRSensorData> rawData = repository.getCracksByDeviceAndSensor(deviceId, sensorId);
+
+        // 2. Map the heavy entities to lightweight DTOs
+        return rawData.stream()
+                .map(entity -> mapper.toDTO(entity))
+                .collect(Collectors.toList());
+    }
 
 }
+
+/*
+ * ============================================================
+ * IRSensorService - Service Layer Class
+ * ============================================================
+ *
+ * PURPOSE:
+ * This class contains the business logic for handling IR sensor data.
+ * It acts as an intermediate layer between the Controller and Repository.
+ *
+ * WHY THIS CLASS EXISTS:
+ * - To separate business logic from database operations
+ * - To keep controllers clean and focused only on handling requests
+ * - To make the application easier to maintain, test, and scale
+ *
+ * HOW IT WORKS:
+ * 1. The Controller calls this service when it needs sensor data.
+ * 2. This service requests raw data from the Repository (database layer).
+ * 3. The raw data (Entity objects) may contain unnecessary/internal fields.
+ * 4. The service uses a Mapper to convert Entities into DTOs (clean objects).
+ * 5. The DTO list is returned to the Controller.
+ *
+ * KEY COMPONENTS:
+ *
+ * - IRSensorRepository:
+ * Handles direct database access and returns IRSensorData (Entity objects).
+ *
+ * - IRSensorMapper:
+ * Converts IRSensorData (Entity) → IRSensorDataDTO (safe, lightweight object).
+ *
+ * METHOD EXPLANATION:
+ *
+ * getAllCrackData():
+ * ------------------
+ * - Fetches all IR sensor records from the database.
+ * - Uses Java Streams to transform each entity into a DTO.
+ * - Returns a list of DTOs to the caller.
+ *
+ * FLOW:
+ * Controller → Service → Repository → Database
+ * Database → Repository → Service (map to DTO) → Controller
+ *
+ * BENEFITS:
+ * - Clean architecture (Separation of Concerns)
+ * - Better security (DTO hides sensitive fields)
+ * - Reusable business logic
+ * - Easier debugging and testing
+ *
+ * ============================================================
+ */

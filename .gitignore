@@ -40,3 +40,7 @@ Thumbs.db
 
 
 webapp-backend/src/main/resources/application.properties
+
+src/make_key.py
+src/private.pem.key
+e:\RAID\project page\e21-3yp-RAID\src\certificate.pem.crt

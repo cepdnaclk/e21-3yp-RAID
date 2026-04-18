@@ -1,63 +1,64 @@
 package com.repositary.imp;
 
-import com.model.irsensorData;
 import com.repositary.IRSensorRepository;
-import org.springframework.beans.factory.annotation.Value;
+import com.model.IRSensorData;
 import org.springframework.stereotype.Repository;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
-import software.amazon.awssdk.enhanced.dynamodb.model.Page;
-import software.amazon.awssdk.enhanced.dynamodb.model.ScanEnhancedRequest;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
+import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-
-import java.util.HashMap;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 
+// @Repository tells Spring Boot this class is responsible for database operations
 @Repository
 public class IRSensorRepositoryImpl implements IRSensorRepository {
 
-    private final DynamoDbTable<irsensorData> table;
+    private final DynamoDbTable<IRSensorData> table;
 
-    public IRSensorRepositoryImpl(
-            DynamoDbEnhancedClient enhancedClient,
-            @Value("${app.dynamodb.table-name}") String tableName) {
-        this.table = enhancedClient.table(tableName, TableSchema.fromBean(irsensorData.class));
+    // Spring Boot automatically passes the DynamoDB client you configured earlier
+    // into this constructor
+    public IRSensorRepositoryImpl(DynamoDbEnhancedClient enhancedClient) {
+        // We tell the client exactly which table to look at ("ir_sensor_logs")
+        // and which Java class maps to it (IRSensorData.class)
+        this.table = enhancedClient.table("ir_cracks_detection", TableSchema.fromBean(IRSensorData.class));
     }
 
     @Override
-    public irsensorData save(irsensorData data) {
-        table.putItem(data);
-        return data;
+    public List<IRSensorData> getAllData() {
+        // .scan() reads the whole table.
+        // We then convert the AWS results into a standard Java List.
+        return table.scan().items().stream().collect(Collectors.toList());
     }
 
     @Override
-    public List<irsensorData> findAll() {
-        return table.scan()
-                .items()
-                .stream()
-                .collect(Collectors.toList());
-    }
+    public List<IRSensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId) {
 
-    @Override
-    public List<irsensorData> findByDeviceId(String deviceId) {
-        Map<String, AttributeValue> expressionValues = new HashMap<>();
-        expressionValues.put(":deviceId", AttributeValue.builder().s(deviceId).build());
+        // 1. The Query: Jump directly to the physical partition for this SensorID
+        // (Fast!)
+        QueryConditional queryConditional = QueryConditional
+                .keyEqualTo(k -> k.partitionValue(sensorId));
 
-        ScanEnhancedRequest request = ScanEnhancedRequest.builder()
-                .filterExpression(software.amazon.awssdk.enhanced.dynamodb.Expression.builder()
-                        .expression("deviceId = :deviceId")
-                        .expressionValues(expressionValues)
-                        .build())
+        // 2. The Filter: Once inside that partition, only grab rows matching this
+        // deviceId
+        Expression filterExpression = Expression.builder()
+                .expression("deviceId = :devId")
+                .putExpressionValue(":devId", AttributeValue.builder().s(deviceId).build())
                 .build();
 
-        return table.scan(request)
-                .stream()
-                .map(Page::items)
-                .flatMap(List::stream)
-                .collect(Collectors.toList());
-    }
+        // 3. Combine them and execute
+        QueryEnhancedRequest request = QueryEnhancedRequest.builder()
+                .queryConditional(queryConditional)
+                .filterExpression(filterExpression)
+                .build();
 
+        // Run the query and return as a List
+        return table.query(request).items().stream().toList();
+    }
 }
+
+// This class provides the actual implementation of the IRSensorRepository
+// interface and handles communication with AWS DynamoDB.
