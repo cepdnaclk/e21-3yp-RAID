@@ -2,37 +2,40 @@ package com.controller;
 
 import com.dto.sensor.IRSensorDataDTO;
 import com.service.IRSensorService;
-
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.CrossOrigin;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
 
+// 1. The Class Annotations
 @RestController
-@RequestMapping("/api/ir-sensors")
-public class irsensorController {
+@RequestMapping("/api/cracks")
+@CrossOrigin(origins = "*")
+public class IRSensorController {
 
-    private final IRSensorService irSensorService;
+    // 2. The Dependency
+    private final IRSensorService service;
 
-    public irsensorController(IRSensorService irSensorService) {
-        this.irSensorService = irSensorService;
+    // 3. Dependency Injection
+    public IRSensorController(IRSensorService service) {
+        this.service = service;
     }
 
-    // 1. Receive IR sensor data from ESP32
-    @PostMapping("/data")
-    public IRSensorDataDTO saveIRSensorData(@RequestBody IRSensorDataDTO dto) {
-        return irSensorService.saveIRData(dto);
-    }
+    // 4. The Endpoint Definition
+    @GetMapping("/{deviceId}/{sensorId}")
+    public List<IRSensorDataDTO> getCracksByDeviceAndSensor(
+            @PathVariable String deviceId,
 
-    // 2. Get all IR sensor readings
-    @GetMapping("/all")
-    public List<IRSensorDataDTO> getAllIRData() {
-        return irSensorService.getAllIRData();
-    }
+            @PathVariable String sensorId) {
 
-    // 3. Get IR readings for a specific device
-    @GetMapping("/device/{deviceId}")
-    public List<IRSensorDataDTO> getIRDataByDevice(@PathVariable String deviceId) {
-        return irSensorService.getIRDataByDevice(deviceId);
+        // Hand the variables off to the Service layer
+        return service.getSpecificCracks(deviceId, sensorId);
     }
 
 }
+
+// /api/cracks/{deviceId}/{sensorId}  - endpoint
+//http://localhost:8080/api/cracks/esp-001/IR_Bottom -URL
