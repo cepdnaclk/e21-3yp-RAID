@@ -24,7 +24,7 @@ const App = () => (
         <AlertProvider>
           <Toaster />
           <Sonner />
-          <BrowserRouter basename={import.meta.env.BASE_URL}>
+          <BrowserRouter basename="/e21-3yp-RAID/webapp">
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
