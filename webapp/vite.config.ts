@@ -11,4 +11,9 @@ export default defineConfig({
       '@': path.resolve(__dirname, 'src'), 
     },
   },
+  base: '/e21-3yp-RAID/webapp/',
+  build: {
+    outDir: '../docs/webapp',
+    emptyOutDir: true, 
+  },
 })
