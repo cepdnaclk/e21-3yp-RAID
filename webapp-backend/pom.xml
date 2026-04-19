@@ -80,7 +80,6 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- AWS DynamoDB SDK -->
 	    <!-- AWS DynamoDB SDK -->
     <dependency>
         <groupId>software.amazon.awssdk</groupId>
