@@ -29,6 +29,7 @@ public class EspCamDetection {
     }
 
     @DynamoDbSortKey
+    @DynamoDbAttribute("timestamp")
     public String getTimestamp() {
         return timestamp;
     }
@@ -37,6 +38,7 @@ public class EspCamDetection {
         this.timestamp = timestamp;
     }
 
+    @DynamoDbAttribute("imageUrl")
     public String getImageUrl() {
         return imageUrl;
     }
@@ -45,6 +47,7 @@ public class EspCamDetection {
         this.imageUrl = imageUrl;
     }
 
+    @DynamoDbAttribute("status")
     public String getStatus() {
         return status;
     }
