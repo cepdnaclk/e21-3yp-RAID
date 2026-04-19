@@ -1,141 +1,195 @@
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Wifi, MapPin, Bell, Map, FileText, ChevronRight, Activity, Battery, Gauge, LogOut } from "lucide-react";
-import BottomNav from "@/components/BottomNav";
-import PageHeader from "@/components/PageHeader";
-import { Button } from "@/components/ui/button";
-import { useAlerts } from "@/context/AlertContext";
-import { useAuth } from "@/context/AuthContext";
+import { 
+  Wifi, MapPin, Bell, Map, FileText, 
+  ChevronRight, Gauge, Battery, LogOut, Camera, AlertTriangle
+} from "lucide-react";
 
-const Dashboard = () => {
+import { useAuth } from "@/context/AuthContext";
+import { useTelemetry } from "@/hooks/useTelemetry";
+import BottomNav from "@/components/BottomNav";
+import { Button } from "@/components/ui/button";
+
+export default function Dashboard() {
   const navigate = useNavigate();
-  const { alerts, robotStatus } = useAlerts();
   const { signOut } = useAuth();
 
+  // Selected device and sensor (controls what data stream we listen to)
+  const [deviceId, setDeviceId] = useState("esp-001");
+  const [sensorId, setSensorId] = useState("IR_Bottom");
+
+  // Custom hook: gives historical + real-time crack data
+  const { liveCracks, isConnected } = useTelemetry(deviceId, sensorId);
+
+  // Total number of detected events
+  const total = liveCracks.length;
+
+  // Count of unresolved/active issues
+  const pending = liveCracks.filter(c => c.status !== 'RESOLVED').length;
+
+  // Logout user and redirect to home page
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
 
-  const pending = alerts.filter((a) => a.status === "pending").length;
-  const confirmed = alerts.filter((a) => a.status === "confirmed").length;
-  const ignored = alerts.filter((a) => a.status === "ignored").length;
-  const total = alerts.length;
-
-  const quickActions = [
-    { icon: Bell, label: "Live Alerts", desc: "View active notifications", badge: pending, path: "/alerts", color: "bg-destructive/10 text-destructive" },
-    { icon: Map, label: "Live Map", desc: "Robot & crack locations", path: "/map", color: "bg-accent/10 text-accent" },
-    { icon: FileText, label: "Reports", desc: "Inspection summaries", path: "/reports", color: "bg-success/10 text-success" },
-  ];
-
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <div className="header-gradient rounded-b-3xl px-5 py-4">
-        <div className="flex items-center justify-between mb-4">
+    <div className="min-h-screen bg-slate-50 pb-24">
+
+      {/* ================= HEADER SECTION ================= */}
+      <div className="bg-slate-900 rounded-b-[2rem] px-6 py-8 shadow-lg">
+
+        {/* Title + connection status */}
+        <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-primary-foreground">Dashboard</h1>
-            <p className="text-sm text-primary-foreground/80">Welcome back,</p>
+            <h1 className="text-3xl font-bold text-white tracking-tight">
+              Mission Control
+            </h1>
+
+            {/* Live connection indicator (green = connected, red = disconnected) */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="flex h-2 w-2 relative">
+                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
+                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
+              </span>
+              <p className="text-sm text-slate-400">Live Telemetry active</p>
+            </div>
           </div>
-          <Button
-            onClick={handleLogout}
-            size="sm"
-            variant="ghost"
-            className="flex items-center gap-2 text-primary-foreground hover:bg-white/20"
-          >
-            <LogOut size={18} />
+
+          {/* Logout button */}
+          <Button onClick={handleLogout} variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
+            <LogOut size={20} />
           </Button>
         </div>
 
-        {/* Robot Status Card inside header */}
-        <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-3">
-              <div className="bg-white/15 p-2 rounded-xl">
-                <Wifi className="text-primary-foreground" size={18} />
-              </div>
-              <div>
-                <p className="text-xs text-primary-foreground/70">Robot Status</p>
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2 h-2 rounded-full bg-green-400 pulse-dot" />
-                  <span className="font-semibold text-primary-foreground">Online</span>
-                </div>
-              </div>
-            </div>
-            <span className="bg-green-400/20 text-green-300 text-xs font-semibold px-3 py-1 rounded-full">Active</span>
-          </div>
-          <div className="grid grid-cols-3 gap-2">
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <MapPin className="text-primary-foreground/70 mx-auto mb-0.5" size={14} />
-              <p className="text-xs text-primary-foreground/70">Location</p>
-              <p className="text-sm font-semibold text-primary-foreground">KM {robotStatus.km}</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <Gauge className="text-primary-foreground/70 mx-auto mb-0.5" size={14} />
-              <p className="text-xs text-primary-foreground/70">Speed</p>
-              <p className="text-sm font-semibold text-primary-foreground">{robotStatus.speed} km/h</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-2 text-center">
-              <Battery className="text-primary-foreground/70 mx-auto mb-0.5" size={14} />
-              <p className="text-xs text-primary-foreground/70">Battery</p>
-              <p className="text-sm font-semibold text-primary-foreground">{robotStatus.battery}%</p>
-            </div>
-          </div>
+        {/* Device and sensor selection */}
+        <div className="flex gap-3 mb-6">
+
+          {/* Select IoT device */}
+          <select 
+            value={deviceId} 
+            onChange={(e) => setDeviceId(e.target.value)}
+            className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
+          >
+            <option value="esp-001">Robot-01 (esp-001)</option>
+            <option value="esp-002">Robot-02 (esp-002)</option>
+          </select>
+
+          {/* Select sensor type */}
+          <select 
+            value={sensorId} 
+            onChange={(e) => setSensorId(e.target.value)}
+            className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
+          >
+            <option value="IR_Bottom">IR array</option>
+          </select>
         </div>
       </div>
 
-      {/* Quick Actions */}
-      <div className="px-5 mt-6">
-        <h2 className="text-lg font-bold text-foreground mb-3">Quick Actions</h2>
-        <div className="space-y-3">
-          {quickActions.map(({ icon: Icon, label, desc, badge, path, color }) => (
-            <button
-              key={path}
-              onClick={() => navigate(path)}
-              className="w-full bg-card rounded-2xl p-4 flex items-center gap-4 border border-border shadow-sm hover:shadow-md transition-all active:scale-[0.98]"
-            >
-              <div className={`p-2.5 rounded-xl ${color}`}>
-                <Icon size={22} />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="font-semibold text-foreground">{label}</p>
-                <p className="text-xs text-muted-foreground">{desc}</p>
-              </div>
-              {badge !== undefined && badge > 0 && (
-                <span className="bg-destructive text-destructive-foreground text-xs font-bold rounded-full w-6 h-6 flex items-center justify-center">
-                  {badge}
-                </span>
+      {/* ================= LIVE DATA SECTION ================= */}
+      <div className="px-6 mt-8">
+
+        {/* Section header */}
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
+            Live Anomaly Feed
+          </h2>
+
+          {/* Count of unresolved events */}
+          <span className="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
+            <AlertTriangle size={14} /> {pending} Pending
+          </span>
+        </div>
+
+        {/* Table container */}
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+
+          <table className="w-full text-left text-sm">
+
+            {/* Table header */}
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="p-4 font-semibold text-slate-600">Visual Evidence</th>
+                <th className="p-4 font-semibold text-slate-600">Time & Location</th>
+                <th className="p-4 font-semibold text-slate-600">Status</th>
+              </tr>
+            </thead>
+
+            {/* Table body */}
+            <tbody className="divide-y divide-slate-100">
+
+              {/* If no data is available */}
+              {liveCracks.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-8 text-center text-slate-400 italic">
+                    Track conditions nominal. Awaiting telemetry.
+                  </td>
+                </tr>
+              ) : (
+
+                /* Loop through all crack events */
+                liveCracks.map((crack, index) => (
+                  <tr key={index} className="hover:bg-slate-50 transition-colors">
+
+                    {/* ================= IMAGE COLUMN ================= */}
+                    <td className="p-4">
+                      <div className="w-24 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative group">
+
+                        {/* Show image if available */}
+                        {crack.media?.imageUrl ? (
+                          <img 
+                            src={crack.media.imageUrl} 
+                            alt="Track Defect" 
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          /* Placeholder if no image */
+                          <div className="flex flex-col items-center justify-center h-full text-slate-400">
+                            <Camera size={20} className="mb-1 opacity-50" />
+                            <span className="text-[10px] uppercase font-semibold">
+                              No Image
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* ================= TIME + GPS COLUMN ================= */}
+                    <td className="p-4">
+
+                      {/* Convert timestamp into readable time */}
+                      <p className="font-medium text-slate-900 mb-1">
+                        {new Date(crack.timestamp).toLocaleTimeString()}
+                      </p>
+
+                      {/* GPS location with fallback values */}
+                      <div className="flex items-center gap-1 text-slate-500 text-xs font-mono">
+                        <MapPin size={12} className="text-indigo-400" />
+                        <span>
+                          {crack.gps?.lat || "5.9496"}° N, {crack.gps?.lng || "80.5353"}° E
+                        </span>
+                      </div>
+                    </td>
+
+                    {/* ================= STATUS COLUMN ================= */}
+                    <td className="p-4">
+
+                      {/* Show crack status (default = CRITICAL if missing) */}
+                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200">
+                        {crack.status || "CRITICAL"}
+                      </span>
+
+                    </td>
+                  </tr>
+                ))
               )}
-              <ChevronRight className="text-muted-foreground" size={18} />
-            </button>
-          ))}
+            </tbody>
+          </table>
         </div>
       </div>
 
-      {/* Today's Summary */}
-      <div className="px-5 mt-6">
-        <h2 className="text-lg font-bold text-foreground mb-3">Today's Summary</h2>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="stat-blue rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">Total Alerts</p>
-            <p className="text-3xl font-bold text-foreground">{total}</p>
-          </div>
-          <div className="stat-green rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">Confirmed</p>
-            <p className="text-3xl font-bold text-success">{confirmed}</p>
-          </div>
-          <div className="stat-red rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">Pending</p>
-            <p className="text-3xl font-bold text-destructive">{pending}</p>
-          </div>
-          <div className="stat-purple rounded-xl p-4">
-            <p className="text-xs text-muted-foreground">Ignored</p>
-            <p className="text-3xl font-bold text-muted-foreground">{ignored}</p>
-          </div>
-        </div>
-      </div>
-
+      {/* Bottom navigation bar */}
       <BottomNav />
     </div>
   );
-};
-
-export default Dashboard;
+}

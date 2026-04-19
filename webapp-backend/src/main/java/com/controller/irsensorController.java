@@ -13,7 +13,7 @@ import java.util.List;
 // 1. The Class Annotations
 @RestController
 @RequestMapping("/api/cracks")
-@CrossOrigin(origins = "*")
+@CrossOrigin(originPatterns = "*")
 public class IRSensorController {
 
     // 2. The Dependency
@@ -37,5 +37,5 @@ public class IRSensorController {
 
 }
 
-// /api/cracks/{deviceId}/{sensorId}  - endpoint
-//http://localhost:8080/api/cracks/esp-001/IR_Bottom -URL
+// /api/cracks/{deviceId}/{sensorId} - endpoint
+// http://localhost:8080/api/cracks/esp-001/IR_Bottom -URL

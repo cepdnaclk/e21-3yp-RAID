@@ -22,17 +22,17 @@ print("All certificate files found!")
 # ----------------- MQTT Setup -----------------
 IOT_ENDPOINT = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com"  # replace this
 CLIENT_ID = "esp32"
-
 DEVICE_ID = "esp-001"
-TOPIC = f"device/{DEVICE_ID}/ir"
+# Upgraded to the double wildcard format we set in the AWS Rule!
+TOPIC = f"device/{DEVICE_ID}/IR_Bottom"
 
 client = AWSIoTMQTTClient(CLIENT_ID)
 client.configureEndpoint(IOT_ENDPOINT, 8883)
 client.configureCredentials(ROOT_CA, KEY_FILE, CERT_FILE)
-client.configureOfflinePublishQueueing(-1)  # Infinite offline queue
-client.configureDrainingFrequency(2)  # 2 Hz
-client.configureConnectDisconnectTimeout(10)  # 10 sec
-client.configureMQTTOperationTimeout(20)  # 5 sec
+client.configureOfflinePublishQueueing(-1)
+client.configureDrainingFrequency(2)
+client.configureConnectDisconnectTimeout(10)
+client.configureMQTTOperationTimeout(20)
 
 try:
     client.connect()
@@ -43,31 +43,71 @@ except Exception as e:
     print(f"Failed to connect: {e}")
     sys.exit(1)
 
-# ----------------- Publish Mock Data Continuously -----------------
+# ----------------- The Hybrid Heartbeat Architecture -----------------
 count = 0
+HEARTBEAT_INTERVAL = 30  # Seconds between routine check-ins
+
+# Initialize timer so it forces a heartbeat immediately on boot
+last_heartbeat_time = time.time() - HEARTBEAT_INTERVAL 
+
+print("\n🚀 Starting Edge Filtering Node...")
+print(f"Scanning track continuously. Heartbeat interval: {HEARTBEAT_INTERVAL}s\n")
+
 try:
     while True:
-        is_crack_detected = random.random() > 0.90
-        payload = {
-            "deviceId": "esp-001",
-            "timestamp": datetime.now().isoformat(),
-            "sensor": "IR_Bottom",
-            "crack_detected": is_crack_detected,
-            "status": "CRACK FOUND" if is_crack_detected else "NORMAL",
-            "uptime": count * 5
-           
-        }
-        try:
-            client.publish(TOPIC, json.dumps(payload), 1)
-            print(f"[{time.strftime('%H:%M:%S')}] Published: {payload}")
-        except Exception as e:
-            print(f"Failed to publish: {e}")
+        # 1. The Fast Loop: Simulate the ESP32 checking the IR sensor incredibly fast
+        # (We use a 5% chance to simulate a rare crack on the track)
+        is_crack_detected = random.random() > 0.95 
+        current_time = time.time()
+
+        # SCENARIO A: The Interrupt (Immediate Critical Alert)
+        if is_crack_detected:
+            payload = {
+                "deviceId": DEVICE_ID,
+                "timestamp": datetime.now().isoformat(),
+                "sensor": "IR_Bottom",
+                "crack_detected": True,
+                "status": "CRITICAL_DEFECT",
+                "uptime": count
+            }
+            try:
+                client.publish(TOPIC, json.dumps(payload), 1)
+                print(f"[{time.strftime('%H:%M:%S')}] 🚨 CRITICAL ALERT PUBLISHED: {payload}")
+                
+                # Reset the heartbeat timer! We just proved the robot is alive.
+                last_heartbeat_time = current_time
+            except Exception as e:
+                print(f"Failed to publish alert: {e}")
+
+        # SCENARIO B: The Routine Heartbeat (Only runs if 30 seconds have passed)
+        elif (current_time - last_heartbeat_time) >= HEARTBEAT_INTERVAL:
+            payload = {
+                "deviceId": DEVICE_ID,
+                "timestamp": datetime.now().isoformat(),
+                "sensor": "IR_Bottom",
+                "crack_detected": False,
+                "status": "NOMINAL_HEARTBEAT",
+                "battery": random.randint(70, 100), # Dummy hardware data
+                "speed": random.randint(10, 15),
+                "uptime": count
+            }
+            try:
+                client.publish(TOPIC, json.dumps(payload), 1)
+                print(f"[{time.strftime('%H:%M:%S')}] 💚 Heartbeat Check-in: {payload}")
+                
+                last_heartbeat_time = current_time
+            except Exception as e:
+                print(f"Failed to publish heartbeat: {e}")
 
         count += 1
-        time.sleep(5)  # wait 5 seconds before next publish
+        
+        # Sleep for just 1 second. 
+        # This keeps the loop fast enough to catch cracks instantly,
+        # but prevents the Python script from maxing out your computer's CPU.
+        time.sleep(1)
 
 except KeyboardInterrupt:
-    print("Stopped by user")
+    print("\nStopped by user")
 
 finally:
     client.disconnect()
