@@ -1,4 +1,6 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { Client } from "@stomp/stompjs";
+import SockJS from "sockjs-client";
 
 export type Severity = "HIGH" | "MEDIUM" | "LOW";
 export type AlertStatus = "pending" | "confirmed" | "ignored";
@@ -33,6 +35,20 @@ interface AlertContextType {
   robotStatus: RobotStatus;
   updateStatus: (id: number, status: AlertStatus) => void;
   loading: boolean;
+}
+
+interface BackendCrackMessage {
+  sensorId?: string;
+  timestamp?: string;
+  deviceId?: string;
+  crackDetected?: boolean | string;
+  crack_detected?: boolean | string;
+  status?: string;
+  latitude?: number | string;
+  longitude?: number | string;
+  locationValid?: boolean | string;
+  satellites?: number | string;
+  severity?: number | string;
 }
 
 // ── Mock Data ──────────────────────────────────────────────
@@ -113,8 +129,9 @@ const AlertContext = createContext<AlertContextType | null>(null);
 
 export const AlertProvider = ({ children }: { children: ReactNode }) => {
   const [alerts, setAlerts] = useState<CrackAlert[]>(mockAlerts);
-  const [robotStatus] = useState<RobotStatus>(defaultRobot);
+  const [robotStatus, setRobotStatus] = useState<RobotStatus>(defaultRobot);
   const [loading] = useState(false);
+  const nextAlertIdRef = useRef(mockAlerts.length + 1);
 
   // Mock update - just updates local state (no API call)
   const updateStatus = (id: number, status: AlertStatus) => {
@@ -126,6 +143,137 @@ export const AlertProvider = ({ children }: { children: ReactNode }) => {
     //   body: JSON.stringify({ status }),
     // });
   };
+
+  useEffect(() => {
+    const mapSeverity = (severity?: number): Severity => {
+      if (severity === undefined || Number.isNaN(severity)) {
+        return "LOW";
+      }
+      if (severity >= 0.75) {
+        return "HIGH";
+      }
+      if (severity >= 0.45) {
+        return "MEDIUM";
+      }
+      return "LOW";
+    };
+
+    const normalizeSeverity = (severity?: number | string): Severity => {
+      if (typeof severity === "string") {
+        const upper = severity.toUpperCase();
+        if (upper === "HIGH" || upper === "MEDIUM" || upper === "LOW") {
+          return upper;
+        }
+
+        const parsed = Number(severity);
+        return mapSeverity(Number.isNaN(parsed) ? undefined : parsed);
+      }
+
+      return mapSeverity(severity);
+    };
+
+    const toNumber = (value?: number | string): number | undefined => {
+      if (value === undefined || value === null || value === "") {
+        return undefined;
+      }
+
+      const parsed = typeof value === "string" ? Number(value) : value;
+      return Number.isNaN(parsed) ? undefined : parsed;
+    };
+
+    const toBoolean = (value?: boolean | string): boolean => {
+      if (typeof value === "string") {
+        return value.toLowerCase() === "true";
+      }
+
+      return Boolean(value);
+    };
+
+    const toIso = (value?: string): string => {
+      if (!value) {
+        return new Date().toISOString();
+      }
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    };
+
+    const toUiAlert = (msg: BackendCrackMessage): CrackAlert => {
+      const timestampIso = toIso(msg.timestamp);
+      const date = new Date(timestampIso);
+      const crackDetected = toBoolean(msg.crackDetected ?? msg.crack_detected);
+      const validLocation = toBoolean(msg.locationValid);
+      const latitude = toNumber(msg.latitude);
+      const longitude = toNumber(msg.longitude);
+      const normalizedSeverity = normalizeSeverity(msg.severity);
+      const confidence =
+        typeof msg.severity === "number"
+          ? Math.max(0, Math.min(100, Math.round(msg.severity * 100)))
+          : normalizedSeverity === "HIGH"
+            ? 95
+            : normalizedSeverity === "MEDIUM"
+              ? 75
+              : 45;
+      const lat = validLocation && latitude !== undefined ? latitude : defaultRobot.lat;
+      const lng = validLocation && longitude !== undefined ? longitude : defaultRobot.lng;
+
+      return {
+        id: nextAlertIdRef.current++,
+        type: crackDetected ? "Crack Detected" : "Normal Reading",
+        severity: normalizedSeverity,
+        location: validLocation ? `${lat.toFixed(4)}°, ${lng.toFixed(4)}°` : "GPS not fixed",
+        km: robotStatus.km,
+        time: date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
+        timestamp: timestampIso,
+        lat,
+        lng,
+        status: crackDetected ? "pending" : "ignored",
+        confidence,
+        irSensor: crackDetected ? "Active" : "Inactive",
+        description: msg.status ?? (crackDetected ? "Crack event received from backend" : "Normal telemetry received"),
+      };
+    };
+
+    const wsBase = import.meta.env.VITE_BACKEND_WS_URL ?? "http://localhost:8080/raid-websocket";
+
+    const client = new Client({
+      webSocketFactory: () => new SockJS(wsBase),
+      reconnectDelay: 5000,
+      debug: () => {
+        // Keep websocket logging quiet in production builds.
+      },
+    });
+
+    client.onConnect = () => {
+      client.subscribe("/topic/cracks", (frame) => {
+        try {
+          const payload: BackendCrackMessage = JSON.parse(frame.body);
+
+          setAlerts((prev) => [toUiAlert(payload), ...prev].slice(0, 100));
+
+          if (payload.locationValid && payload.latitude !== undefined && payload.longitude !== undefined) {
+            setRobotStatus((prev) => ({
+              ...prev,
+              online: true,
+              lat: Number(payload.latitude),
+              lng: Number(payload.longitude),
+            }));
+          }
+        } catch {
+          // Ignore malformed payloads and keep stream alive.
+        }
+      });
+    };
+
+    client.onStompError = () => {
+      // Auto-reconnect handles transient broker issues.
+    };
+
+    client.activate();
+
+    return () => {
+      client.deactivate();
+    };
+  }, [robotStatus.km]);
 
   return (
     <AlertContext.Provider value={{ alerts, robotStatus, updateStatus, loading }}>

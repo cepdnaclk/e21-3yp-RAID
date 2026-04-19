@@ -49,6 +49,9 @@ const LiveMap = () => {
   const focusId = searchParams.get("focus");
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const robotMarkerRef = useRef<L.Marker | null>(null);
+  const trackLayerRef = useRef<L.Polyline | null>(null);
+  const alertLayerRef = useRef<L.LayerGroup | null>(null);
   const { alerts, robotStatus } = useAlerts();
   const [selectedAlert, setSelectedAlert] = useState<CrackAlert | null>(null);
 
@@ -68,38 +71,65 @@ const LiveMap = () => {
     L.control.zoom({ position: "bottomright" }).addTo(map);
 
     // Robot marker
-    const robotMarker = L.marker([robotStatus.lat, robotStatus.lng], { icon: robotIcon }).addTo(map);
-    robotMarker.bindTooltip("🤖 Robot - KM " + robotStatus.km, {
+    robotMarkerRef.current = L.marker([robotStatus.lat, robotStatus.lng], { icon: robotIcon }).addTo(map);
+    robotMarkerRef.current.bindTooltip("🤖 Robot - KM " + robotStatus.km, {
       permanent: false,
       direction: "top",
       offset: [0, -20],
     });
 
-    // Track line through all points
-    const trackPoints: L.LatLngExpression[] = [
-      [robotStatus.lat, robotStatus.lng],
-      ...alerts.map((a) => [a.lat, a.lng] as L.LatLngExpression),
-    ];
-    L.polyline(trackPoints, {
+    trackLayerRef.current = L.polyline([], {
       color: "hsl(215, 70%, 25%)",
       weight: 3,
       opacity: 0.3,
       dashArray: "10 6",
     }).addTo(map);
 
-    // Alert markers
-    alerts.forEach((alert) => {
-      let color: string;
-      let size: number;
-      if (alert.status === "confirmed") {
-        color = "hsl(0, 75%, 55%)"; // red
-        size = 14;
-      } else if (alert.status === "ignored") {
-        color = "hsl(215, 15%, 70%)"; // gray
-        size = 10;
-      } else {
-        // pending - use severity color
-        if (alert.severity === "HIGH") {
+    alertLayerRef.current = L.layerGroup().addTo(map);
+
+    mapInstanceRef.current = map;
+
+    return () => {
+      map.remove();
+      mapInstanceRef.current = null;
+      robotMarkerRef.current = null;
+      trackLayerRef.current = null;
+      alertLayerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) {
+      return;
+    }
+
+    if (robotMarkerRef.current) {
+      robotMarkerRef.current.setLatLng([robotStatus.lat, robotStatus.lng]);
+      robotMarkerRef.current.setTooltipContent("🤖 Robot - KM " + robotStatus.km);
+    }
+
+    const alertPoints: L.LatLngExpression[] = alerts.map((alert) => [alert.lat, alert.lng]);
+    const trackPoints: L.LatLngExpression[] = [[robotStatus.lat, robotStatus.lng], ...alertPoints];
+
+    if (trackLayerRef.current) {
+      trackLayerRef.current.setLatLngs(trackPoints);
+    }
+
+    if (alertLayerRef.current) {
+      alertLayerRef.current.clearLayers();
+
+      alerts.forEach((alert) => {
+        let color: string;
+        let size: number;
+
+        if (alert.status === "confirmed") {
+          color = "hsl(0, 75%, 55%)";
+          size = 14;
+        } else if (alert.status === "ignored") {
+          color = "hsl(215, 15%, 70%)";
+          size = 10;
+        } else if (alert.severity === "HIGH") {
           color = "hsl(0, 75%, 55%)";
           size = 14;
         } else if (alert.severity === "MEDIUM") {
@@ -109,25 +139,18 @@ const LiveMap = () => {
           color = "hsl(215, 60%, 45%)";
           size = 10;
         }
-      }
 
-      const marker = L.marker([alert.lat, alert.lng], { icon: createIcon(color, size) }).addTo(map);
-      marker.on("click", () => setSelectedAlert(alert));
+        const marker = L.marker([alert.lat, alert.lng], { icon: createIcon(color, size) });
+        marker.on("click", () => setSelectedAlert(alert));
+        marker.addTo(alertLayerRef.current!);
 
-      // Focus on specific alert if URL param present
-      if (focusId && alert.id === Number(focusId)) {
-        map.setView([alert.lat, alert.lng], 16);
-        setSelectedAlert(alert);
-      }
-    });
-
-    mapInstanceRef.current = map;
-
-    return () => {
-      map.remove();
-      mapInstanceRef.current = null;
-    };
-  }, [alerts, focusId]);
+        if (focusId && alert.id === Number(focusId)) {
+          map.setView([alert.lat, alert.lng], 16);
+          setSelectedAlert(alert);
+        }
+      });
+    }
+  }, [alerts, focusId, robotStatus.lat, robotStatus.lng, robotStatus.km]);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -161,7 +184,7 @@ const LiveMap = () => {
         </div>
 
         {/* Map */}
-        <div className="relative rounded-2xl overflow-hidden border border-border shadow-md" style={{ height: "420px" }}>
+        <div className="relative h-[420px] rounded-2xl overflow-hidden border border-border shadow-md">
           <div ref={mapRef} className="w-full h-full" />
 
           {/* Selected Alert Detail */}
@@ -178,7 +201,12 @@ const LiveMap = () => {
                   )}
                   <span className="font-bold text-foreground">{selectedAlert.location}</span>
                 </div>
-                <button onClick={() => setSelectedAlert(null)} className="p-1 rounded-lg hover:bg-muted">
+                <button
+                  onClick={() => setSelectedAlert(null)}
+                  className="p-1 rounded-lg hover:bg-muted"
+                  aria-label="Close alert details"
+                  title="Close alert details"
+                >
                   <X className="text-muted-foreground" size={16} />
                 </button>
               </div>

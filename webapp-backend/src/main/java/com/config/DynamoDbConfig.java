@@ -3,22 +3,23 @@ package com.config;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
 import software.amazon.awssdk.auth.credentials.AwsBasicCredentials;
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
-import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 
 @Configuration
 public class DynamoDbConfig {
 
-    @Value("${aws.region}")
+    @Value("${aws.region:us-east-1}")
     private String region;
 
-    @Value("${aws.accessKeyId}")
+    @Value("${aws.accessKeyId:dummy}")
     private String accessKey;
 
-    @Value("${aws.secretKey}")
+    @Value("${aws.secretKey:dummy}")
     private String secretKey;
 
     @Bean

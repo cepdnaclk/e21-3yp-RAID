@@ -2,15 +2,18 @@
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <Arduino.h>
+#include <ArduinoJson.h>
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
+#include "sensor configuration/gps sensors/gps_sensor.h"
 
 // ================= Configuration =================
-const char* ssid = "Suvini";
-const char* password = "suvini12345678";
-const char* mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
-const char* CLIENT_ID = "esp32";
+const char *ssid = "Suvini";
+const char *password = "suvini12345678";
+const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
+const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
+const char *SENSOR_ID = "IR_Bottom";
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -95,68 +98,103 @@ krMtsh2qcmRX7yFXzYXiFNWahWMUvgJb1bE02EtOawY8itbItBJ6eg==
 )EOF";
 
 // ================= Helper: MQTT State to String =================
-String mqttStateToString(int state) {
-  switch (state) {
-    case -4: return "MQTT_CONNECTION_TIMEOUT";
-    case -3: return "MQTT_CONNECTION_LOST";
-    case -2: return "MQTT_CONNECT_FAILED";
-    case -1: return "MQTT_DISCONNECTED";
-    case  0: return "MQTT_CONNECTED";
-    case  1: return "MQTT_CONNECT_BAD_PROTOCOL";
-    case  2: return "MQTT_CONNECT_BAD_CLIENT_ID";
-    case  3: return "MQTT_CONNECT_UNAVAILABLE";
-    case  4: return "MQTT_CONNECT_BAD_CREDENTIALS";
-    case  5: return "MQTT_CONNECT_UNAUTHORIZED";
-    default: return "UNKNOWN (" + String(state) + ")";
+String mqttStateToString(int state)
+{
+  switch (state)
+  {
+  case -4:
+    return "MQTT_CONNECTION_TIMEOUT";
+  case -3:
+    return "MQTT_CONNECTION_LOST";
+  case -2:
+    return "MQTT_CONNECT_FAILED";
+  case -1:
+    return "MQTT_DISCONNECTED";
+  case 0:
+    return "MQTT_CONNECTED";
+  case 1:
+    return "MQTT_CONNECT_BAD_PROTOCOL";
+  case 2:
+    return "MQTT_CONNECT_BAD_CLIENT_ID";
+  case 3:
+    return "MQTT_CONNECT_UNAVAILABLE";
+  case 4:
+    return "MQTT_CONNECT_BAD_CREDENTIALS";
+  case 5:
+    return "MQTT_CONNECT_UNAUTHORIZED";
+  default:
+    return "UNKNOWN (" + String(state) + ")";
   }
 }
 
 // ================= WiFi Connection =================
-void connectWiFi() {
+void connectWiFi()
+{
   Serial.println("\n========== WiFi ==========");
-  Serial.print("Target SSID  : "); Serial.println(ssid);
-  Serial.print("Chip MAC     : "); Serial.println(WiFi.macAddress());
+  Serial.print("Target SSID  : ");
+  Serial.println(ssid);
+  Serial.print("Chip MAC     : ");
+  Serial.println(WiFi.macAddress());
   Serial.println("Starting WiFi connection...");
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(ssid, password);
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
+  {
     delay(1000);
     attempts++;
     Serial.printf("  [%2ds] Status: %d", attempts, WiFi.status());
     // Status codes: 0=IDLE, 1=NO_SSID, 3=CONNECTED, 4=CONNECT_FAILED, 6=DISCONNECTED
-    switch (WiFi.status()) {
-      case WL_NO_SSID_AVAIL:   Serial.print(" -> SSID NOT FOUND"); break;
-      case WL_CONNECT_FAILED:  Serial.print(" -> WRONG PASSWORD / AUTH FAILED"); break;
-      case WL_CONNECTION_LOST: Serial.print(" -> CONNECTION LOST"); break;
-      case WL_DISCONNECTED:    Serial.print(" -> DISCONNECTED (trying...)"); break;
-      default: break;
+    switch (WiFi.status())
+    {
+    case WL_NO_SSID_AVAIL:
+      Serial.print(" -> SSID NOT FOUND");
+      break;
+    case WL_CONNECT_FAILED:
+      Serial.print(" -> WRONG PASSWORD / AUTH FAILED");
+      break;
+    case WL_CONNECTION_LOST:
+      Serial.print(" -> CONNECTION LOST");
+      break;
+    case WL_DISCONNECTED:
+      Serial.print(" -> DISCONNECTED (trying...)");
+      break;
+    default:
+      break;
     }
     Serial.println();
 
-    if (attempts >= 30) {
+    if (attempts >= 30)
+    {
       Serial.println("  !! TIMEOUT after 30s. Restarting ESP32...");
       ESP.restart();
     }
   }
 
   Serial.println("  >> WiFi CONNECTED!");
-  Serial.print("  IP Address  : "); Serial.println(WiFi.localIP());
-  Serial.print("  Gateway     : "); Serial.println(WiFi.gatewayIP());
-  Serial.print("  DNS         : "); Serial.println(WiFi.dnsIP());
-  Serial.print("  Signal (dBm): "); Serial.println(WiFi.RSSI());
+  Serial.print("  IP Address  : ");
+  Serial.println(WiFi.localIP());
+  Serial.print("  Gateway     : ");
+  Serial.println(WiFi.gatewayIP());
+  Serial.print("  DNS         : ");
+  Serial.println(WiFi.dnsIP());
+  Serial.print("  Signal (dBm): ");
+  Serial.println(WiFi.RSSI());
   Serial.println("==========================\n");
 }
 
 // ================= AWS IoT Connection =================
-void connectAWS() {
+void connectAWS()
+{
   Serial.println("========== AWS IoT ==========");
-  Serial.print("Broker       : "); Serial.println(mqtt_server);
+  Serial.print("Broker       : ");
+  Serial.println(mqtt_server);
   Serial.print("Port         : 8883");
   Serial.println();
-  Serial.print("Client ID    : "); Serial.println(CLIENT_ID);
+  Serial.print("Client ID    : ");
+  Serial.println(CLIENT_ID);
 
   Serial.println("Loading TLS certificates...");
   espClient.setCACert(AWS_CERT_CA);
@@ -171,30 +209,40 @@ void connectAWS() {
   Serial.println("MQTT server configured. Attempting connection...");
 
   int attempt = 0;
-  while (!client.connected()) {
+  while (!client.connected())
+  {
     attempt++;
     Serial.printf("\n  [Attempt %d] Connecting to AWS IoT...\n", attempt);
 
-    if (client.connect(CLIENT_ID)) {
+    if (client.connect(CLIENT_ID))
+    {
       Serial.println("  >> MQTT CONNECTED to AWS IoT Core!");
-    } else {
+    }
+    else
+    {
       int rc = client.state();
       Serial.print("  !! FAILED. State code: ");
       Serial.println(mqttStateToString(rc));
 
-      if (rc == -2) {
+      if (rc == -2)
+      {
         Serial.println("     >> TLS Handshake likely failed.");
         Serial.println("        Check: certificate validity, endpoint URL, clock sync.");
-      } else if (rc == 5) {
+      }
+      else if (rc == 5)
+      {
         Serial.println("     >> Unauthorized. Check AWS IoT Policy allows clientId & actions.");
-      } else if (rc == 2) {
+      }
+      else if (rc == 2)
+      {
         Serial.println("     >> Bad Client ID. Ensure CLIENT_ID matches your AWS IoT Policy.");
       }
 
       Serial.println("  Retrying in 5 seconds...");
       delay(5000);
 
-      if (attempt >= 5) {
+      if (attempt >= 5)
+      {
         Serial.println("  !! 5 failed attempts. Restarting ESP32...");
         ESP.restart();
       }
@@ -204,28 +252,32 @@ void connectAWS() {
 }
 
 // ================= MQTT Callback =================
-void mqttCallback(char* topic, byte* payload, unsigned int length) {
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
   Serial.println("\n---------- MQTT Message ----------");
-  Serial.print("Topic  : "); Serial.println(topic);
-  Serial.print("Length : "); Serial.println(length);
+  Serial.print("Topic  : ");
+  Serial.println(topic);
+  Serial.print("Length : ");
+  Serial.println(length);
   Serial.print("Payload: ");
   String message;
-  for (unsigned int i = 0; i < length; i++) {
+  for (unsigned int i = 0; i < length; i++)
+  {
     message += (char)payload[i];
   }
   Serial.println(message);
   Serial.println("----------------------------------\n");
 }
 
-
-
-void syncTime() {
+void syncTime()
+{
   Serial.println("Syncing time with NTP...");
 
   configTime(0, 0, "pool.ntp.org", "time.nist.gov");
 
   time_t now = time(nullptr);
-  while (now < 8 * 3600 * 2) {
+  while (now < 8 * 3600 * 2)
+  {
     delay(500);
     Serial.print(".");
     now = time(nullptr);
@@ -240,33 +292,52 @@ void syncTime() {
   Serial.println(asctime(&timeinfo));
 }
 
+String getIsoTimestamp()
+{
+  time_t now = time(nullptr);
+  struct tm timeinfo;
+  gmtime_r(&now, &timeinfo);
+
+  char buffer[32];
+  strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
+  return String(buffer);
+}
+
 // ================= Setup =================
-void setup() {
+void setup()
+{
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
-  
+
   Serial.println("\n\n##############################");
   Serial.println("#   ESP32 AWS IoT Boot       #");
   Serial.println("##############################");
-  Serial.print("SDK Version : "); Serial.println(ESP.getSdkVersion());
-  Serial.print("Free Heap   : "); Serial.println(ESP.getFreeHeap());
-  Serial.print("Chip Model  : "); Serial.println(ESP.getChipModel());
+  Serial.print("SDK Version : ");
+  Serial.println(ESP.getSdkVersion());
+  Serial.print("Free Heap   : ");
+  Serial.println(ESP.getFreeHeap());
+  Serial.print("Chip Model  : ");
+  Serial.println(ESP.getChipModel());
   Serial.println();
 
   connectWiFi();
   syncTime();
   connectAWS();
   initIRSensors();
-  
+  initGPSSensor();
 
   client.setCallback(mqttCallback);
 
   String commandTopic = "device/" + DEVICE_ID + "/command";
-  Serial.print("Subscribing to: "); Serial.println(commandTopic);
+  Serial.print("Subscribing to: ");
+  Serial.println(commandTopic);
 
-  if (client.subscribe(commandTopic.c_str())) {
+  if (client.subscribe(commandTopic.c_str()))
+  {
     Serial.println("  >> Subscription SUCCESSFUL");
-  } else {
+  }
+  else
+  {
     Serial.println("  !! Subscription FAILED");
   }
 
@@ -277,49 +348,68 @@ void setup() {
 unsigned long lastMsg = 0;
 unsigned long lastHeartbeat = 0;
 
-void loop() {
+void loop()
+{
+  updateGPSStream();
+
   // 1. Maintain Connection
-  if (!client.connected()) {
+  if (!client.connected())
+  {
     Serial.println("\n!! MQTT connection LOST. Reconnecting...");
     connectAWS();
   }
-  
+
   // 2. Process Incoming Messages & Keepalive
   client.loop();
 
   unsigned long now = millis();
 
   // 3. Publish Sensor Data every 5 seconds
-  if (now - lastMsg > 5000) {
+  if (now - lastMsg > 5000)
+  {
     lastMsg = now;
 
-    // Simulate sensor data (Replace these with your actual DHT or Analog sensor reads)
     int irValue = readIRSensor();
+    GPSData gpsData = readGPSData();
+    bool crackDetected = (irValue == LOW);
 
-    /* Constructing the JSON payload. 
-       Note: Ensure the keys ("temperature", "deviceId") match 
-       what you plan to use in your Lambda/DynamoDB logic.
-    */
-    String payload = "{";
-    payload += "\"deviceId\":\"" + DEVICE_ID + "\",";
-    payload += "\"irSensor\":" + String(irValue);
-    payload += "}";
+    StaticJsonDocument<512> doc;
+    doc["sensorId"] = SENSOR_ID;
+    doc["deviceId"] = DEVICE_ID;
+    doc["timestamp"] = getIsoTimestamp();
+    doc["crackDetected"] = crackDetected;
+    doc["status"] = crackDetected ? "CRACK" : "NORMAL";
+    doc["severity"] = crackDetected ? 0.90 : 0.10;
+    doc["irSensor"] = irValue;
+    doc["uptime"] = now / 1000;
 
-    // Define your publish topic
-    String topic = "device/" + DEVICE_ID + "/ir";
+    JsonObject location = doc.createNestedObject("location");
+    location["latitude"] = gpsData.latitude;
+    location["longitude"] = gpsData.longitude;
+    location["valid"] = gpsData.valid;
+    location["satellites"] = gpsData.satellites;
 
-    if (client.publish(topic.c_str(), payload.c_str())) {
+    String payload;
+    serializeJson(doc, payload);
+
+    String topic = "railway/cracks";
+
+    if (client.publish(topic.c_str(), payload.c_str()))
+    {
       Serial.print("[Publish] Success! Topic: ");
       Serial.print(topic);
       Serial.print(" | Payload: ");
       Serial.println(payload);
-    } else {
+    }
+    else
+    {
       Serial.println("[Publish] FAILED! Check Buffer Size or Connection.");
     }
   }
 
   // 4. System Heartbeat every 30 seconds (Diagnostic info)
-  if (now - lastHeartbeat >= 30000) {
+  if (now - lastHeartbeat >= 30000)
+  {
     lastHeartbeat = now;
     Serial.printf("\n--- System Status ---\n");
     Serial.printf("Uptime    : %lus\n", now / 1000);
@@ -328,4 +418,3 @@ void loop() {
     Serial.println("---------------------\n");
   }
 }
-
