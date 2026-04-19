@@ -43,7 +43,7 @@ def send_camera_update(telegram_url):
         "timestamp": datetime.datetime.utcnow().isoformat(),
         "crack_detected": True,        # We pretend the IR sensor saw it
         "imageUrl": telegram_url,      # Your Telegram link
-        "status": "CRACK FOUND"
+        "status": "MANUAL_TEST_OK"
     }
     
     result = client.publish(topic, json.dumps(payload))
