@@ -1,12 +1,32 @@
 package com.repositary;
 
 import com.model.EspCamDetection;
-import org.socialsignin.spring.data.dynamodb.repository.EnableScan;
-import org.springframework.data.repository.CrudRepository;
 import org.springframework.stereotype.Repository;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
+import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
+
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Repository
-@EnableScan
-public interface EspCamRepository extends CrudRepository<EspCamDetection, String> {
-    // Spring Data DynamoDB will now talk to that specific AWS table
+public class EspCamRepository {
+
+    private final DynamoDbTable<EspCamDetection> table;
+
+    public EspCamRepository(DynamoDbEnhancedClient enhancedClient) {
+        // Create a reference to the table using the bean schema
+        this.table = enhancedClient.table("ir_cracks_detection", TableSchema.fromBean(EspCamDetection.class));
+    }
+
+    public void save(EspCamDetection detection) {
+        table.putItem(detection);
+    }
+
+    public List<EspCamDetection> findAll() {
+        // Scan the table and return all items
+        return table.scan().items().stream().collect(Collectors.toList());
+    }
+
+    // Add additional methods as needed
 }
