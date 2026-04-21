@@ -12,7 +12,7 @@ import Alerts from "./pages/Alerts";
 import CrackDetails from "./pages/CrackDetails";
 import Decision from "./pages/Decision";
 import Reports from "./pages/Reports";
-import LiveMap from "./pages/LiveMap";
+import MapPage from "./pages/MapPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -32,7 +32,7 @@ const App = () => (
               <Route path="/crack/:id" element={<ProtectedRoute><CrackDetails /></ProtectedRoute>} />
               <Route path="/decision/:id" element={<ProtectedRoute><Decision /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-              <Route path="/map" element={<ProtectedRoute><LiveMap /></ProtectedRoute>} />
+              <Route path="/map" element={<ProtectedRoute><MapPage /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
