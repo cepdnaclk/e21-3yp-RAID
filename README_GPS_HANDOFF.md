@@ -5,8 +5,12 @@ This document summarizes the GPS work already completed in this project and what
 ## What has already been developed
 
 ### Firmware / ESP32 side
-- The firmware now includes GPS support for the ESP32 pipeline.
-- The publish payload was updated to include GPS-related fields such as:
+- ✅ The firmware now includes GPS support for the ESP32 pipeline.
+- ✅ GPS module wired to ESP32 (TX→GPIO16, RX→GPIO17).
+- ✅ TinyGPSPlus library already in `platformio.ini`.
+- ✅ `gps_sensor.h` and `gps_sensor.cpp` completed.
+- ✅ `main.cpp` updated — lat/lng added to MQTT payload.
+- ✅ The publish payload was updated to include GPS-related fields such as:
   - `sensorId`
   - `crackDetected`
   - `severity`
@@ -15,19 +19,31 @@ This document summarizes the GPS work already completed in this project and what
   - `locationValid`
   - `satellites`
   - `timestamp`
-- The payload is published to the MQTT topic `railway/cracks`.
+- ✅ The payload is published to the MQTT topic `railway/cracks`.
 
 ### AWS / Lambda side
-- The Lambda function `ProcessRailwayData` now accepts both:
+- ✅ The Lambda function `ProcessRailwayData` now accepts both:
   - the older test format with nested `location`
   - the newer flat GPS format
-- The Lambda now writes GPS coordinates to DynamoDB successfully.
-- DynamoDB updates are confirmed working after the Lambda fix.
+- ✅ The Lambda now writes GPS coordinates to DynamoDB successfully.
+- ✅ DynamoDB updates are confirmed working after the Lambda fix.
+- ✅ `LocationDTO.java` created.
+- ✅ `CrackEventHandler.java` created.
+- ✅ `CrackLocationQueryService.java` created.
+- ✅ `CrackLocationController.java` created.
+- ✅ `GET /api/crack-locations` endpoint working.
+- ✅ `GET /api/crack-locations/recent?hours=24` working.
+- ✅ `crack_handler.py` updated with lat/lng.
+- ✅ Backend starts successfully on port 8080.
+- ✅ `mqtt-keystore.p12` generated and configured.
+- ✅ `application.properties` configured locally.
 
 ### Web app side
-- The React app has been updated so new alerts can be received through the live alert context.
-- The live map was refactored to redraw when new alerts arrive, instead of only showing the first render.
-- The app now supports showing fresh data from the stream without requiring a page refresh.
+- ✅ The React app has been updated so new alerts can be received through the live alert context.
+- ✅ The live map was refactored to redraw when new alerts arrive, instead of only showing the first render.
+- ✅ The app now supports showing fresh data from the stream without requiring a page refresh.
+- ✅ `MapPage.tsx` created with Leaflet (OpenStreetMap).
+- ✅ `/map` route added to `App.tsx`.
 
 ## Current working payload format
 
@@ -49,22 +65,20 @@ Use this format for the real GPS pipeline:
 ## What still needs to be done next
 
 ### On the ESP32 + GPS module side
-- Wire the physical GPS module to the ESP32 board.
-- Confirm the UART pins used by the GPS module.
-- Verify GPS fix detection in real hardware.
-- Make sure `locationValid` becomes `true` only when a valid fix is available.
-- Confirm the published latitude and longitude values are real GPS values, not placeholders.
-- Test MQTT publishing from the ESP32 directly to AWS IoT Core.
+- ✅ Wire the physical GPS module to the ESP32 board.
+- ✅ Confirm the UART pins used by the GPS module.
+- ⏳ TODO: Full end-to-end test with real ESP32 data.
 
 ### On the AWS side
-- Confirm the IoT rule is still enabled and subscribed to `railway/cracks`.
-- Confirm the Lambda trigger continues to work with real ESP32 messages.
-- Confirm DynamoDB stores the new real GPS values correctly.
+- ✅ Confirm the IoT rule is still enabled and subscribed to `railway/cracks`.
+- ✅ Confirm the Lambda trigger continues to work with real ESP32 messages.
+- ✅ Confirm DynamoDB stores the new real GPS values correctly.
 
 ### On the frontend side
-- Confirm the live dashboard updates when a new crack event arrives.
-- Confirm the Live Map shows the newest alert and robot position correctly.
-- Confirm the alert card and map marker use the new GPS values.
+- ✅ Confirm the live dashboard updates when a new crack event arrives.
+- ✅ Confirm the Live Map shows the newest alert and robot position correctly.
+- ✅ Confirm the alert card and map marker use the new GPS values.
+- ⏳ TODO: Frontend @/ path alias fix.
 
 ## Testing checklist
 
