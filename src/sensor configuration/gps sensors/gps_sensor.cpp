@@ -5,9 +5,9 @@
 namespace
 {
     TinyGPSPlus gps;
-    HardwareSerial gpsSerial(1);
+    HardwareSerial gpsSerial(2);
 
-    constexpr int GPS_RX_PIN = 18;
+    constexpr int GPS_RX_PIN = 16;
     constexpr int GPS_TX_PIN = 17;
     constexpr unsigned long GPS_BAUD_RATE = 9600;
 } // namespace
@@ -28,9 +28,24 @@ void updateGPSStream()
 GPSData readGPSData()
 {
     GPSData data{};
-    data.valid = gps.location.isValid();
-    data.latitude = gps.location.isValid() ? gps.location.lat() : 0.0;
-    data.longitude = gps.location.isValid() ? gps.location.lng() : 0.0;
+    data.valid = isValid();
+    data.latitude = getLat();
+    data.longitude = getLng();
     data.satellites = gps.satellites.isValid() ? static_cast<int>(gps.satellites.value()) : 0;
     return data;
+}
+
+bool isValid()
+{
+    return gps.location.isValid();
+}
+
+double getLat()
+{
+    return isValid() ? gps.location.lat() : 0.0;
+}
+
+double getLng()
+{
+    return isValid() ? gps.location.lng() : 0.0;
 }
