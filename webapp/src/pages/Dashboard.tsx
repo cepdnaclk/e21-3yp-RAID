@@ -82,6 +82,7 @@ export default function Dashboard() {
             className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
           >
             <option value="IR_Bottom">IR array</option>
+            <option value="ESP32_CAM_INTEGRATED">Robot Camera</option>
           </select>
         </div>
       </div>
@@ -135,20 +136,17 @@ export default function Dashboard() {
                     <td className="p-4">
                       <div className="w-24 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative group">
 
-                        {/* Show image if available */}
-                        {crack.media?.imageUrl ? (
+                        {/* Updated to check both your path and your friend's path */}
+                        {(crack.imageUrl || crack.media?.imageUrl) ? (
                           <img 
-                            src={crack.media.imageUrl} 
+                            src={crack.imageUrl || crack.media?.imageUrl} 
                             alt="Track Defect" 
                             className="w-full h-full object-cover"
                           />
                         ) : (
-                          /* Placeholder if no image */
                           <div className="flex flex-col items-center justify-center h-full text-slate-400">
                             <Camera size={20} className="mb-1 opacity-50" />
-                            <span className="text-[10px] uppercase font-semibold">
-                              No Image
-                            </span>
+                            <span className="text-[10px] uppercase font-semibold">No Image</span>
                           </div>
                         )}
                       </div>
