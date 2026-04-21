@@ -13,13 +13,13 @@ import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 @Configuration
 public class DynamoDbConfig {
 
-    @Value("${aws.region:us-east-1}")
+    @Value("${aws.region}")
     private String region;
 
-    @Value("${aws.accessKeyId:dummy}")
+    @Value("${aws.accessKeyId}")
     private String accessKey;
 
-    @Value("${aws.secretKey:dummy}")
+    @Value("${aws.secretKey}")
     private String secretKey;
 
     @Bean

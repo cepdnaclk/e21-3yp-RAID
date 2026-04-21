@@ -21,7 +21,7 @@ public class CrackLocationQueryService {
 
     private final DynamoDbClient dynamoDbClient;
 
-    @Value("${raid.dynamodb.table-name}")
+    @Value("${aws.dynamodb.tableName}")
     private String tableName;
 
     public CrackLocationQueryService(DynamoDbClient dynamoDbClient) {
@@ -119,7 +119,8 @@ public class CrackLocationQueryService {
         }
     }
 
-    // Returned as IRSensorDataDTO from controller signature, with GPS/severity extras.
+    // Returned as IRSensorDataDTO from controller signature, with GPS/severity
+    // extras.
     @SuppressWarnings("unused")
     private static class CrackLocationRecord extends IRSensorDataDTO {
         private double lat;
