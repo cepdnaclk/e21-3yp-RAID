@@ -384,6 +384,8 @@ void loop()
     doc["uptime"] = now / 1000;
 
     JsonObject location = doc.createNestedObject("location");
+    location["lat"] = gpsData.latitude;
+    location["lng"] = gpsData.longitude;
     location["latitude"] = gpsData.latitude;
     location["longitude"] = gpsData.longitude;
     location["valid"] = gpsData.valid;

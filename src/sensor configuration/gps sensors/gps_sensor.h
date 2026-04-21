@@ -18,4 +18,9 @@ void updateGPSStream();
 // Returns latest known GPS fix details.
 GPSData readGPSData();
 
+// Lightweight accessors used by firmware integrations.
+bool isValid();
+double getLat();
+double getLng();
+
 #endif

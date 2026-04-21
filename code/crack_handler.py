@@ -56,8 +56,10 @@ def lambda_handler(event, context):
         gps_ts        = event.get('timestamp',      '')
 
         location      = event.get('location', {})
-        latitude      = Decimal(str(location.get('latitude', event.get('latitude', 0.0))))
-        longitude     = Decimal(str(location.get('longitude', event.get('longitude', 0.0))))
+        lat           = Decimal(str(location.get('lat', event.get('lat', 0.0))))
+        lng           = Decimal(str(location.get('lng', event.get('lng', 0.0))))
+        latitude      = Decimal(str(location.get('latitude', event.get('latitude', lat))))
+        longitude     = Decimal(str(location.get('longitude', event.get('longitude', lng))))
         loc_valid     = bool(location.get('valid', event.get('locationValid', False)))
         satellites    = int(location.get('satellites', event.get('satellites', 0)))
 
@@ -83,6 +85,8 @@ def lambda_handler(event, context):
             'crackDetected': crack_detected,  # matches DTO
             'status':        status,          # matches DTO
             'severity':      severity,        # matches DTO (new field)
+            'lat':           lat,
+            'lng':           lng,
             'latitude':      latitude,        # matches DTO location.latitude
             'longitude':     longitude,       # matches DTO location.longitude
             'locationValid': loc_valid,       # used by Spring query filter
