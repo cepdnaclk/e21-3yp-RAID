@@ -1,14 +1,15 @@
 package com.controller;
 
-import com.dto.sensor.IRSensorDataDTO;
-import com.service.IRSensorService;
+import java.util.List;
+
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
+import com.dto.sensor.IRSensorDataDTO;
+import com.service.IRSensorService;
 
 // 1. The Class Annotations
 @RestController
