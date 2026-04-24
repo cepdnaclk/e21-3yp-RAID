@@ -2,11 +2,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Wifi, MapPin, Bell, Map, FileText, 
-  ChevronRight, Gauge, Battery, LogOut, Camera, AlertTriangle
+  ChevronRight, Gauge, Battery, LogOut, Camera, AlertTriangle, Ruler
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useUltrasonicTelemetry } from "@/hooks/useUltrasonicTelemetry";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 
@@ -17,15 +18,18 @@ export default function Dashboard() {
   // Selected device and sensor (controls what data stream we listen to)
   const [deviceId, setDeviceId] = useState("esp-001");
   const [sensorId, setSensorId] = useState("IR_Bottom");
+  const [ultrasonicSensorId, setUltrasonicSensorId] = useState("ULTRA_FRONT");
 
   // Custom hook: gives historical + real-time crack data
   const { liveCracks, isConnected } = useTelemetry(deviceId, sensorId);
+  const { liveUltrasonic, isConnected: isUltrasonicConnected } = useUltrasonicTelemetry(deviceId, ultrasonicSensorId);
 
   // Total number of detected events
   const total = liveCracks.length;
 
   // Count of unresolved/active issues
   const pending = liveCracks.filter(c => c.status !== 'RESOLVED').length;
+  const latestUltrasonic = liveUltrasonic[0];
 
   // Logout user and redirect to home page
   const handleLogout = async () => {
@@ -84,6 +88,49 @@ export default function Dashboard() {
             <option value="IR_Bottom">IR array</option>
             <option value="ESP32_CAM_INTEGRATED">Robot Camera</option>
           </select>
+
+          <select
+            value={ultrasonicSensorId}
+            onChange={(e) => setUltrasonicSensorId(e.target.value)}
+            className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
+          >
+            <option value="ULTRA_FRONT">Ultrasonic Front</option>
+            <option value="ULTRA_REAR">Ultrasonic Rear</option>
+          </select>
+        </div>
+      </div>
+
+      <div className="px-6 mt-6">
+        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-bold text-slate-900 tracking-tight flex items-center gap-2">
+              <Ruler size={18} /> Ultrasonic Distance Feed
+            </h2>
+            <span className={`text-xs font-semibold px-2 py-1 rounded-full ${isUltrasonicConnected ? "bg-emerald-100 text-emerald-700" : "bg-red-100 text-red-700"}`}>
+              {isUltrasonicConnected ? "LIVE" : "DISCONNECTED"}
+            </span>
+          </div>
+
+          {latestUltrasonic ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p className="text-xs text-slate-500 mb-1">Distance</p>
+                <p className="text-2xl font-bold text-slate-900">{Number(latestUltrasonic.distanceCm).toFixed(1)} cm</p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p className="text-xs text-slate-500 mb-1">Obstacle</p>
+                <p className={`text-lg font-bold ${latestUltrasonic.obstacleDetected ? "text-rose-600" : "text-emerald-600"}`}>
+                  {latestUltrasonic.obstacleDetected ? "Detected" : "Clear"}
+                </p>
+              </div>
+              <div className="bg-slate-50 rounded-xl p-3 border border-slate-200">
+                <p className="text-xs text-slate-500 mb-1">Last Reading</p>
+                <p className="text-sm font-semibold text-slate-900">{new Date(latestUltrasonic.timestamp).toLocaleTimeString()}</p>
+              </div>
+            </div>
+          ) : (
+            <p className="text-slate-400 italic text-sm">No ultrasonic readings yet.</p>
+          )}
         </div>
       </div>
 

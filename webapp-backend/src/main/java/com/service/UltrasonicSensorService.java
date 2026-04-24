@@ -1,0 +1,42 @@
+package com.service;
+
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
+import com.dto.sensor.UltrasonicSensorDataDTO;
+import com.mapper.UltrasonicSensorMapper;
+import com.model.UltrasonicSensorData;
+import com.repositary.imp.UltrasonicSensorRepositoryImpl;
+
+@Service
+public class UltrasonicSensorService {
+	private final UltrasonicSensorRepositoryImpl repository;
+	private final UltrasonicSensorMapper mapper;
+
+	public UltrasonicSensorService(UltrasonicSensorRepositoryImpl repository, UltrasonicSensorMapper mapper) {
+		this.repository = repository;
+		this.mapper = mapper;
+	}
+
+	public List<UltrasonicSensorDataDTO> getAllSensorData() {
+		List<UltrasonicSensorData> rawData = repository.getAllData();
+		return rawData.stream()
+				.map(mapper::toDTO)
+				.collect(Collectors.toList());
+	}
+
+	public List<UltrasonicSensorDataDTO> getSpecificSensorData(String deviceId, String sensorId) {
+		List<UltrasonicSensorData> rawData = repository.getDataByDeviceAndSensor(deviceId, sensorId);
+		return rawData.stream()
+				.map(mapper::toDTO)
+				.collect(Collectors.toList());
+	}
+
+	public UltrasonicSensorDataDTO saveSensorData(UltrasonicSensorDataDTO dto) {
+		UltrasonicSensorData entity = mapper.toEntity(dto);
+		UltrasonicSensorData saved = repository.save(entity);
+		return mapper.toDTO(saved);
+	}
+}

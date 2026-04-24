@@ -6,6 +6,7 @@
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_sensor.h"
+#include "sensor configuration/ultrasonic sensors/ultrasonic_sensor.h"
 
 // ================= Configuration =================
 const char *ssid = "Suvini";
@@ -13,7 +14,8 @@ const char *password = "suvini12345678";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
-const char *SENSOR_ID = "IR_Bottom";
+const char *IR_SENSOR_ID = "IR_Bottom";
+const char *ULTRASONIC_SENSOR_ID = "ULTRA_FRONT";
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -325,6 +327,7 @@ void setup()
   connectAWS();
   initIRSensors();
   initGPSSensor();
+  initUltrasonicSensor();
 
   client.setCallback(mqttCallback);
 
@@ -370,38 +373,76 @@ void loop()
     lastMsg = now;
 
     int irValue = readIRSensor();
+    UltrasonicData ultrasonicData = readUltrasonicData();
     GPSData gpsData = readGPSData();
     bool crackDetected = (irValue == LOW);
 
-    StaticJsonDocument<512> doc;
-    doc["sensorId"] = SENSOR_ID;
-    doc["deviceId"] = DEVICE_ID;
-    doc["timestamp"] = getIsoTimestamp();
-    doc["crackDetected"] = crackDetected;
-    doc["status"] = crackDetected ? "CRACK" : "NORMAL";
-    doc["severity"] = crackDetected ? 0.90 : 0.10;
-    doc["irSensor"] = irValue;
-    doc["uptime"] = now / 1000;
+    String timestamp = getIsoTimestamp();
 
-    JsonObject location = doc.createNestedObject("location");
-    location["lat"] = gpsData.latitude;
-    location["lng"] = gpsData.longitude;
-    location["latitude"] = gpsData.latitude;
-    location["longitude"] = gpsData.longitude;
-    location["valid"] = gpsData.valid;
-    location["satellites"] = gpsData.satellites;
+    StaticJsonDocument<512> crackDoc;
+    crackDoc["sensorId"] = IR_SENSOR_ID;
+    crackDoc["deviceId"] = DEVICE_ID;
+    crackDoc["timestamp"] = timestamp;
+    crackDoc["sensorType"] = "crack";
+    crackDoc["crackDetected"] = crackDetected;
+    crackDoc["status"] = crackDetected ? "CRACK" : "NORMAL";
+    crackDoc["severity"] = crackDetected ? 0.90 : 0.10;
+    crackDoc["irSensor"] = irValue;
+    crackDoc["uptime"] = now / 1000;
 
-    String payload;
-    serializeJson(doc, payload);
+    JsonObject crackLocation = crackDoc.createNestedObject("location");
+    crackLocation["lat"] = gpsData.latitude;
+    crackLocation["lng"] = gpsData.longitude;
+    crackLocation["latitude"] = gpsData.latitude;
+    crackLocation["longitude"] = gpsData.longitude;
+    crackLocation["valid"] = gpsData.valid;
+    crackLocation["satellites"] = gpsData.satellites;
 
-    String topic = "railway/cracks";
+    String crackPayload;
+    serializeJson(crackDoc, crackPayload);
 
-    if (client.publish(topic.c_str(), payload.c_str()))
+    String crackTopic = "railway/cracks";
+
+    if (client.publish(crackTopic.c_str(), crackPayload.c_str()))
     {
       Serial.print("[Publish] Success! Topic: ");
-      Serial.print(topic);
+      Serial.print(crackTopic);
       Serial.print(" | Payload: ");
-      Serial.println(payload);
+      Serial.println(crackPayload);
+    }
+    else
+    {
+      Serial.println("[Publish] FAILED! Check Buffer Size or Connection.");
+    }
+
+    StaticJsonDocument<512> ultrasonicDoc;
+    ultrasonicDoc["sensorId"] = ULTRASONIC_SENSOR_ID;
+    ultrasonicDoc["deviceId"] = DEVICE_ID;
+    ultrasonicDoc["timestamp"] = timestamp;
+    ultrasonicDoc["sensorType"] = "ultrasonic";
+    ultrasonicDoc["distanceCm"] = ultrasonicData.distanceCm;
+    ultrasonicDoc["obstacleDetected"] = ultrasonicData.obstacleDetected;
+    ultrasonicDoc["status"] = ultrasonicData.obstacleDetected ? "OBSTACLE" : "CLEAR";
+    ultrasonicDoc["uptime"] = now / 1000;
+
+    JsonObject ultrasonicLocation = ultrasonicDoc.createNestedObject("location");
+    ultrasonicLocation["lat"] = gpsData.latitude;
+    ultrasonicLocation["lng"] = gpsData.longitude;
+    ultrasonicLocation["latitude"] = gpsData.latitude;
+    ultrasonicLocation["longitude"] = gpsData.longitude;
+    ultrasonicLocation["valid"] = gpsData.valid;
+    ultrasonicLocation["satellites"] = gpsData.satellites;
+
+    String ultrasonicPayload;
+    serializeJson(ultrasonicDoc, ultrasonicPayload);
+
+    String ultrasonicTopic = "railway/ultrasonic";
+    if (client.publish(ultrasonicTopic.c_str(), ultrasonicPayload.c_str()))
+    {
+      Serial.print("[Publish] Success! Topic: ");
+      Serial.print(ultrasonicTopic);
+      Serial.print(" | Payload: ");
+      Serial.println(ultrasonicPayload);
     }
     else
     {
