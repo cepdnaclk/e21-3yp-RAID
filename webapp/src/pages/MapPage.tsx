@@ -162,13 +162,38 @@ const MapPage = () => {
 
     useEffect(() => {
         const loadHistory = async () => {
-            const response = await fetch(`${apiBaseUrl}/api/crack-locations`);
-            if (!response.ok) {
-                throw new Error(`Failed to fetch crack locations: ${response.status}`);
+            const crackResponse = await fetch(`${apiBaseUrl}/api/crack-locations`);
+            if (!crackResponse.ok) {
+                throw new Error(`Failed to fetch crack locations: ${crackResponse.status}`);
             }
-            const data = (await response.json()) as unknown[];
-            const parsed = data.map(parsePayload).filter((x): x is CrackLocation => x !== null);
-            setLocations(parsed);
+
+            const crackData = (await crackResponse.json()) as unknown[];
+            const crackParsed = crackData.map(parsePayload).filter((x): x is CrackLocation => x !== null);
+
+            let ultrasonicParsed: CrackLocation[] = [];
+            try {
+                const ultrasonicResponse = await fetch(`${apiBaseUrl}/api/ultrasonic`);
+                if (ultrasonicResponse.ok) {
+                    const ultrasonicData = (await ultrasonicResponse.json()) as unknown[];
+                    ultrasonicParsed = ultrasonicData
+                        .map((payload) => parseUltrasonicPayload(payload))
+                        .filter((x): x is UltrasonicLocation => x !== null)
+                        .map((u) => ({
+                            sensorId: u.sensorId,
+                            timestamp: u.timestamp,
+                            deviceId: u.deviceId,
+                            crackDetected: true,
+                            status: `ULTRASONIC ${u.distanceCm.toFixed(1)}cm`,
+                            lat: u.lat,
+                            lng: u.lng,
+                            severity: u.severity,
+                        }));
+                }
+            } catch (e) {
+                console.warn("Failed to fetch ultrasonic history", e);
+            }
+
+            setLocations([...crackParsed, ...ultrasonicParsed]);
         };
 
         loadHistory().catch((err) => {

@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 
 import com.dto.sensor.UltrasonicSensorDataDTO;
 import com.service.UltrasonicSensorService;
@@ -18,9 +19,11 @@ import com.service.UltrasonicSensorService;
 @CrossOrigin(originPatterns = "*")
 public class UltrasonicSensorController {
 	private final UltrasonicSensorService service;
+	private final SimpMessagingTemplate messagingTemplate;
 
-	public UltrasonicSensorController(UltrasonicSensorService service) {
+	public UltrasonicSensorController(UltrasonicSensorService service, SimpMessagingTemplate messagingTemplate) {
 		this.service = service;
+		this.messagingTemplate = messagingTemplate;
 	}
 
 	@GetMapping
@@ -37,6 +40,10 @@ public class UltrasonicSensorController {
 
 	@PostMapping
 	public UltrasonicSensorDataDTO saveSensorData(@RequestBody UltrasonicSensorDataDTO data) {
-		return service.saveSensorData(data);
+		UltrasonicSensorDataDTO saved = service.saveSensorData(data);
+		if (saved != null) {
+			messagingTemplate.convertAndSend("/topic/ultrasonic", saved);
+		}
+		return saved;
 	}
 }
