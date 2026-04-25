@@ -14,10 +14,13 @@ import com.repositary.imp.UltrasonicSensorRepositoryImpl;
 public class UltrasonicSensorService {
 	private final UltrasonicSensorRepositoryImpl repository;
 	private final UltrasonicSensorMapper mapper;
+	private final UltrasonicEventHandler ultrasonicEventHandler;
 
-	public UltrasonicSensorService(UltrasonicSensorRepositoryImpl repository, UltrasonicSensorMapper mapper) {
+	public UltrasonicSensorService(UltrasonicSensorRepositoryImpl repository, UltrasonicSensorMapper mapper,
+			UltrasonicEventHandler ultrasonicEventHandler) {
 		this.repository = repository;
 		this.mapper = mapper;
+		this.ultrasonicEventHandler = ultrasonicEventHandler;
 	}
 
 	public List<UltrasonicSensorDataDTO> getAllSensorData() {
@@ -35,7 +38,10 @@ public class UltrasonicSensorService {
 	}
 
 	public UltrasonicSensorDataDTO saveSensorData(UltrasonicSensorDataDTO dto) {
-		UltrasonicSensorData entity = mapper.toEntity(dto);
+		UltrasonicSensorData entity = ultrasonicEventHandler.toEntityForPersistence(dto, mapper);
+		if (entity == null) {
+			return null;
+		}
 		UltrasonicSensorData saved = repository.save(entity);
 		return mapper.toDTO(saved);
 	}

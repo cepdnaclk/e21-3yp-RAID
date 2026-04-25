@@ -11,6 +11,7 @@ import com.dto.sensor.UltrasonicSensorDataDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.service.IRSensorService;
 import com.service.UltrasonicSensorService;
 
 @Component
@@ -19,14 +20,17 @@ public class MqttReceiver {
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate; // The WebSocket Broadcaster
     private final UltrasonicSensorService ultrasonicSensorService;
+    private final IRSensorService irSensorService;
 
     // Spring injects both the Mapper and the WebSocket Template
     public MqttReceiver(ObjectMapper objectMapper,
                         SimpMessagingTemplate messagingTemplate,
-                        UltrasonicSensorService ultrasonicSensorService) {
+                        UltrasonicSensorService ultrasonicSensorService,
+                        IRSensorService irSensorService) {
         this.objectMapper = objectMapper;
         this.messagingTemplate = messagingTemplate;
         this.ultrasonicSensorService = ultrasonicSensorService;
+        this.irSensorService = irSensorService;
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
@@ -67,8 +71,14 @@ public class MqttReceiver {
                     return;
                 }
 
-                messagingTemplate.convertAndSend("/topic/cracks", liveCrackData);
-                System.out.println("Broadcasted live crack data to Web UI: " + liveCrackData.getSensorId());
+                IRSensorDataDTO savedCrackData = irSensorService.saveSensorData(liveCrackData);
+                if (savedCrackData == null) {
+                    System.err.println("Crack data save returned null, skipping broadcast");
+                    return;
+                }
+
+                messagingTemplate.convertAndSend("/topic/cracks", savedCrackData);
+                System.out.println("Stored and broadcasted live crack data to Web UI: " + savedCrackData.getSensorId());
                 return;
             }
 

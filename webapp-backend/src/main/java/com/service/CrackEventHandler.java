@@ -5,13 +5,20 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.dto.sensor.IRSensorDataDTO;
+import com.dto.sensor.LocationDTO;
+import com.mapper.IRSensorMapper;
+import com.model.IRSensorData;
 
 @Service
 public class CrackEventHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(CrackEventHandler.class);
 
-    public boolean validateAndLogConfirmedCrack(IRSensorDataDTO event, Double lat, Double lng) {
+    public boolean validateAndLogConfirmedCrack(IRSensorDataDTO event) {
+        LocationDTO location = event != null ? event.getLocation() : null;
+        Double lat = location != null ? location.getLat() : null;
+        Double lng = location != null ? location.getLng() : null;
+
         if (event == null) {
             logger.warn("Crack event ignored: payload is null");
             return false;
@@ -42,5 +49,19 @@ public class CrackEventHandler {
                 lat,
                 lng);
         return true;
+    }
+
+    public IRSensorData toEntityForPersistence(IRSensorDataDTO event, IRSensorMapper mapper) {
+        if (!validateAndLogConfirmedCrack(event)) {
+            return null;
+        }
+
+        IRSensorData entity = mapper.toEntity(event);
+        LocationDTO location = event.getLocation();
+        if (location != null) {
+            entity.setLatitude(location.getLat());
+            entity.setLongitude(location.getLng());
+        }
+        return entity;
     }
 }
