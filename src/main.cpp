@@ -4,6 +4,8 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <time.h>
+#include "soc/soc.h"
+#include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_sensor.h"
 #include "sensor configuration/ultrasonic sensors/ultrasonic_sensor.h"
@@ -42,6 +44,7 @@ N+gDS63pYaACbvXy8MWy7Vu33PqUXHeeE6V/Uq2V8viTO96LXFvKWlJbYK8U90vv
 o/ufQJVtMVT8QtPHRh8jrdkPSHCa2XV4cdFyQzR1bldZwgJcJmApzyMZFo6IQ6XU
 5MsI+yMRQ+hDKXJioaldXgjUkK642M4UwtBV8ob2xJNDd2ZhwLnoQdeXeGADbkpy
 rqXRfboQnoZsG4q5WTP468SQvvG5
+
 -----END CERTIFICATE-----
 )EOF";
 
@@ -253,6 +256,17 @@ void connectAWS()
   Serial.println("=============================\n");
 }
 
+// ================= Capture and Send Function =================
+void captureAndSend()
+{
+  Serial.println("[ALERT] Crack detected! Triggering photo capture...");
+  // TODO: Implement camera capture and AWS upload
+  // This function should:
+  // 1. Capture image from camera
+  // 2. Compress and encode
+  // 3. Upload to AWS S3 or IoT Core
+}
+
 // ================= MQTT Callback =================
 void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
@@ -268,6 +282,14 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
     message += (char)payload[i];
   }
   Serial.println(message);
+  
+  // Check if this is a crack detection message
+  if (message.indexOf("\"crack_detected\": true") != -1 || message.indexOf("\"crack_detected\":true") != -1)
+  {
+    Serial.println("[CALLBACK] Crack detected from IR sensor! Activating camera...");
+    captureAndSend();
+  }
+  
   Serial.println("----------------------------------\n");
 }
 
@@ -308,6 +330,9 @@ String getIsoTimestamp()
 // ================= Setup =================
 void setup()
 {
+  // CRITICAL: Disable brownout detector to prevent restart loops when camera + WiFi power on simultaneously
+  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
 
@@ -321,6 +346,7 @@ void setup()
   Serial.print("Chip Model  : ");
   Serial.println(ESP.getChipModel());
   Serial.println();
+  Serial.println("[BOOT] Brownout detector disabled for camera+WiFi operation.");
 
   connectWiFi();
   syncTime();
@@ -331,6 +357,7 @@ void setup()
 
   client.setCallback(mqttCallback);
 
+  // Subscribe to command topic
   String commandTopic = "device/" + DEVICE_ID + "/command";
   Serial.print("Subscribing to: ");
   Serial.println(commandTopic);
@@ -342,6 +369,20 @@ void setup()
   else
   {
     Serial.println("  !! Subscription FAILED");
+  }
+  
+  // Subscribe to friend's IR sensor topic for automatic crack detection
+  String irSensorTopic = "device/" + DEVICE_ID + "/IR_Bottom";
+  Serial.print("Subscribing to IR sensor: ");
+  Serial.println(irSensorTopic);
+  
+  if (client.subscribe(irSensorTopic.c_str()))
+  {
+    Serial.println("  >> IR Sensor Subscription SUCCESSFUL");
+  }
+  else
+  {
+    Serial.println("  !! IR Sensor Subscription FAILED");
   }
 
   Serial.println("\n>>> Setup complete. Entering loop...\n");
@@ -355,11 +396,18 @@ void loop()
 {
   updateGPSStream();
 
-  // 1. Maintain Connection
+  // 1. Maintain Connection & Re-subscribe to topics
   if (!client.connected())
   {
     Serial.println("\n!! MQTT connection LOST. Reconnecting...");
     connectAWS();
+    
+    // Re-subscribe to topics after reconnection
+    String commandTopic = "device/" + DEVICE_ID + "/command";
+    String irSensorTopic = "device/" + DEVICE_ID + "/IR_Bottom";
+    client.subscribe(commandTopic.c_str());
+    client.subscribe(irSensorTopic.c_str());
+    Serial.println("Topics re-subscribed after reconnection.");
   }
 
   // 2. Process Incoming Messages & Keepalive
