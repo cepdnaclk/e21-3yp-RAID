@@ -8,6 +8,8 @@ public class IRSensorDataDTO {
     private String deviceId;
     private boolean crackDetected;
     private String status;
+    private double severity;
+    private LocationDTO location;
 
     // Empty constructor needed by Spring
     public IRSensorDataDTO() {
@@ -20,6 +22,27 @@ public class IRSensorDataDTO {
         this.deviceId = deviceId;
         this.crackDetected = crackDetected;
         this.status = status;
+    }
+
+    public IRSensorDataDTO(String sensorId, String timestamp, String deviceId, boolean crackDetected, String status,
+            LocationDTO location) {
+        this.sensorId = sensorId;
+        this.timestamp = timestamp;
+        this.deviceId = deviceId;
+        this.crackDetected = crackDetected;
+        this.status = status;
+        this.location = location;
+    }
+
+    public IRSensorDataDTO(String sensorId, String timestamp, String deviceId, boolean crackDetected, String status,
+            double severity, LocationDTO location) {
+        this.sensorId = sensorId;
+        this.timestamp = timestamp;
+        this.deviceId = deviceId;
+        this.crackDetected = crackDetected;
+        this.status = status;
+        this.severity = severity;
+        this.location = location;
     }
 
     // Standard Getters and Setters
@@ -61,6 +84,22 @@ public class IRSensorDataDTO {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    public double getSeverity() {
+        return severity;
+    }
+
+    public void setSeverity(double severity) {
+        this.severity = severity;
+    }
+
+    public LocationDTO getLocation() {
+        return location;
+    }
+
+    public void setLocation(LocationDTO location) {
+        this.location = location;
     }
 }
 

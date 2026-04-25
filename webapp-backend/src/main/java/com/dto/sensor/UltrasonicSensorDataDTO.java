@@ -6,6 +6,7 @@ public class UltrasonicSensorDataDTO {
 	private String timestamp;
 	private double distanceCm;
 	private boolean obstacleDetected;
+	private LocationDTO location;
 
 	public UltrasonicSensorDataDTO() {
 	}
@@ -16,6 +17,16 @@ public class UltrasonicSensorDataDTO {
 		this.timestamp = timestamp;
 		this.distanceCm = distanceCm;
 		this.obstacleDetected = obstacleDetected;
+	}
+
+	public UltrasonicSensorDataDTO(String sensorId, String deviceId, String timestamp, double distanceCm,
+			boolean obstacleDetected, LocationDTO location) {
+		this.sensorId = sensorId;
+		this.deviceId = deviceId;
+		this.timestamp = timestamp;
+		this.distanceCm = distanceCm;
+		this.obstacleDetected = obstacleDetected;
+		this.location = location;
 	}
 
 	public String getSensorId() {
@@ -56,5 +67,13 @@ public class UltrasonicSensorDataDTO {
 
 	public void setObstacleDetected(boolean obstacleDetected) {
 		this.obstacleDetected = obstacleDetected;
+	}
+
+	public LocationDTO getLocation() {
+		return location;
+	}
+
+	public void setLocation(LocationDTO location) {
+		this.location = location;
 	}
 }

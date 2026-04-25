@@ -1,13 +1,14 @@
 package com.service;
 
+import java.util.List;
+import java.util.stream.Collectors;
+
+import org.springframework.stereotype.Service;
+
 import com.dto.sensor.IRSensorDataDTO;
 import com.mapper.IRSensorMapper;
 import com.model.IRSensorData;
 import com.repositary.IRSensorRepository;
-import org.springframework.stereotype.Service;
-
-import java.util.List;
-import java.util.stream.Collectors;
 
 // 1. The Annotation
 @Service
@@ -16,11 +17,13 @@ public class IRSensorService {
     // 2. The Dependencies
     private final IRSensorRepository repository;
     private final IRSensorMapper mapper;
+    private final CrackEventHandler crackEventHandler;
 
     // 3. Dependency Injection (Constructor)
-    public IRSensorService(IRSensorRepository repository, IRSensorMapper mapper) {
+    public IRSensorService(IRSensorRepository repository, IRSensorMapper mapper, CrackEventHandler crackEventHandler) {
         this.repository = repository;
         this.mapper = mapper;
+        this.crackEventHandler = crackEventHandler;
     }
 
     // 4. The Business Logic
@@ -44,6 +47,16 @@ public class IRSensorService {
         return rawData.stream()
                 .map(entity -> mapper.toDTO(entity))
                 .collect(Collectors.toList());
+    }
+
+    public IRSensorDataDTO saveSensorData(IRSensorDataDTO dto) {
+        IRSensorData entity = crackEventHandler.toEntityForPersistence(dto, mapper);
+        if (entity == null) {
+            return null;
+        }
+
+        IRSensorData saved = repository.save(entity);
+        return mapper.toDTO(saved);
     }
 
 }

@@ -1,17 +1,20 @@
 package com.repositary.imp;
 
-import com.repositary.IRSensorRepository;
-import com.model.IRSensorData;
+import java.util.List;
+import java.util.stream.Collectors;
+
 import org.springframework.stereotype.Repository;
+
+import com.model.IRSensorData;
+import com.repositary.IRSensorRepository;
+
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbTable;
+import software.amazon.awssdk.enhanced.dynamodb.Expression;
 import software.amazon.awssdk.enhanced.dynamodb.TableSchema;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryConditional;
 import software.amazon.awssdk.enhanced.dynamodb.model.QueryEnhancedRequest;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
-import software.amazon.awssdk.enhanced.dynamodb.Expression;
-import java.util.List;
-import java.util.stream.Collectors;
 
 // @Repository tells Spring Boot this class is responsible for database operations
 @Repository
@@ -57,6 +60,12 @@ public class IRSensorRepositoryImpl implements IRSensorRepository {
 
         // Run the query and return as a List
         return table.query(request).items().stream().toList();
+    }
+
+    @Override
+    public IRSensorData save(IRSensorData data) {
+        table.putItem(data);
+        return data;
     }
 }
 

@@ -12,6 +12,8 @@ public class UltrasonicSensorData {
 	private String timestamp;
 	private double distanceCm;
 	private boolean obstacleDetected;
+	private double latitude;
+	private double longitude;
 
 	@DynamoDbPartitionKey
 	@DynamoDbAttribute("SensorID")
@@ -58,5 +60,23 @@ public class UltrasonicSensorData {
 
 	public void setObstacleDetected(boolean obstacleDetected) {
 		this.obstacleDetected = obstacleDetected;
+	}
+
+	@DynamoDbAttribute("latitude")
+	public double getLatitude() {
+		return latitude;
+	}
+
+	public void setLatitude(double latitude) {
+		this.latitude = latitude;
+	}
+
+	@DynamoDbAttribute("longitude")
+	public double getLongitude() {
+		return longitude;
+	}
+
+	public void setLongitude(double longitude) {
+		this.longitude = longitude;
 	}
 }
