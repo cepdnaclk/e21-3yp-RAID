@@ -8,6 +8,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_sensor.h"
+#include "sensor configuration/ultrasonic sensors/ultrasonic_sensor.h"
 
 // ================= Configuration =================
 const char *ssid = "Redmi Note 10";
@@ -15,7 +16,8 @@ const char *password = "200170201635";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
-const char *SENSOR_ID = "IR_Bottom";
+const char *IR_SENSOR_ID = "IR_Bottom";
+const char *ULTRASONIC_SENSOR_ID = "ULTRA_FRONT";
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -69,7 +71,6 @@ sYTGZwunvQTZCI+Jw5tFttCEJJz7i/rNKkX+iS/lG6h20kKRwynHpztyIBUc
 -----END CERTIFICATE-----
 
 )EOF";
-
 const char AWS_CERT_PRIVATE[] = R"EOF(
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAtYtlI7l5+9cp/mN7LntRmqumRy7OLUVfst3AczOVOuvEZCVZ
@@ -187,7 +188,6 @@ void connectWiFi()
   Serial.println(WiFi.RSSI());
   Serial.println("==========================\n");
 }
-
 // ================= AWS IoT Connection =================
 void connectAWS()
 {
@@ -326,8 +326,7 @@ void setup()
   
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
-
-  Serial.println("\n\n##############################");
+Serial.println("\n\n##############################");
   Serial.println("#   ESP32 AWS IoT Boot       #");
   Serial.println("##############################");
   Serial.print("SDK Version : ");
@@ -343,7 +342,8 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-
+  initGPSSensor();
+  initUltrasonicSensor();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -405,57 +405,76 @@ void loop()
     irScan = scanIRArray();
     irScanReady = true;
 
-    if (irScan.crackDetected)
+    UltrasonicData ultrasonicData = readUltrasonicData();
+    GPSData gpsData = readGPSData();
+    bool crackDetected = irScan.crackDetected;
+
+    String timestamp = getIsoTimestamp();
+
+    StaticJsonDocument<512> crackDoc;
+    crackDoc["sensorId"] = IR_SENSOR_ID;
+    crackDoc["deviceId"] = DEVICE_ID;
+    crackDoc["timestamp"] = timestamp;
+    crackDoc["sensorType"] = "crack";
+    crackDoc["crackDetected"] = crackDetected;
+    crackDoc["status"] = crackDetected ? "CRACK" : "NORMAL";
+    crackDoc["severity"] = crackDetected ? 0.90 : 0.10;
+    crackDoc["irSensor"] = irScan.minValue;
+    crackDoc["uptime"] = now / 1000;
+
+    JsonObject crackLocation = crackDoc.createNestedObject("location");
+    crackLocation["lat"] = gpsData.latitude;
+    crackLocation["lng"] = gpsData.longitude;
+    crackLocation["latitude"] = gpsData.latitude;
+    crackLocation["longitude"] = gpsData.longitude;
+    crackLocation["valid"] = gpsData.valid;
+    crackLocation["satellites"] = gpsData.satellites;
+
+    String crackPayload;
+    serializeJson(crackDoc, crackPayload);
+
+    String crackTopic = "railway/cracks";
+
+    if (client.publish(crackTopic.c_str(), crackPayload.c_str()))
     {
-      consecutiveCracks++;
+      Serial.print("[Publish] Success! Topic: ");
+      Serial.print(crackTopic);
+      Serial.print(" | Payload: ");
+      Serial.println(crackPayload);
     }
     else
     {
-      consecutiveCracks = 0;
-    }
-  }
-
-  bool crack_detected = (consecutiveCracks >= REQUIRED_CONSECUTIVE_CRACKS);
-
-
-  // =========================================================
-  // THE HYBRID HEARTBEAT LOGIC
-  // =========================================================
-
-  // SCENARIO A: The Interrupt (Immediate Critical Alert)
-  // Triggers if a crack is found AND 2 seconds have passed since the last alert
-  if (crack_detected && (now - lastCriticalAlert > 3000))
-  {
-    lastCriticalAlert = now;
-    lastHeartbeat = now; // Reset the heartbeat timer—we just proved the robot is alive!
-
-    StaticJsonDocument<512> doc;
-    doc["sensorId"] = SENSOR_ID;
-    doc["deviceId"] = DEVICE_ID;
-    doc["timestamp"] = getIsoTimestamp();
-    doc["crackDetected"] = crack_detected;
-    doc["crack_detected"] = true;    
-    doc["status"] = "CRITICAL_DEFECT";
-    doc["severity"] = 0.90;
-    doc["irSensor"] = irScan.minValue;
-    doc["uptime"] = now / 1000;
-
-    JsonArray irArray = doc.createNestedArray("irArray");
-    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
-    {
-      irArray.add(irScan.values[i]);
+      Serial.println("[Publish] FAILED! Check Buffer Size or Connection.");
     }
 
-    
+    StaticJsonDocument<512> ultrasonicDoc;
+    ultrasonicDoc["sensorId"] = ULTRASONIC_SENSOR_ID;
+    ultrasonicDoc["deviceId"] = DEVICE_ID;
+    ultrasonicDoc["timestamp"] = timestamp;
+    ultrasonicDoc["sensorType"] = "ultrasonic";
+    ultrasonicDoc["distanceCm"] = ultrasonicData.distanceCm;
+    ultrasonicDoc["obstacleDetected"] = ultrasonicData.obstacleDetected;
+    ultrasonicDoc["status"] = ultrasonicData.obstacleDetected ? "OBSTACLE" : "CLEAR";
+    ultrasonicDoc["uptime"] = now / 1000;
 
-    String payload;
-    serializeJson(doc, payload);
-    String topic = "device/" + DEVICE_ID + "/IR_Bottom";
+    JsonObject ultrasonicLocation = ultrasonicDoc.createNestedObject("location");
+    ultrasonicLocation["lat"] = gpsData.latitude;
+    ultrasonicLocation["lng"] = gpsData.longitude;
+    ultrasonicLocation["latitude"] = gpsData.latitude;
+    ultrasonicLocation["longitude"] = gpsData.longitude;
+    ultrasonicLocation["valid"] = gpsData.valid;
+    ultrasonicLocation["satellites"] = gpsData.satellites;
 
-    if (client.publish(topic.c_str(), payload.c_str()))
+    String ultrasonicPayload;
+    serializeJson(ultrasonicDoc, ultrasonicPayload);
+
+    String ultrasonicTopic = "railway/ultrasonic";
+    if (client.publish(ultrasonicTopic.c_str(), ultrasonicPayload.c_str()))
     {
-      Serial.println("\n🚨 CRITICAL ALERT PUBLISHED: " + payload);
-      Serial.printf("   IR Min    : %d\n", irScan.minValue);
+      Serial.print("[Publish] Success! Topic: ");
+      Serial.print(ultrasonicTopic);
+      Serial.print(" | Payload: ");
+      Serial.println(ultrasonicPayload);
     }
     else
     {
@@ -468,13 +487,11 @@ void loop()
   else if (now - lastHeartbeat >= 30000)
   {
     lastHeartbeat = now;
-
     StaticJsonDocument<512> doc;
-    doc["sensorId"] = SENSOR_ID;
+    doc["sensorId"] = IR_SENSOR_ID;
     doc["deviceId"] = DEVICE_ID;
     doc["timestamp"] = getIsoTimestamp();
-    doc["crackDetected"] = crack_detected;
-    doc["crack_detected"] = false;
+    doc["crackDetected"] = irScan.crackDetected;
     doc["status"] = "NOMINAL_HEARTBEAT";
     doc["severity"] = 0.10;
     doc["irSensor"] = irScan.minValue;

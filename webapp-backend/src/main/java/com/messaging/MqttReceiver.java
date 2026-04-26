@@ -5,42 +5,82 @@ import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.EspCamDetectionDTO;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.integration.annotation.ServiceActivator;
+import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
+import com.model.EspCamDetection;
+import com.dto.sensor.IRSensorDataDTO;
+import com.dto.sensor.UltrasonicSensorDataDTO;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.service.IRSensorService;
+import com.service.UltrasonicSensorService;
 
 @Component
 public class MqttReceiver {
 
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate; // The WebSocket Broadcaster
+    private final UltrasonicSensorService ultrasonicSensorService;
+    private final IRSensorService irSensorService;
 
     // Spring injects both the Mapper and the WebSocket Template
-    public MqttReceiver(ObjectMapper objectMapper, SimpMessagingTemplate messagingTemplate) {
+    public MqttReceiver(ObjectMapper objectMapper,
+            SimpMessagingTemplate messagingTemplate,
+            UltrasonicSensorService ultrasonicSensorService,
+            IRSensorService irSensorService) {
         this.objectMapper = objectMapper;
         this.messagingTemplate = messagingTemplate;
+        this.ultrasonicSensorService = ultrasonicSensorService;
+        this.irSensorService = irSensorService;
     }
 
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleIncomingMqttMessage(Message<String> message) {
         String rawJsonPayload = message.getPayload();
-        String topic = message.getHeaders().get("mqtt_receivedTopic", String.class);
+        String mqttTopic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC, String.class);
 
         try {
-            // Route to appropriate handler based on topic
-            if (topic != null && topic.contains("device/esp32-cam/status")) {
+            JsonNode payloadNode = objectMapper.readTree(rawJsonPayload);
+            boolean ultrasonicTopic = "railway/ultrasonic".equals(mqttTopic);
+            boolean crackTopic = "railway/cracks".equals(mqttTopic);
+            boolean cameraTopic = mqttTopic != null && mqttTopic.contains("device/esp32-cam/status");
+
+            if (ultrasonicTopic || isUltrasonicPayload(payloadNode)) {
+                handleUltrasonicMessage(rawJsonPayload);
+            } else if (crackTopic || isCrackPayload(payloadNode)) {
+                handleIRSensorMessage(rawJsonPayload);
+            } else if (cameraTopic || isCameraPayload(payloadNode)) {
                 handleCameraMessage(rawJsonPayload);
-            } else if (topic != null && topic.contains("railway/cracks")) {
-                handleIRSensorMessage(rawJsonPayload);
             } else {
-                // Default to IR sensor
-                handleIRSensorMessage(rawJsonPayload);
+                System.err.println("Ignoring MQTT message from unsupported topic: " + mqttTopic);
             }
 
         } catch (Exception e) {
             System.err.println("Failed to process MQTT message: " + e.getMessage());
             e.printStackTrace();
         }
+    }
+
+    private boolean isUltrasonicPayload(JsonNode node) {
+        return node.has("distance_cm") || node.has("distance_ahead");
+    }
+
+    private boolean isCrackPayload(JsonNode node) {
+        return node.has("crackDetected") || node.has("minValue");
+    }
+
+    private boolean isCameraPayload(JsonNode node) {
+        return node.has("image_url") || node.has("imageUrl");
+    }
+
+    private void handleUltrasonicMessage(String rawJsonPayload) throws Exception {
+        UltrasonicSensorDataDTO ultrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
+        if (ultrasonicData == null) return;
+        messagingTemplate.convertAndSend("/topic/ultrasonic", ultrasonicData);
+        System.out.println("Broadcasted ultrasonic data to Web UI: " + ultrasonicData.getSensorId());
     }
 
     /*

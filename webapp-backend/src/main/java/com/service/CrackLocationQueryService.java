@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.dto.sensor.IRSensorDataDTO;
+import com.dto.sensor.LocationDTO;
 
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
@@ -75,18 +76,23 @@ public class CrackLocationQueryService {
     }
 
     private IRSensorDataDTO toDto(Map<String, AttributeValue> item) {
-        CrackLocationRecord dto = new CrackLocationRecord();
+        IRSensorDataDTO dto = new IRSensorDataDTO();
 
-        // Attribute names exactly match IRSensorDataDTO field names.
-        dto.setSensorId(stringValue(item, "sensorId"));
-        dto.setTimestamp(stringValue(item, "timestamp"));
-        dto.setDeviceId(stringValue(item, "deviceId"));
-        dto.setCrackDetected(booleanValue(item, "crackDetected"));
-        dto.setStatus(stringValue(item, "status"));
+        // Normalize casing/legacy variations used by different writers.
+        dto.setSensorId(firstNonEmptyString(item, "sensorId", "SensorID", "sensorID"));
+        dto.setTimestamp(firstNonEmptyString(item, "timestamp", "Timestamp"));
+        dto.setDeviceId(firstNonEmptyString(item, "deviceId", "DeviceID", "deviceID"));
+        dto.setCrackDetected(firstBoolean(item, false, "crackDetected", "crack_detected", "CrackDetected"));
+        dto.setStatus(firstNonEmptyString(item, "status", "Status"));
+        dto.setSeverity(firstNumber(item, 0.0d, "severity", "Severity"));
 
-        dto.setLat(numberValue(item, "lat", numberValue(item, "latitude", 0.0d)));
-        dto.setLng(numberValue(item, "lng", numberValue(item, "longitude", 0.0d)));
-        dto.setSeverity(numberValue(item, "severity", 0.0d));
+        double lat = firstNumber(item, 0.0d, "lat", "latitude", "Latitude");
+        double lng = firstNumber(item, 0.0d, "lng", "longitude", "Longitude");
+        boolean valid = firstBoolean(item, false, "valid", "locationValid");
+        int satellites = firstInt(item, 0, "satellites", "Satellites");
+
+        LocationDTO location = new LocationDTO(lat, lng, valid, satellites);
+        dto.setLocation(location);
 
         return dto;
     }
@@ -119,36 +125,55 @@ public class CrackLocationQueryService {
         }
     }
 
-    // Returned as IRSensorDataDTO from controller signature, with GPS/severity
-    // extras.
-    @SuppressWarnings("unused")
-    private static class CrackLocationRecord extends IRSensorDataDTO {
-        private double lat;
-        private double lng;
-        private double severity;
-
-        public double getLat() {
-            return lat;
+    private int intValue(Map<String, AttributeValue> item, String key, int defaultValue) {
+        AttributeValue value = item.get(key);
+        if (value == null || value.n() == null) {
+            return defaultValue;
         }
-
-        public void setLat(double lat) {
-            this.lat = lat;
+        try {
+            return Integer.parseInt(value.n());
+        } catch (NumberFormatException ex) {
+            return defaultValue;
         }
+    }
 
-        public double getLng() {
-            return lng;
+    private String firstNonEmptyString(Map<String, AttributeValue> item, String... keys) {
+        for (String key : keys) {
+            String value = stringValue(item, key);
+            if (!value.isEmpty()) {
+                return value;
+            }
         }
+        return "";
+    }
 
-        public void setLng(double lng) {
-            this.lng = lng;
+    private double firstNumber(Map<String, AttributeValue> item, double defaultValue, String... keys) {
+        for (String key : keys) {
+            AttributeValue value = item.get(key);
+            if (value != null && value.n() != null) {
+                return numberValue(item, key, defaultValue);
+            }
         }
+        return defaultValue;
+    }
 
-        public double getSeverity() {
-            return severity;
+    private int firstInt(Map<String, AttributeValue> item, int defaultValue, String... keys) {
+        for (String key : keys) {
+            AttributeValue value = item.get(key);
+            if (value != null && value.n() != null) {
+                return intValue(item, key, defaultValue);
+            }
         }
+        return defaultValue;
+    }
 
-        public void setSeverity(double severity) {
-            this.severity = severity;
+    private boolean firstBoolean(Map<String, AttributeValue> item, boolean defaultValue, String... keys) {
+        for (String key : keys) {
+            AttributeValue value = item.get(key);
+            if (value != null && value.bool() != null) {
+                return booleanValue(item, key);
+            }
         }
+        return defaultValue;
     }
 }
