@@ -1,7 +1,8 @@
-#include <WiFi.h>
+ #include <WiFi.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
+#include <HTTPClient.h>
 #include "esp_camera.h"
 #include "soc/soc.h"           // Required for Brownout fix
 #include "soc/rtc_cntl_reg.h"  // Required for Brownout fix
@@ -32,7 +33,9 @@ PubSubClient mqttClient(net);
 String sendPhotoToTelegram(camera_fb_t *fb) {
     WiFiClientSecure tlsClient;
     tlsClient.setInsecure(); // Telegram API works fine without CA check on ESP32
-    
+    tlsClient.setTimeout(20000); // 20 seconds timeout for mobile hotspots
+
+    Serial.println("Connecting to Telegram API...");
     if (!tlsClient.connect("api.telegram.org", 443)) return "Connect Failed";
 
     String head = "--ESP32CAM\r\nContent-Disposition: form-data; name=\"photo\"; filename=\"esp32.jpg\"\r\nContent-Type: image/jpeg\r\n\r\n";
@@ -57,6 +60,39 @@ String sendPhotoToTelegram(camera_fb_t *fb) {
     return "OK";
 }
 
+// --- NEW: S3 UPLOAD FUNCTION ---
+String sendPhotoToS3(camera_fb_t *fb) {
+    HTTPClient http;
+    
+    // ⚠️ REPLACE WITH YOUR BUCKET DETAILS
+    String bucketName = "railway-system-photos-01-533350584731-eu-north-1-an"; 
+    String region = "eu-north-1"; 
+    
+    // This is the standard S3 URL format
+    String fileName = "railway_snap_" + String(millis()) + ".jpg";
+    String url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
+
+    Serial.println("Uploading to S3: " + url);
+    
+    http.begin(url);
+    http.addHeader("Content-Type", "image/jpeg");
+    
+    // Note: This requires your S3 bucket to have 'Public Write' or a 
+    // specific Bucket Policy enabled for testing.
+    int httpResponseCode = http.PUT(fb->buf, fb->len);
+
+    String resultUrl = "FAILED";
+    if (httpResponseCode == 200 || httpResponseCode == 201) {
+        Serial.printf("S3 Upload Success: %d\n", httpResponseCode);
+        resultUrl = url; // Return the URL so MQTT can send it to DynamoDB
+    } else {
+        Serial.printf("S3 Upload Failed: %d\n", httpResponseCode);
+    }
+    
+    http.end(); // CRITICAL: Frees up memory for MQTT
+    return resultUrl;
+}
+
 // --- CAPTURE & AWS NOTIFY ---
 void captureAndSend() {
     camera_fb_t * fb = esp_camera_fb_get();
@@ -65,22 +101,32 @@ void captureAndSend() {
         return;
     }
 
+    // 1. Send to Telegram (For Alerts)
     Serial.println("Snap! Sending to Telegram...");
     sendPhotoToTelegram(fb);
+
+    // 2. Send to S3 (For Frontend URL)
+    Serial.println("Uploading to S3...");
+    String s3Url = sendPhotoToS3(fb);
     
     // Notify AWS that a crack was logged
-    StaticJsonDocument<200> doc;
-    doc["deviceId"] = "ESP32_CAM";
+    StaticJsonDocument<300> doc;
+    doc["sensorId"] = "ESP32_CAM";
     doc["status"] = "PHOTO_UPLOADED";
     doc["alert"] = "CRITICAL_DEFECT_CONFIRMED";
 
-    char buffer[256];
+    // If S3 upload worked, send the URL to the Lambda
+    if (s3Url != "FAILED") {
+        doc["image_url"] = s3Url; 
+    }
+ char buffer[300];
     serializeJson(doc, buffer);
     mqttClient.publish("device/esp32-cam/status", buffer);
 
     esp_camera_fb_return(fb);
     Serial.println("Cycle Complete.");
 }
+
 
 // --- AWS CALLBACK (Listen for Friend's IR) ---
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
@@ -91,7 +137,7 @@ void mqttCallback(char* topic, byte* payload, unsigned int length) {
     for (int i = 0; i < length; i++) message += (char)payload[i];
 
     // Listen specifically for your friend's trigger
-    if (message.indexOf("\"crack_detected\": true") != -1) {
+    if (message.indexOf("\"crackDetected\": true") != -1) {
         Serial.println("TRIGGER: IR Sensor detected a crack!");
         captureAndSend();
     }
@@ -111,7 +157,7 @@ void connectAWS() {
         delay(1000);
     }
     Serial.println(" Connected!");
-    mqttClient.subscribe("device/esp-001/IR_Bottom"); // Your friend's topic
+    mqttClient.subscribe("railway/cracks"); // Listen to crack detection data
 }
 
 void setup() {
@@ -130,11 +176,11 @@ void setup() {
     config.pin_d6 = Y8_GPIO_NUM; config.pin_d7 = Y9_GPIO_NUM;
     config.pin_xclk = XCLK_GPIO_NUM; config.pin_pclk = PCLK_GPIO_NUM;
     config.pin_vsync = VSYNC_GPIO_NUM; config.pin_href = HREF_GPIO_NUM;
-    config.pin_sscb_sda = SIOD_GPIO_NUM; config.pin_sscb_scl = SIOC_GPIO_NUM;
+    config.pin_sccb_sda = SIOD_GPIO_NUM; config.pin_sccb_scl = SIOC_GPIO_NUM;
     config.pin_pwdn = PWDN_GPIO_NUM; config.pin_reset = RESET_GPIO_NUM;
     config.xclk_freq_hz = 20000000;
     config.pixel_format = PIXFORMAT_JPEG;
-    config.frame_size = FRAMESIZE_VGA;
+    config.frame_size = FRAMESIZE_QVGA;
     config.jpeg_quality = 12;
     config.fb_count = 1;
 
@@ -143,6 +189,13 @@ void setup() {
         return;
     }
 
+    WiFi.mode(WIFI_STA); 
+    Serial.println("\nScan started");
+    int n = WiFi.scanNetworks();
+    Serial.printf("%d networks found\n", n);
+    for (int i = 0; i < n; ++i) {
+    Serial.println(WiFi.SSID(i));
+    }
     // 3. WIFI & TIME SYNC
     WiFi.begin(ssid, password);
     while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
