@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Redirecting...</title>
+    <script>
+      // GitHub Pages SPA fallback: route all unknown paths to the webapp entry.
+      (function () {
+        var repo = "/e21-3yp-RAID";
+        var appBase = repo + "/webapp/";
+        var path = window.location.pathname || "";
+
+        // Keep query/hash while redirecting into the SPA root.
+        var suffix = "";
+        if (path.indexOf(appBase) === 0) {
+          suffix = path.slice(appBase.length);
+        }
+
+        var query = window.location.search || "";
+        var hash = window.location.hash || "";
+        var target = appBase + (suffix ? "?p=" + encodeURIComponent(suffix) : "") + query + hash;
+        window.location.replace(target);
+      })();
+    </script>
+  </head>
+  <body>
+    <p>Redirecting to app...</p>
+  </body>
+</html>

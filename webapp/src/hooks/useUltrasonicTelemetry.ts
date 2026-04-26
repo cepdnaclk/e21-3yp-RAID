@@ -18,7 +18,7 @@ export function useUltrasonicTelemetry(deviceId: string, sensorId: string) {
 
   useEffect(() => {
     let stompClient: Client | null = null;
-    let mockIntervalId: NodeJS.Timeout | null = null;
+    let mockIntervalId: ReturnType<typeof setInterval> | null = null;
 
     // Try to fetch historical data from backend
     fetch(`http://localhost:8080/api/ultrasonic/${deviceId}/${sensorId}`)
