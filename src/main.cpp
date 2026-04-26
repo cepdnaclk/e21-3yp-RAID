@@ -478,7 +478,7 @@ void loop()
   }
 
   // SCENARIO A.2: The Timeout (If camera crashes or fails to upload)
-  if (waitingForCamera && (now - cameraWaitStart > 15000)) { // 15 second timeout
+  if (waitingForCamera && (now - cameraWaitStart > 60000)) { // 15 second timeout
       Serial.println("Camera upload timed out. Publishing alert without image.");
       publishUnifiedAlert("No Image (Timeout)", lastIrScanResult);
       waitingForCamera = false;
