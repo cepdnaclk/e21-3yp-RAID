@@ -50,7 +50,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 92,
     irSensor: "Active",
     description:
-      "A significant transverse crack has been detected on the rail head surface. The crack spans approximately 15mm in width and shows signs of fatigue-related fracture. Immediate inspection recommended.",
+      "Significant transverse crack detected on the rail head surface.",
   },
   {
     id: 2,
@@ -66,7 +66,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 74,
     irSensor: "Active",
     description:
-      "Surface-level hairline crack detected on the rail web. Moderate risk — may worsen under continued load. Scheduled maintenance recommended.",
+      "Surface-level hairline crack detected on the rail web.",
   },
   {
     id: 3,
@@ -82,7 +82,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 58,
     irSensor: "Active",
     description:
-      "Minor surface irregularity detected. Low confidence suggests possible false positive. Verification during next scheduled inspection.",
+      "Minor surface irregularity detected on rail surface.",
   },
   {
     id: 4,
@@ -98,7 +98,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 95,
     irSensor: "Active",
     description:
-      "Severe longitudinal crack confirmed on rail foot. Maintenance team dispatched. Track section flagged for speed restriction.",
+      "Severe longitudinal crack confirmed on rail foot.",
   },
   {
     id: 5,
@@ -114,7 +114,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 45,
     irSensor: "Active",
     description:
-      "Sensor reading indicated possible crack but visual analysis inconclusive. Marked as false positive by operator.",
+      "Sensor reading indicated possible crack on rail web.",
   },
   {
     id: 6,
@@ -130,7 +130,7 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 89,
     irSensor: "Active",
     description:
-      "Rail head shelling detected with visible crack propagation. Confirmed by field team. Section under repair.",
+      "Rail head shelling detected with visible crack propagation.",
   },
   {
     id: 7,
@@ -146,7 +146,75 @@ export const crackAlerts: CrackAlert[] = [
     confidence: 38,
     irSensor: "Inactive",
     description:
-      "Weak IR signal triggered detection. Low confidence and no visual evidence. Classified as environmental noise.",
+      "Weak signal detected on sensor array.",
+  },
+];
+
+// ============= Mock Ultrasonic Sensor Data =============
+export interface UltrasonicEvent {
+  sensorId: string;
+  deviceId: string;
+  timestamp: string;
+  distanceCm: number;
+  obstacleDetected: boolean;
+}
+
+export const mockUltrasonicData: UltrasonicEvent[] = [
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:20Z",
+    distanceCm: 42.5,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:15Z",
+    distanceCm: 38.2,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:10Z",
+    distanceCm: 65.8,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:05Z",
+    distanceCm: 72.3,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:00Z",
+    distanceCm: 45.6,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:55Z",
+    distanceCm: 89.2,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:50Z",
+    distanceCm: 95.0,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:45Z",
+    distanceCm: 120.5,
+    obstacleDetected: false,
   },
 ];
 

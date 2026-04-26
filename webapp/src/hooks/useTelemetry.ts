@@ -6,6 +6,10 @@ export interface CrackEvent {
   id?: string | number;
   gps?: any;
   media?: any;
+  imageUrl?: string;  // For camera detections
+  image_url?: string; // Alternative field name
+  timestamp?: string;
+  status?: string;
   [key: string]: any; // Allow other properties returned by the backend
 }
 
@@ -29,6 +33,7 @@ export function useTelemetry(deviceId: string, sensorId: string) {
         setIsConnected(true);
         console.log(`Connected to telemetry stream: ${deviceId}/${sensorId}`);
 
+        // Subscribe to IR Sensor crack data
         stompClient.subscribe(`/topic/cracks/${deviceId}/${sensorId}`, (message) => {
             const rawData = JSON.parse(message.body);
             
@@ -41,6 +46,22 @@ export function useTelemetry(deviceId: string, sensorId: string) {
             };
 
             setLiveCracks(prev => [safeCrackEvent, ...prev].slice(0, 100));
+        });
+
+        // Subscribe to Camera detections (with image URLs)
+        stompClient.subscribe(`/topic/camera-detections`, (message) => {
+            const cameraData = JSON.parse(message.body);
+            
+            // Ensure imageUrl is accessible (Jackson converts image_url to imageUrl)
+            const cameraCrackEvent = {
+                ...cameraData,
+                imageUrl: cameraData.imageUrl || cameraData.image_url,
+                gps: cameraData.gps || null,
+                media: cameraData.media || null
+            };
+
+            console.log("Camera detection received with imageUrl:", cameraCrackEvent.imageUrl);
+            setLiveCracks(prev => [cameraCrackEvent, ...prev].slice(0, 100));
         });
       },
       onDisconnect: () => setIsConnected(false),

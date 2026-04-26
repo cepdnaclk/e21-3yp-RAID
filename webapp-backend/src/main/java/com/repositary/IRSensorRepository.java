@@ -8,6 +8,8 @@ public interface IRSensorRepository {
     List<IRSensorData> getAllData();
 
     List<IRSensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId);
+
+    IRSensorData save(IRSensorData data);
 }
 
 // Key Purpose:
