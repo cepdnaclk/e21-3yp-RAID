@@ -33,17 +33,9 @@ export function useTelemetry(deviceId: string, sensorId: string) {
         setIsConnected(true);
         console.log(`Connected to telemetry stream: ${deviceId}/${sensorId}`);
 
-<<<<<<< Updated upstream
-        stompClient.subscribe(`/topic/cracks`, (message) => {
-=======
         // Subscribe to IR Sensor crack data
         stompClient.subscribe(`/topic/cracks/${deviceId}/${sensorId}`, (message) => {
->>>>>>> Stashed changes
             const rawData = JSON.parse(message.body);
-
-            if (rawData.deviceId !== deviceId || rawData.sensorId !== sensorId) {
-              return;
-            }
             
             // DEFENSIVE PROGRAMMING: Ensure the payload always has the nested objects
             // even if the hardware failed to send them.
@@ -113,7 +105,7 @@ export function useTelemetry(deviceId: string, sensorId: string) {
 
 5. HOT PATH (WEBSOCKET):
 - Connects to /raid-websocket using SockJS
-- Subscribes to /topic/cracks and filters by deviceId/sensorId
+- Subscribes to /topic/cracks/{deviceId}/{sensorId}
 - Receives real-time crack updates
 
 6. DATA HANDLING:
