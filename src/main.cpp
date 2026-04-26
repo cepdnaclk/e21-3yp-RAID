@@ -258,15 +258,21 @@ void connectAWS()
 }
 
 // ================= Unified AWS Publisher =================
-void publishUnifiedAlert(String imageUrl) {
+void publishUnifiedAlert(String imageUrl, const IRScanResult& irData) {
     StaticJsonDocument<512> doc;
     doc["sensorId"] = SENSOR_ID;
     doc["deviceId"] = DEVICE_ID;
     doc["timestamp"] = getIsoTimestamp();
     doc["crack_detected"] = true;
     doc["status"] = "CRITICAL_DEFECT";
-    doc["irSensor"] = savedIrMinValue;
+    doc["irSensor"] = irData.minValue;
     doc["image_url"] = imageUrl; 
+
+    JsonArray irArray = doc.createNestedArray("irArray");
+    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
+    {
+      irArray.add(irData.values[i]);
+    }
 
     String payload;
     serializeJson(doc, payload);
@@ -281,6 +287,8 @@ void publishUnifiedAlert(String imageUrl) {
 
 // ================= MQTT Callback =================
 
+IRScanResult lastIrScanResult; // Global to hold values until camera returns
+
 void mqttCallback(char *topic, byte *payload, unsigned int length) {
   // Catch the URL from the camera board
   if (String(topic) == "device/esp-001/camera_url") {
@@ -290,7 +298,7 @@ void mqttCallback(char *topic, byte *payload, unsigned int length) {
       if (!error && waitingForCamera) {
           String url = doc["image_url"].as<String>();
           Serial.println("Received S3 URL from Camera!");
-          publishUnifiedAlert(url); // Publish the final row!
+          publishUnifiedAlert(url, lastIrScanResult); // Publish the final row with IR values!
           waitingForCamera = false;
       }
   }
@@ -461,6 +469,7 @@ void loop()
     digitalWrite(CAMERA_TRIGGER_PIN, LOW);
 
     // 2. Save the IR state and start the waiting timer
+    lastIrScanResult = irScan; // Store full result
     savedIrMinValue = irScan.minValue;
     waitingForCamera = true;
     cameraWaitStart = millis();
@@ -471,7 +480,7 @@ void loop()
   // SCENARIO A.2: The Timeout (If camera crashes or fails to upload)
   if (waitingForCamera && (now - cameraWaitStart > 15000)) { // 15 second timeout
       Serial.println("Camera upload timed out. Publishing alert without image.");
-      publishUnifiedAlert("No Image (Timeout)");
+      publishUnifiedAlert("No Image (Timeout)", lastIrScanResult);
       waitingForCamera = false;
   }
  // SCENARIO B: The Routine Heartbeat (Nominal Status)
