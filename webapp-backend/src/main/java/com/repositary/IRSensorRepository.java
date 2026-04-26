@@ -1,15 +1,15 @@
 package com.repositary;
 
-import com.model.IRSensorData;
+import com.model.irsensorData;
 import java.util.List;
 
 public interface IRSensorRepository {
     // A simple contract: Whoever implements this must provide a way to get all data
-    List<IRSensorData> getAllData();
+    List<irsensorData> getAllData();
 
-    List<IRSensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId);
+    List<irsensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId);
 
-    IRSensorData save(IRSensorData data);
+    irsensorData save(irsensorData data);
 }
 
 // Key Purpose:

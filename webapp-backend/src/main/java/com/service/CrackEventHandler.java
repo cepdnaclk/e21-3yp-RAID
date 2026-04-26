@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.LocationDTO;
 import com.mapper.IRSensorMapper;
-import com.model.IRSensorData;
+import com.model.irsensorData;
 
 @Service
 public class CrackEventHandler {
@@ -51,12 +51,12 @@ public class CrackEventHandler {
         return true;
     }
 
-    public IRSensorData toEntityForPersistence(IRSensorDataDTO event, IRSensorMapper mapper) {
+    public irsensorData toEntityForPersistence(IRSensorDataDTO event, IRSensorMapper mapper) {
         if (!validateAndLogConfirmedCrack(event)) {
             return null;
         }
 
-        IRSensorData entity = mapper.toEntity(event);
+        irsensorData entity = mapper.toEntity(event);
         LocationDTO location = event.getLocation();
         if (location != null) {
             entity.setLatitude(location.getLat());
