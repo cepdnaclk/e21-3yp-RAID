@@ -6,11 +6,8 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.*;
 public class EspCamDetection {
 
     private String sensorId; // This matches your friend's Partition Key
-
     private String timestamp; // This matches your friend's Sort Key
-
     private String imageUrl;
-
     private String status;
 
     // Default Constructor
@@ -38,7 +35,7 @@ public class EspCamDetection {
         this.timestamp = timestamp;
     }
 
-    @DynamoDbAttribute("imageUrl")
+    @DynamoDbAttribute("image_url")
     public String getImageUrl() {
         return imageUrl;
     }
