@@ -8,7 +8,6 @@
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_sensor.h"
-#include "sensor configuration/ultrasonic sensors/ultrasonic_sensor.h"
 
 // ================= Configuration =================
 const char *ssid = "Redmi Note 10";
@@ -16,8 +15,7 @@ const char *password = "200170201635";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
-const char *IR_SENSOR_ID = "IR_Bottom";
-const char *ULTRASONIC_SENSOR_ID = "ULTRA_FRONT";
+const char *SENSOR_ID = "IR_Bottom";
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -69,8 +67,7 @@ LbqN8Oj1ncYyh2Tnv52L3XVgiY9IWh8bCs1BRe5L+HwegEv5s4x1Py2aRGI5oiyF
 KON0AkQeNm5P+2fLy7Ht2gKwEePDAfB2s9QI5PG99NKcYP0KScgR91UoyeXf0Ymk
 sYTGZwunvQTZCI+Jw5tFttCEJJz7i/rNKkX+iS/lG6h20kKRwynHpztyIBUc
 -----END CERTIFICATE-----
-
-)EOF";
+[4/26/2026 1:45 PM] Chamodii: )EOF";
 const char AWS_CERT_PRIVATE[] = R"EOF(
 -----BEGIN RSA PRIVATE KEY-----
 MIIEpAIBAAKCAQEAtYtlI7l5+9cp/mN7LntRmqumRy7OLUVfst3AczOVOuvEZCVZ
@@ -176,8 +173,7 @@ void connectWiFi()
       ESP.restart();
     }
   }
-
-  Serial.println("  >> WiFi CONNECTED!");
+ Serial.println("  >> WiFi CONNECTED!");
   Serial.print("  IP Address  : ");
   Serial.println(WiFi.localIP());
   Serial.print("  Gateway     : ");
@@ -317,7 +313,6 @@ unsigned long lastSensorScan = 0;
 
 constexpr unsigned long SENSOR_SCAN_INTERVAL_MS = 50;
 constexpr int REQUIRED_CONSECUTIVE_CRACKS = 6; // ~300ms stable crack indication
-
 // ================= Setup =================
 void setup()
 {
@@ -342,8 +337,7 @@ Serial.println("\n\n##############################");
   syncTime();
   connectAWS();
   initIRSensors();
-  initGPSSensor();
-  initUltrasonicSensor();
+
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -405,93 +399,74 @@ void loop()
     irScan = scanIRArray();
     irScanReady = true;
 
-    UltrasonicData ultrasonicData = readUltrasonicData();
-    GPSData gpsData = readGPSData();
-    bool crackDetected = irScan.crackDetected;
-
-    String timestamp = getIsoTimestamp();
-
-    StaticJsonDocument<512> crackDoc;
-    crackDoc["sensorId"] = IR_SENSOR_ID;
-    crackDoc["deviceId"] = DEVICE_ID;
-    crackDoc["timestamp"] = timestamp;
-    crackDoc["sensorType"] = "crack";
-    crackDoc["crackDetected"] = crackDetected;
-    crackDoc["status"] = crackDetected ? "CRACK" : "NORMAL";
-    crackDoc["severity"] = crackDetected ? 0.90 : 0.10;
-    crackDoc["irSensor"] = irScan.minValue;
-    crackDoc["uptime"] = now / 1000;
-
-    JsonObject crackLocation = crackDoc.createNestedObject("location");
-    crackLocation["lat"] = gpsData.latitude;
-    crackLocation["lng"] = gpsData.longitude;
-    crackLocation["latitude"] = gpsData.latitude;
-    crackLocation["longitude"] = gpsData.longitude;
-    crackLocation["valid"] = gpsData.valid;
-    crackLocation["satellites"] = gpsData.satellites;
-
-    String crackPayload;
-    serializeJson(crackDoc, crackPayload);
-
-    String crackTopic = "railway/cracks";
-
-    if (client.publish(crackTopic.c_str(), crackPayload.c_str()))
+    if (irScan.crackDetected)
     {
-      Serial.print("[Publish] Success! Topic: ");
-      Serial.print(crackTopic);
-      Serial.print(" | Payload: ");
-      Serial.println(crackPayload);
+      consecutiveCracks++;
     }
     else
     {
-      Serial.println("[Publish] FAILED! Check Buffer Size or Connection.");
+      consecutiveCracks = 0;
+    }
+  }
+
+  bool crack_detected = (consecutiveCracks >= REQUIRED_CONSECUTIVE_CRACKS);
+
+
+  // =========================================================
+  // THE HYBRID HEARTBEAT LOGIC
+  // =========================================================
+
+  // SCENARIO A: The Interrupt (Immediate Critical Alert)
+  // Triggers if a crack is found AND 2 seconds have passed since the last alert
+  if (crack_detected && (now - lastCriticalAlert > 3000))
+  {
+    lastCriticalAlert = now;
+    lastHeartbeat = now; // Reset the heartbeat timer—we just proved the robot is alive!
+
+    StaticJsonDocument<512> doc;
+    doc["sensorId"] = SENSOR_ID;
+    doc["deviceId"] = DEVICE_ID;
+    doc["timestamp"] = getIsoTimestamp();
+    doc["crackDetected"] = crack_detected;
+    doc["crack_detected"] = true;    
+    doc["status"] = "CRITICAL_DEFECT";
+    doc["severity"] = 0.90;
+    doc["irSensor"] = irScan.minValue;
+    doc["uptime"] = now / 1000;
+
+    JsonArray irArray = doc.createNestedArray("irArray");
+    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
+    {
+      irArray.add(irScan.values[i]);
     }
 
-    StaticJsonDocument<512> ultrasonicDoc;
-    ultrasonicDoc["sensorId"] = ULTRASONIC_SENSOR_ID;
-    ultrasonicDoc["deviceId"] = DEVICE_ID;
-    ultrasonicDoc["timestamp"] = timestamp;
-    ultrasonicDoc["sensorType"] = "ultrasonic";
-    ultrasonicDoc["distanceCm"] = ultrasonicData.distanceCm;
-    ultrasonicDoc["obstacleDetected"] = ultrasonicData.obstacleDetected;
-    ultrasonicDoc["status"] = ultrasonicData.obstacleDetected ? "OBSTACLE" : "CLEAR";
-    ultrasonicDoc["uptime"] = now / 1000;
+    
 
-    JsonObject ultrasonicLocation = ultrasonicDoc.createNestedObject("location");
-    ultrasonicLocation["lat"] = gpsData.latitude;
-    ultrasonicLocation["lng"] = gpsData.longitude;
-    ultrasonicLocation["latitude"] = gpsData.latitude;
-    ultrasonicLocation["longitude"] = gpsData.longitude;
-    ultrasonicLocation["valid"] = gpsData.valid;
-    ultrasonicLocation["satellites"] = gpsData.satellites;
+    String payload;
+    serializeJson(doc, payload);
+    String topic = "device/" + DEVICE_ID + "/IR_Bottom";
 
-    String ultrasonicPayload;
-    serializeJson(ultrasonicDoc, ultrasonicPayload);
-
-    String ultrasonicTopic = "railway/ultrasonic";
-    if (client.publish(ultrasonicTopic.c_str(), ultrasonicPayload.c_str()))
+    if (client.publish(topic.c_str(), payload.c_str()))
     {
-      Serial.print("[Publish] Success! Topic: ");
-      Serial.print(ultrasonicTopic);
-      Serial.print(" | Payload: ");
-      Serial.println(ultrasonicPayload);
+      Serial.println("\n🚨 CRITICAL ALERT PUBLISHED: " + payload);
+      Serial.printf("   IR Min    : %d\n", irScan.minValue);
     }
     else
     {
       Serial.println("❌ Failed to publish critical alert.");
     }
   }
-
-  // SCENARIO B: The Routine Heartbeat (Nominal Status)
+ // SCENARIO B: The Routine Heartbeat (Nominal Status)
   // Only triggers if the track is safe AND 30 seconds have passed
   else if (now - lastHeartbeat >= 30000)
   {
     lastHeartbeat = now;
-    StaticJsonDocument<512> doc;
-    doc["sensorId"] = IR_SENSOR_ID;
+StaticJsonDocument<512> doc;
+    doc["sensorId"] = SENSOR_ID;
     doc["deviceId"] = DEVICE_ID;
     doc["timestamp"] = getIsoTimestamp();
-    doc["crackDetected"] = irScan.crackDetected;
+    doc["crackDetected"] = crack_detected;
+    doc["crack_detected"] = false;
     doc["status"] = "NOMINAL_HEARTBEAT";
     doc["severity"] = 0.10;
     doc["irSensor"] = irScan.minValue;
