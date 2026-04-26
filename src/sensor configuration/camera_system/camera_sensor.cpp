@@ -102,6 +102,7 @@ String sendPhotoToS3(camera_fb_t *fb) {
 }
 
 // --- CAPTURE & AWS NOTIFY ---
+// --- CAPTURE & AWS NOTIFY ---
 void captureAndSend() {
     camera_fb_t * fb = esp_camera_fb_get();
     if (!fb) {
@@ -117,20 +118,25 @@ void captureAndSend() {
     Serial.println("Uploading to S3...");
     String s3Url = sendPhotoToS3(fb);
     
-    // Notify AWS that a crack was logged
-    StaticJsonDocument<300> doc;
-    doc["sensorId"] = "ESP32_CAM";
-    doc["status"] = "PHOTO_UPLOADED";
-    doc["alert"] = "CRITICAL_DEFECT_CONFIRMED";
-
-    // If S3 upload worked, send the URL to the Lambda
+    // --- THIS IS THE NEW HANDSHAKE CODE ---
+    // If S3 upload worked, send the URL back to the Main IR Board
     if (s3Url != "FAILED") {
+        StaticJsonDocument<200> doc;
         doc["image_url"] = s3Url; 
+        
+        char buffer[200];
+        serializeJson(doc, buffer);
+        
+        // Publish to the internal topic the Main board is listening to!
+        mqttClient.publish("device/esp-001/camera_url", buffer);
+        Serial.println("Sent S3 URL back to Main Board!");
+    } else {
+        Serial.println("S3 Upload Failed. Cannot send URL.");
     }
- char buffer[300];
-    serializeJson(doc, buffer);
-    mqttClient.publish("device/esp32-cam/status", buffer);
+    // --------------------------------------
 
+    // WE DELETED THE OLD AWS NOTIFY STUFF HERE
+    
     esp_camera_fb_return(fb);
     Serial.println("Cycle Complete.");
 }

@@ -18,6 +18,12 @@ const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
 const char *SENSOR_ID = "IR_Bottom";
 
+String getIsoTimestamp();
+
+bool waitingForCamera = false;
+unsigned long cameraWaitStart = 0;
+int savedIrMinValue = 0;
+
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
 PubSubClient client(espClient);
@@ -251,25 +257,43 @@ void connectAWS()
   Serial.println("=============================\n");
 }
 
+// ================= Unified AWS Publisher =================
+void publishUnifiedAlert(String imageUrl) {
+    StaticJsonDocument<512> doc;
+    doc["sensorId"] = SENSOR_ID;
+    doc["deviceId"] = DEVICE_ID;
+    doc["timestamp"] = getIsoTimestamp();
+    doc["crack_detected"] = true;
+    doc["status"] = "CRITICAL_DEFECT";
+    doc["irSensor"] = savedIrMinValue;
+    doc["image_url"] = imageUrl; 
+
+    String payload;
+    serializeJson(doc, payload);
+    String topic = "device/" + DEVICE_ID + "/IR_Bottom";
+
+    if (client.publish(topic.c_str(), payload.c_str())) {
+        Serial.println("\n🚨 UNIFIED ALERT PUBLISHED: " + payload);
+    } else {
+        Serial.println("❌ Failed to publish unified alert.");
+    }
+}
 
 // ================= MQTT Callback =================
-void mqttCallback(char *topic, byte *payload, unsigned int length)
-{
-  Serial.println("\n---------- MQTT Message ----------");
-  Serial.print("Topic  : ");
-  Serial.println(topic);
-  Serial.print("Length : ");
-  Serial.println(length);
-  Serial.print("Payload: ");
-  String message;
-  for (unsigned int i = 0; i < length; i++)
-  {
-    message += (char)payload[i];
+
+void mqttCallback(char *topic, byte *payload, unsigned int length) {
+  // Catch the URL from the camera board
+  if (String(topic) == "device/esp-001/camera_url") {
+      StaticJsonDocument<512> doc;
+      DeserializationError error = deserializeJson(doc, payload, length);
+      
+      if (!error && waitingForCamera) {
+          String url = doc["image_url"].as<String>();
+          Serial.println("Received S3 URL from Camera!");
+          publishUnifiedAlert(url); // Publish the final row!
+          waitingForCamera = false;
+      }
   }
-  Serial.println(message);
-  
-  
-  Serial.println("----------------------------------\n");
 }
 
 void syncTime()
@@ -324,7 +348,8 @@ void setup()
   
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
-Serial.println("\n\n##############################");
+  
+  Serial.println("\n\n##############################");
   Serial.println("#   ESP32 AWS IoT Boot       #");
   Serial.println("##############################");
   Serial.print("SDK Version : ");
@@ -354,6 +379,9 @@ Serial.println("\n\n##############################");
   if (client.subscribe(commandTopic.c_str()))
   {
     Serial.println("  >> Subscription SUCCESSFUL");
+  }
+  if (client.subscribe("device/esp-001/camera_url")) {
+      Serial.println("  >> Camera URL Subscription SUCCESSFUL");
   }
   else
   {
@@ -386,6 +414,7 @@ void loop()
     String commandTopic = "device/" + DEVICE_ID + "/command";
     
     client.subscribe(commandTopic.c_str());
+    client.subscribe("device/esp-001/camera_url");
     
     Serial.println("Topics re-subscribed after reconnection.");
   }
@@ -421,46 +450,29 @@ void loop()
 
   // SCENARIO A: The Interrupt (Immediate Critical Alert)
   // Triggers if a crack is found AND 2 seconds have passed since the last alert
-  if (crack_detected && (now - lastCriticalAlert > 3000))
-  {
-    digitalWrite(CAMERA_TRIGGER_PIN, HIGH);
-    delay(50); // 50ms pulse
-    digitalWrite(CAMERA_TRIGGER_PIN, LOW);
+  // SCENARIO A: The Interrupt (Hardware Trigger + Wait for Image)
+  if (crack_detected && !waitingForCamera && (now - lastCriticalAlert > 3000)) {
     lastCriticalAlert = now;
-    lastHeartbeat = now; // Reset the heartbeat timer—we just proved the robot is alive!
+    lastHeartbeat = now;
 
-    StaticJsonDocument<512> doc;
-    doc["sensorId"] = SENSOR_ID;
-    doc["deviceId"] = DEVICE_ID;
-    doc["timestamp"] = getIsoTimestamp();
-    doc["crackDetected"] = crack_detected;
-    doc["crack_detected"] = true;    
-    doc["status"] = "CRITICAL_DEFECT";
-    doc["severity"] = 0.90;
-    doc["irSensor"] = irScan.minValue;
-    doc["uptime"] = now / 1000;
+    // 1. FIRE THE HARDWARE TRIGGER (Zero Latency)
+    digitalWrite(CAMERA_TRIGGER_PIN, HIGH);
+    delay(50);
+    digitalWrite(CAMERA_TRIGGER_PIN, LOW);
 
-    JsonArray irArray = doc.createNestedArray("irArray");
-    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
-    {
-      irArray.add(irScan.values[i]);
-    }
+    // 2. Save the IR state and start the waiting timer
+    savedIrMinValue = irScan.minValue;
+    waitingForCamera = true;
+    cameraWaitStart = millis();
 
-    
+    Serial.println("Hardware triggered! Waiting for Camera to return S3 URL...");
+  }
 
-    String payload;
-    serializeJson(doc, payload);
-    String topic = "device/" + DEVICE_ID + "/IR_Bottom";
-
-    if (client.publish(topic.c_str(), payload.c_str()))
-    {
-      Serial.println("\n🚨 CRITICAL ALERT PUBLISHED: " + payload);
-      Serial.printf("   IR Min    : %d\n", irScan.minValue);
-    }
-    else
-    {
-      Serial.println("❌ Failed to publish critical alert.");
-    }
+  // SCENARIO A.2: The Timeout (If camera crashes or fails to upload)
+  if (waitingForCamera && (now - cameraWaitStart > 15000)) { // 15 second timeout
+      Serial.println("Camera upload timed out. Publishing alert without image.");
+      publishUnifiedAlert("No Image (Timeout)");
+      waitingForCamera = false;
   }
  // SCENARIO B: The Routine Heartbeat (Nominal Status)
   // Only triggers if the track is safe AND 30 seconds have passed
