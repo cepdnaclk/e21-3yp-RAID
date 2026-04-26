@@ -1,17 +1,11 @@
 package com.messaging;
 
-<<<<<<< Updated upstream
-=======
-import com.dto.sensor.IRSensorDataDTO;
-import com.dto.sensor.EspCamDetectionDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
->>>>>>> Stashed changes
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-
+import com.model.EspCamDetection;
 import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.UltrasonicSensorDataDTO;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -42,78 +36,30 @@ public class MqttReceiver {
     @ServiceActivator(inputChannel = "mqttInputChannel")
     public void handleIncomingMqttMessage(Message<String> message) {
         String rawJsonPayload = message.getPayload();
-<<<<<<< Updated upstream
         String mqttTopic = message.getHeaders().get(MqttHeaders.RECEIVED_TOPIC, String.class);
 
         try {
             JsonNode payloadNode = objectMapper.readTree(rawJsonPayload);
             boolean ultrasonicTopic = "railway/ultrasonic".equals(mqttTopic);
             boolean crackTopic = "railway/cracks".equals(mqttTopic);
+            boolean cameraTopic = mqttTopic != null && mqttTopic.contains("device/esp32-cam/status");
 
             if (ultrasonicTopic || isUltrasonicPayload(payloadNode)) {
-                UltrasonicSensorDataDTO liveUltrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
-
-                if (liveUltrasonicData == null) {
-                    System.err.println("Failed to parse MQTT payload into UltrasonicSensorDataDTO");
-                    return;
-                }
-
-                // Persist ultrasonic telemetry first, then broadcast the stored DTO.
-                UltrasonicSensorDataDTO savedUltrasonicData = ultrasonicSensorService.saveSensorData(liveUltrasonicData);
-                if (savedUltrasonicData == null) {
-                    System.err.println("Ultrasonic data save returned null, skipping broadcast");
-                    return;
-                }
-
-                messagingTemplate.convertAndSend("/topic/ultrasonic", savedUltrasonicData);
-                System.out.println("Stored and broadcasted live ultrasonic data to Web UI: " + savedUltrasonicData.getSensorId());
-                return;
-            }
-
-            if (crackTopic || isCrackPayload(payloadNode)) {
-                IRSensorDataDTO liveCrackData = objectMapper.readValue(rawJsonPayload, IRSensorDataDTO.class);
-
-                if (liveCrackData == null) {
-                    System.err.println("Failed to parse MQTT payload into IRSensorDataDTO");
-                    return;
-                }
-
-                IRSensorDataDTO savedCrackData = irSensorService.saveSensorData(liveCrackData);
-                if (savedCrackData == null) {
-                    System.err.println("Crack data save returned null, skipping broadcast");
-                    return;
-                }
-
-                messagingTemplate.convertAndSend("/topic/cracks", savedCrackData);
-                System.out.println("Stored and broadcasted live crack data to Web UI: " + savedCrackData.getSensorId());
-                return;
-            }
-
-            System.err.println("Ignoring MQTT message from unsupported topic: " + mqttTopic);
-
-        } catch (JsonProcessingException e) {
-=======
-        String topic = message.getHeaders().get("mqtt_receivedTopic", String.class);
-
-        try {
-            // Route to appropriate handler based on topic
-            if (topic != null && topic.contains("device/esp32-cam/status")) {
+                handleUltrasonicMessage(rawJsonPayload);
+            } else if (crackTopic || isCrackPayload(payloadNode)) {
+                handleIRSensorMessage(rawJsonPayload);
+            } else if (cameraTopic || isCameraPayload(payloadNode)) {
                 handleCameraMessage(rawJsonPayload);
-            } else if (topic != null && topic.contains("railway/cracks")) {
-                handleIRSensorMessage(rawJsonPayload);
             } else {
-                // Default to IR sensor
-                handleIRSensorMessage(rawJsonPayload);
+                System.err.println("Ignoring MQTT message from unsupported topic: " + mqttTopic);
             }
 
         } catch (Exception e) {
->>>>>>> Stashed changes
             System.err.println("Failed to process MQTT message: " + e.getMessage());
             e.printStackTrace();
         }
     }
 
-<<<<<<< Updated upstream
     private boolean isUltrasonicPayload(JsonNode payloadNode) {
         return payloadNode.path("sensorType").asText("").equalsIgnoreCase("ultrasonic")
                 || payloadNode.path("sensorId").asText("").toLowerCase().contains("ultra");
@@ -123,53 +69,67 @@ public class MqttReceiver {
         return payloadNode.path("sensorType").asText("").equalsIgnoreCase("crack")
                 || payloadNode.path("crackDetected").asBoolean(false)
                 || payloadNode.path("crack_detected").asBoolean(false);
-=======
-    /**
-     * Handles IR Sensor crack detection data
-     */
+    }
+
+    private boolean isCameraPayload(JsonNode payloadNode) {
+        return payloadNode.path("imageUrl").isTextual()
+                || payloadNode.path("image_url").isTextual()
+                || payloadNode.path("alert").isTextual();
+    }
+
+    private void handleUltrasonicMessage(String rawJsonPayload) throws JsonProcessingException {
+        UltrasonicSensorDataDTO liveUltrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
+
+        if (liveUltrasonicData == null) {
+            System.err.println("Failed to parse MQTT payload into UltrasonicSensorDataDTO");
+            return;
+        }
+
+        UltrasonicSensorDataDTO savedUltrasonicData = ultrasonicSensorService.saveSensorData(liveUltrasonicData);
+        if (savedUltrasonicData == null) {
+            System.err.println("Ultrasonic data save returned null, skipping broadcast");
+            return;
+        }
+
+        messagingTemplate.convertAndSend("/topic/ultrasonic", savedUltrasonicData);
+        System.out.println("Stored and broadcasted live ultrasonic data to Web UI: " + savedUltrasonicData.getSensorId());
+    }
+
     private void handleIRSensorMessage(String rawJsonPayload) throws Exception {
-        // 1. Convert MQTT JSON to Java DTO
         IRSensorDataDTO liveCrackData = objectMapper.readValue(rawJsonPayload, IRSensorDataDTO.class);
 
-        // 2. Check if conversion was successful (null safety)
         if (liveCrackData == null) {
             System.err.println("Failed to parse MQTT payload into IRSensorDataDTO");
             return;
         }
 
-        // 3. BROADCAST TO REACT: Push the DTO down the WebSocket to anyone listening
-        messagingTemplate.convertAndSend("/topic/cracks", liveCrackData);
+        IRSensorDataDTO savedCrackData = irSensorService.saveSensorData(liveCrackData);
+        if (savedCrackData == null) {
+            System.err.println("Crack data save returned null, skipping broadcast");
+            return;
+        }
 
-        System.out.println("Broadcasted live crack data to Web UI: " + liveCrackData.getSensorId());
+        messagingTemplate.convertAndSend("/topic/cracks", savedCrackData);
+
+        System.out.println("Stored and broadcasted live crack data to Web UI: " + savedCrackData.getSensorId());
     }
 
-    /**
-     * Handles ESP32-CAM photo upload confirmation and imageUrl parsing
-     */
     private void handleCameraMessage(String rawJsonPayload) throws Exception {
-        // 1. Convert MQTT JSON to Camera Detection DTO using the new EspCamDetectionDTO
-        EspCamDetectionDTO cameraData = objectMapper.readValue(rawJsonPayload, EspCamDetectionDTO.class);
+        EspCamDetection cameraData = objectMapper.readValue(rawJsonPayload, EspCamDetection.class);
 
-        // 2. Null safety check
         if (cameraData == null) {
             System.err.println("Failed to parse MQTT payload into EspCamDetectionDTO");
             return;
         }
 
-        // 3. Extract and validate imageUrl (critical field from ESP32-CAM)
         String imageUrl = cameraData.getImageUrl();
         if (imageUrl != null && !imageUrl.isEmpty()) {
             System.out.println("Broadcasted Photo URL: " + imageUrl);
         }
 
-        // 4. Optional: Save to repository (when created)
-        // espCamRepository.save(cameraData);
-
-        // 5. BROADCAST TO REACT: Send full camera detection object with image URL to dashboard
         messagingTemplate.convertAndSend("/topic/camera-detections", cameraData);
 
-        System.out.println("Broadcasted camera detection to Web UI: " + cameraData.getDeviceId());
->>>>>>> Stashed changes
+        System.out.println("Broadcasted camera detection to Web UI: " + cameraData.getSensorId());
     }
 }
 
