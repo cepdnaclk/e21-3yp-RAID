@@ -28,5 +28,13 @@ public class EspCamRepository {
         return table.scan().items().stream().collect(Collectors.toList());
     }
 
-    // Add additional methods as needed
+    public List<EspCamDetection> findLatestBySensor(String sensorId) {
+        return table.scan() // For a proper Query, you'd use .query() but scan works for small scale
+                .items()
+                .stream()
+                .filter(item -> item.getSensorId().equals(sensorId))
+                .sorted((a, b) -> b.getTimestamp().compareTo(a.getTimestamp())) // Sort latest first
+                .limit(10) // Only take the last 10 photos
+                .collect(Collectors.toList());
+    }
 }
