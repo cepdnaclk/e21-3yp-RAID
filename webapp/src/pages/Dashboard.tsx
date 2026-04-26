@@ -2,11 +2,14 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
   Wifi, MapPin, Bell, Map, FileText, 
-  ChevronRight, Gauge, Battery, LogOut, Camera, AlertTriangle
+  ChevronRight, LogOut, Camera, AlertTriangle, Grid3x3, List
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useMockTelemetry } from "@/hooks/useMockTelemetry";
+import DeviceCard from "@/components/DeviceCard";
+import CrackDetailModal from "@/components/CrackDetailModal";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 
@@ -14,18 +17,39 @@ export default function Dashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
-  // Selected device and sensor (controls what data stream we listen to)
-  const [deviceId, setDeviceId] = useState("esp-001");
-  const [sensorId, setSensorId] = useState("IR_Bottom");
+  // Load balancing demo: show 3 devices
+  const [viewMode, setViewMode] = useState<'grid' | 'detailed'>('grid');
+  const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
+  const [selectedCrack, setSelectedCrack] = useState<any>(null);
+  const [showCrackDetail, setShowCrackDetail] = useState(false);
 
-  // Custom hook: gives historical + real-time crack data
-  const { liveCracks, isConnected } = useTelemetry(deviceId, sensorId);
+  // Device 1: Real data from backend
+  const device1 = useTelemetry("esp-001", "IR_Bottom");
+  
+  // Device 2: Mock data
+  const device2 = useMockTelemetry("esp-002-mock", "IR_Bottom");
+  
+  // Device 3: Mock data
+  const device3 = useMockTelemetry("esp-003-mock", "IR_Bottom");
 
-  // Total number of detected events
-  const total = liveCracks.length;
+  // Total number of detected events across all devices
+  const totalCracks = device1.liveCracks.length + device2.liveCracks.length + device3.liveCracks.length;
+  const totalCritical = [device1, device2, device3]
+    .flatMap(d => d.liveCracks)
+    .filter(c => c.severity === 'HIGH').length;
 
-  // Count of unresolved/active issues
-  const pending = liveCracks.filter(c => c.status !== 'RESOLVED').length;
+  // Load Balancing Metrics
+  const device1Load = device1.liveCracks.length;
+  const device2Load = device2.liveCracks.length;
+  const device3Load = device3.liveCracks.length;
+  
+  const device1Percent = totalCracks > 0 ? Math.round((device1Load / totalCracks) * 100) : 0;
+  const device2Percent = totalCracks > 0 ? Math.round((device2Load / totalCracks) * 100) : 0;
+  const device3Percent = totalCracks > 0 ? Math.round((device3Load / totalCracks) * 100) : 0;
+  
+  const avgLoad = totalCracks > 0 ? Math.round(totalCracks / 3) : 0;
+  const loadBalance = Math.round(((Math.max(device1Load, device2Load, device3Load) - Math.min(device1Load, device2Load, device3Load)) / Math.max(1, avgLoad)) * 100);
+  const isBalanced = loadBalance < 30;
 
   // Logout user and redirect to home page
   const handleLogout = async () => {
@@ -33,8 +57,42 @@ export default function Dashboard() {
     navigate("/");
   };
 
+  // Handle device detail view
+  const handleViewDevice = (deviceId: string) => {
+    setSelectedDevice(deviceId);
+    setViewMode('detailed');
+  };
+
+  // Handle crack click to open detail modal
+  const handleCrackClick = (crack: any) => {
+    setSelectedCrack(crack);
+    setShowCrackDetail(true);
+  };
+
+  // Handle crack status update
+  const handleCrackStatusUpdate = (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => {
+    // Update the crack status in the appropriate device's liveCracks array
+    const updateCrackInDevice = (cracks: any[]) => {
+      return cracks.map(c => 
+        (c.id === crackId || c.id?.toString() === crackId?.toString()) 
+          ? { ...c, status: newStatus }
+          : c
+      );
+    };
+
+    // Find which device has this crack and update it
+    const device1Updated = updateCrackInDevice(device1.liveCracks);
+    const device2Updated = updateCrackInDevice(device2.liveCracks);
+    const device3Updated = updateCrackInDevice(device3.liveCracks);
+
+    // Update selected crack if it's the one being updated
+    if (selectedCrack?.id === crackId || selectedCrack?.id?.toString() === crackId?.toString()) {
+      setSelectedCrack({ ...selectedCrack, status: newStatus });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-50 pb-24">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
 
       {/* ================= HEADER SECTION ================= */}
       <div className="bg-slate-900 rounded-b-[2rem] px-6 py-8 shadow-lg">
@@ -45,15 +103,7 @@ export default function Dashboard() {
             <h1 className="text-3xl font-bold text-white tracking-tight">
               Mission Control
             </h1>
-
-            {/* Live connection indicator (green = connected, red = disconnected) */}
-            <div className="flex items-center gap-2 mt-1">
-              <span className="flex h-2 w-2 relative">
-                <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-emerald-400' : 'bg-red-400'}`}></span>
-                <span className={`relative inline-flex rounded-full h-2 w-2 ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}`}></span>
-              </span>
-              <p className="text-sm text-slate-400">Live Telemetry active</p>
-            </div>
+            <p className="text-sm text-slate-400 mt-1">Load Balancing Demo • {new Date().toLocaleString()}</p>
           </div>
 
           {/* Logout button */}
@@ -62,132 +112,301 @@ export default function Dashboard() {
           </Button>
         </div>
 
-        {/* Device and sensor selection */}
-        <div className="flex gap-3 mb-6">
+        {/* Fleet Overview Stats */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-slate-800 rounded-lg px-4 py-3 border border-slate-700">
+            <p className="text-xs text-slate-400 uppercase font-semibold">Total Detections</p>
+            <p className="text-2xl font-bold text-white mt-1">{totalCracks}</p>
+          </div>
+          <div className="bg-rose-900 rounded-lg px-4 py-3 border border-rose-700">
+            <p className="text-xs text-rose-200 uppercase font-semibold">Critical Alerts</p>
+            <p className="text-2xl font-bold text-rose-200 mt-1">{totalCritical}</p>
+          </div>
+          <div className="bg-emerald-900 rounded-lg px-4 py-3 border border-emerald-700 col-span-2">
+            <p className="text-xs text-emerald-200 uppercase font-semibold">Fleet Status</p>
+            <div className="flex items-center gap-4 mt-2">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                <span className="text-sm text-emerald-200">esp-001: Live</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                <span className="text-sm text-emerald-200">esp-002-mock: Streaming</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
+                <span className="text-sm text-emerald-200">esp-003-mock: Streaming</span>
+              </div>
+            </div>
+          </div>
+        </div>
 
-          {/* Select IoT device */}
-          <select 
-            value={deviceId} 
-            onChange={(e) => setDeviceId(e.target.value)}
-            className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
+        {/* View Mode Toggle */}
+        <div className="flex gap-2">
+          <Button
+            onClick={() => setViewMode('grid')}
+            variant={viewMode === 'grid' ? 'default' : 'outline'}
+            className="text-sm"
           >
-            <option value="esp-001">Robot-01 (esp-001)</option>
-            <option value="esp-002">Robot-02 (esp-002)</option>
-          </select>
+            <Grid3x3 size={16} className="mr-1" />
+            Fleet Overview
+          </Button>
+          <Button
+            onClick={() => setViewMode('detailed')}
+            variant={viewMode === 'detailed' ? 'default' : 'outline'}
+            className="text-sm"
+          >
+            <List size={16} className="mr-1" />
+            Detailed View
+          </Button>
+        </div>
 
-          {/* Select sensor type */}
-          <select 
-            value={sensorId} 
-            onChange={(e) => setSensorId(e.target.value)}
-            className="bg-slate-800 text-white border border-slate-700 rounded-lg px-3 py-2 text-sm w-full"
-          >
-            <option value="IR_Bottom">IR array</option>
-            <option value="ESP32_CAM_INTEGRATED">Robot Camera</option>
-          </select>
+        {/* Load Balancing Analytics */}
+        <div className="mt-6 pt-6 border-t border-slate-700">
+          <h3 className="text-sm font-bold text-slate-300 uppercase mb-4">📊 Load Distribution</h3>
+          
+          <div className="space-y-3">
+            {/* Device 1 Load Bar */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-300 font-semibold">esp-001 (Real)</span>
+                <span className="text-xs font-bold text-amber-300">{device1Percent}% ({device1Load} events)</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all"
+                  style={{ width: `${Math.max(device1Percent, 5)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Device 2 Load Bar */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-300 font-semibold">esp-002 (Mock)</span>
+                <span className="text-xs font-bold text-indigo-300">{device2Percent}% ({device2Load} events)</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-indigo-400 to-indigo-500 h-full rounded-full transition-all"
+                  style={{ width: `${Math.max(device2Percent, 5)}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Device 3 Load Bar */}
+            <div>
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-slate-300 font-semibold">esp-003 (Mock)</span>
+                <span className="text-xs font-bold text-cyan-300">{device3Percent}% ({device3Load} events)</span>
+              </div>
+              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
+                <div 
+                  className="bg-gradient-to-r from-cyan-400 to-cyan-500 h-full rounded-full transition-all"
+                  style={{ width: `${Math.max(device3Percent, 5)}%` }}
+                ></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Load Balance Status */}
+          <div className={`mt-4 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${
+            isBalanced 
+              ? 'bg-emerald-900 text-emerald-200 border border-emerald-700' 
+              : 'bg-amber-900 text-amber-200 border border-amber-700'
+          }`}>
+            <span className={`inline-flex h-2 w-2 rounded-full ${isBalanced ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+            {isBalanced ? '✓ Load Balanced' : '⚠ Imbalanced Load'} • Variance: {loadBalance}%
+          </div>
         </div>
       </div>
 
-      {/* ================= LIVE DATA SECTION ================= */}
+      {/* ================= MAIN CONTENT ================= */}
       <div className="px-6 mt-8">
+        
+        {viewMode === 'grid' ? (
+          /* ========== GRID VIEW: 3 Device Cards ========== */
+          <>
+            <h2 className="text-2xl font-bold text-slate-900 mb-6">Active Device Fleet</h2>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              {/* Device 1: Real Data */}
+              <DeviceCard
+                deviceId="esp-001"
+                deviceName="Robot-01"
+                isReal={true}
+                isConnected={device1.isConnected}
+                liveCracks={device1.liveCracks}
+                onViewDetails={() => handleViewDevice("esp-001")}
+                onCrackClick={handleCrackClick}
+              />
 
-        {/* Section header */}
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-bold text-slate-900 tracking-tight">
-            Live Anomaly Feed
-          </h2>
+              {/* Device 2: Mock Data */}
+              <DeviceCard
+                deviceId="esp-002-mock"
+                deviceName="Robot-02"
+                isReal={false}
+                isConnected={device2.isConnected}
+                liveCracks={device2.liveCracks}
+                onViewDetails={() => handleViewDevice("esp-002-mock")}
+                onCrackClick={handleCrackClick}
+              />
 
-          {/* Count of unresolved events */}
-          <span className="bg-rose-100 text-rose-700 text-xs font-bold px-3 py-1 rounded-full flex items-center gap-1">
-            <AlertTriangle size={14} /> {pending} Pending
-          </span>
-        </div>
+              {/* Device 3: Mock Data */}
+              <DeviceCard
+                deviceId="esp-003-mock"
+                deviceName="Robot-03"
+                isReal={false}
+                isConnected={device3.isConnected}
+                liveCracks={device3.liveCracks}
+                onViewDetails={() => handleViewDevice("esp-003-mock")}
+                onCrackClick={handleCrackClick}
+              />
+            </div>
+          </>
+        ) : (
+          /* ========== DETAILED VIEW: Single Device Details ========== */
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <Button
+                onClick={() => setViewMode('grid')}
+                variant="outline"
+                size="sm"
+              >
+                ← Back to Fleet
+              </Button>
+              <h2 className="text-2xl font-bold text-slate-900">
+                {selectedDevice === 'esp-001' && 'Robot-01 Details'}
+                {selectedDevice === 'esp-002-mock' && 'Robot-02 Details (Mock)'}
+                {selectedDevice === 'esp-003-mock' && 'Robot-03 Details (Mock)'}
+              </h2>
+            </div>
 
-        {/* Table container */}
-        <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-
-          <table className="w-full text-left text-sm">
-
-            {/* Table header */}
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="p-4 font-semibold text-slate-600">Visual Evidence</th>
-                <th className="p-4 font-semibold text-slate-600">Time & Location</th>
-                <th className="p-4 font-semibold text-slate-600">Status</th>
-              </tr>
-            </thead>
-
-            {/* Table body */}
-            <tbody className="divide-y divide-slate-100">
-
-              {/* If no data is available */}
-              {liveCracks.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-slate-400 italic">
-                    Track conditions nominal. Awaiting telemetry.
-                  </td>
-                </tr>
-              ) : (
-
-                /* Loop through all crack events */
-                liveCracks.map((crack, index) => (
-                  <tr key={index} className="hover:bg-slate-50 transition-colors">
-
-                    {/* ================= IMAGE COLUMN ================= */}
-                    <td className="p-4">
-                      <div className="w-24 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative group">
-
-                        {/* Updated to check both your path and your friend's path */}
-                        {(crack.imageUrl || crack.media?.imageUrl) ? (
-                          <img 
-                            src={crack.imageUrl || crack.media?.imageUrl} 
-                            alt="Track Defect" 
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <div className="flex flex-col items-center justify-center h-full text-slate-400">
-                            <Camera size={20} className="mb-1 opacity-50" />
-                            <span className="text-[10px] uppercase font-semibold">No Image</span>
-                          </div>
-                        )}
-                      </div>
-                    </td>
-
-                    {/* ================= TIME + GPS COLUMN ================= */}
-                    <td className="p-4">
-
-                      {/* Convert timestamp into readable time */}
-                      <p className="font-medium text-slate-900 mb-1">
-                        {new Date(crack.timestamp).toLocaleTimeString()}
-                      </p>
-
-                      {/* GPS location with fallback values */}
-                      <div className="flex items-center gap-1 text-slate-500 text-xs font-mono">
-                        <MapPin size={12} className="text-indigo-400" />
-                        <span>
-                          {crack.gps?.lat || "5.9496"}° N, {crack.gps?.lng || "80.5353"}° E
-                        </span>
-                      </div>
-                    </td>
-
-                    {/* ================= STATUS COLUMN ================= */}
-                    <td className="p-4">
-
-                      {/* Show crack status (default = CRITICAL if missing) */}
-                      <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-bold bg-rose-50 text-rose-600 border border-rose-200">
-                        {crack.status || "CRITICAL"}
-                      </span>
-
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+            {selectedDevice === 'esp-001' && (
+              <DetailedDeviceView 
+                deviceId="esp-001"
+                deviceName="Robot-01"
+                isReal={true}
+                liveCracks={device1.liveCracks}
+              />
+            )}
+            {selectedDevice === 'esp-002-mock' && (
+              <DetailedDeviceView 
+                deviceId="esp-002-mock"
+                deviceName="Robot-02 (Mock)"
+                isReal={false}
+                liveCracks={device2.liveCracks}
+              />
+            )}
+            {selectedDevice === 'esp-003-mock' && (
+              <DetailedDeviceView 
+                deviceId="esp-003-mock"
+                deviceName="Robot-03 (Mock)"
+                isReal={false}
+                liveCracks={device3.liveCracks}
+              />
+            )}
+          </>
+        )}
       </div>
+
+      {/* Crack Detail Modal */}
+      <CrackDetailModal
+        crack={selectedCrack}
+        isOpen={showCrackDetail}
+        onClose={() => setShowCrackDetail(false)}
+        onStatusUpdate={handleCrackStatusUpdate}
+      />
 
       {/* Bottom navigation bar */}
       <BottomNav />
     </div>
+  );
+}
+
+/**
+ * Detailed view component showing all crack detections for a single device
+ */
+function DetailedDeviceView({ 
+  deviceId, 
+  deviceName, 
+  isReal, 
+  liveCracks 
+}: {
+  deviceId: string;
+  deviceName: string;
+  isReal: boolean;
+  liveCracks: any[];
+}) {
+  const total = liveCracks.length;
+  const pending = liveCracks.filter(c => c.status === 'pending' || c.status !== 'ignored').length;
+
+  return (
+    <>
+      {/* Summary stats */}
+      <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="bg-white rounded-lg p-4 border border-slate-200">
+          <p className="text-sm text-slate-600 font-semibold">Total Detections</p>
+          <p className="text-3xl font-bold text-slate-900 mt-2">{total}</p>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200">
+          <p className="text-sm text-slate-600 font-semibold">Pending Review</p>
+          <p className="text-3xl font-bold text-amber-600 mt-2">{pending}</p>
+        </div>
+        <div className="bg-white rounded-lg p-4 border border-slate-200">
+          <p className="text-sm text-slate-600 font-semibold">Data Source</p>
+          <p className={`text-sm font-bold mt-2 ${isReal ? 'text-amber-600' : 'text-indigo-600'}`}>
+            {isReal ? '🔴 Real Data' : '📊 Mock Data'}
+          </p>
+        </div>
+      </div>
+
+      {/* Detailed table */}
+      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
+        <table className="w-full text-left text-sm">
+          <thead className="bg-slate-50 border-b border-slate-200">
+            <tr>
+              <th className="p-4 font-semibold text-slate-600">Time</th>
+              <th className="p-4 font-semibold text-slate-600">Location</th>
+              <th className="p-4 font-semibold text-slate-600">Status</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-100">
+            {liveCracks.length === 0 ? (
+              <tr>
+                <td colSpan={3} className="p-8 text-center text-slate-400 italic">
+                  No detections yet. Awaiting telemetry data.
+                </td>
+              </tr>
+            ) : (
+              liveCracks.map((crack, index) => (
+                <tr key={index} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4 font-medium text-slate-900">
+                    {crack.timestamp ? new Date(crack.timestamp).toLocaleTimeString() : 'N/A'}
+                  </td>
+                  <td className="p-4">
+                    <div className="text-slate-900 font-medium">{crack.km?.toFixed(1)} km</div>
+                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+                      <MapPin size={12} />
+                      {crack.gps?.lat?.toFixed(4)} N, {crack.gps?.lng?.toFixed(4)} E
+                    </div>
+                  </td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                      crack.status === 'confirmed' 
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : crack.status === 'pending'
+                        ? 'bg-amber-100 text-amber-700'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {crack.status}
+                    </span>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 }
