@@ -22,6 +22,7 @@ public class IRSensorData {
     private String deviceId;
     private boolean crackDetected;
     private String status;
+    private String imageUrl;
     private int uptime;
     private double latitude;
     private double longitude;
@@ -94,6 +95,15 @@ public class IRSensorData {
 
     public void setStatus(String status) {
         this.status = status;
+    }
+
+    @DynamoDbAttribute("image_url")
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     @DynamoDbAttribute("uptime")

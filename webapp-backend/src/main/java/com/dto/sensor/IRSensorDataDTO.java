@@ -9,6 +9,7 @@ public class IRSensorDataDTO {
     private boolean crackDetected;
     private String status;
     private double severity;
+    private String imageUrl;
     private LocationDTO location;
 
     // Empty constructor needed by Spring
@@ -92,6 +93,14 @@ public class IRSensorDataDTO {
 
     public void setSeverity(double severity) {
         this.severity = severity;
+    }
+
+    public String getImageUrl() {
+        return imageUrl;
+    }
+
+    public void setImageUrl(String imageUrl) {
+        this.imageUrl = imageUrl;
     }
 
     public LocationDTO getLocation() {

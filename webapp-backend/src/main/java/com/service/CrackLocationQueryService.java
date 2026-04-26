@@ -85,6 +85,7 @@ public class CrackLocationQueryService {
         dto.setCrackDetected(firstBoolean(item, false, "crackDetected", "crack_detected", "CrackDetected"));
         dto.setStatus(firstNonEmptyString(item, "status", "Status"));
         dto.setSeverity(firstNumber(item, 0.0d, "severity", "Severity"));
+        dto.setImageUrl(firstNonEmptyString(item, "imageUrl", "image_url", "ImageURL", "photoUrl", "url"));
 
         double lat = firstNumber(item, 0.0d, "lat", "latitude", "Latitude");
         double lng = firstNumber(item, 0.0d, "lng", "longitude", "Longitude");
