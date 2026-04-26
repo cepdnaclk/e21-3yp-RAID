@@ -26,6 +26,14 @@
 #define HREF_GPIO_NUM  23
 #define PCLK_GPIO_NUM  22
 
+#define HARDWARE_TRIGGER_PIN 13
+volatile bool captureRequested = false;
+
+void IRAM_ATTR onHardwareTrigger() {
+    captureRequested = true;
+}
+
+
 WiFiClientSecure net;
 PubSubClient mqttClient(net);
 
@@ -129,20 +137,41 @@ void captureAndSend() {
 
 
 // --- AWS CALLBACK (Listen for Friend's IR) ---
+// void mqttCallback(char* topic, byte* payload, unsigned int length) {
+//     Serial.print("Message arrived on topic: ");
+//     Serial.println(topic);
+
+//     String message;
+//     for (int i = 0; i < length; i++) message += (char)payload[i];
+
+//     // Listen specifically for your friend's trigger
+//     if (message.indexOf("\"crackDetected\": true") != -1) {
+//         Serial.println("TRIGGER: IR Sensor detected a crack!");
+//         captureAndSend();
+//     }
+// }
+
+// --- AWS CALLBACK (Listen for Friend's IR & Manual Overrides) ---
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
     Serial.print("Message arrived on topic: ");
     Serial.println(topic);
 
-    String message;
-    for (int i = 0; i < length; i++) message += (char)payload[i];
+    // Parse the incoming JSON properly
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
 
-    // Listen specifically for your friend's trigger
-    if (message.indexOf("\"crackDetected\": true") != -1) {
-        Serial.println("TRIGGER: IR Sensor detected a crack!");
-        captureAndSend();
+    if (error) {
+        Serial.print("JSON Parse failed: ");
+        Serial.println(error.c_str());
+        return;
+    }
+
+    // Check if the payload says a crack was detected
+    if (doc["crack_detected"] == true || doc["crackDetected"] == true) {
+        Serial.println("MQTT TRIGGER: Crack event received!");
+        captureRequested = true; // Set the same flag the hardware uses
     }
 }
-
 // --- AWS CONNECT ---
 void connectAWS() {
     net.setCACert(AWS_CERT_CA);
@@ -157,12 +186,16 @@ void connectAWS() {
         delay(1000);
     }
     Serial.println(" Connected!");
-    mqttClient.subscribe("railway/cracks"); // Listen to crack detection data
+    mqttClient.subscribe("device/esp-001/IR_Bottom"); // Listen to crack detection data
 }
 
 void setup() {
     // 1. DISABLE BROWNOUT (Crucial for heat/stability)
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+
+    pinMode(HARDWARE_TRIGGER_PIN, INPUT_PULLDOWN);
+    attachInterrupt(digitalPinToInterrupt(HARDWARE_TRIGGER_PIN), onHardwareTrigger, RISING);
+
 
     Serial.begin(115200);
 
@@ -214,6 +247,12 @@ void loop() {
         connectAWS();
     }
     mqttClient.loop();
+
+    if (captureRequested) {
+        captureRequested = false; // Reset the flag immediately
+        Serial.println("\n🚨 TRIGGER ACTIVATED! Capturing Photo...");
+        captureAndSend();
+    }
 
     // Debug SNAP via Serial
     if (Serial.available()) {
