@@ -183,13 +183,23 @@ export default function Dashboard() {
                     <td className="p-4">
                       <div className="w-24 h-20 bg-slate-100 rounded-lg border border-slate-200 overflow-hidden relative group">
 
-                        {/* Updated to check both your path and your friend's path */}
-                        {(crack.imageUrl || crack.media?.imageUrl) ? (
-                          <img 
-                            src={crack.imageUrl || crack.media?.imageUrl} 
-                            alt="Track Defect" 
-                            className="w-full h-full object-cover"
-                          />
+                        {/* Display image from camera (image_url gets converted to imageUrl by Jackson) */}
+                        {crack.imageUrl ? (
+                          <>
+                            <img 
+                              src={crack.imageUrl} 
+                              alt="Track Defect" 
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                console.error("Image failed to load:", crack.imageUrl);
+                                (e.target as HTMLImageElement).style.display = 'none';
+                              }}
+                            />
+                            {/* Label for camera captures */}
+                            <div className="absolute top-1 right-1 bg-blue-500 text-white text-[10px] font-bold px-2 py-0.5 rounded opacity-75">
+                              📷
+                            </div>
+                          </>
                         ) : (
                           <div className="flex flex-col items-center justify-center h-full text-slate-400">
                             <Camera size={20} className="mb-1 opacity-50" />
@@ -204,7 +214,7 @@ export default function Dashboard() {
 
                       {/* Convert timestamp into readable time */}
                       <p className="font-medium text-slate-900 mb-1">
-                        {new Date(crack.timestamp).toLocaleTimeString()}
+                        {crack.timestamp ? new Date(crack.timestamp).toLocaleTimeString() : "N/A"}
                       </p>
 
                       {/* GPS location with fallback values */}

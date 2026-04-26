@@ -52,10 +52,11 @@ public class IRSensorRepositoryImpl implements IRSensorRepository {
                 .putExpressionValue(":devId", AttributeValue.builder().s(deviceId).build())
                 .build();
 
-        // 3. Combine them and execute
+        // 3. Combine them and execute (scanIndexForward(false) sorts newest-first)
         QueryEnhancedRequest request = QueryEnhancedRequest.builder()
                 .queryConditional(queryConditional)
                 .filterExpression(filterExpression)
+                .scanIndexForward(false)
                 .build();
 
         // Run the query and return as a List
