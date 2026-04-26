@@ -5,9 +5,9 @@ constexpr int IR_SENSOR_COUNT = 8;
 
 struct IRScanResult
 {
-	bool crackDetected;
-	int minValue;
-	int values[IR_SENSOR_COUNT];
+  bool crackDetected;
+  int minValue;
+  int values[IR_SENSOR_COUNT];
 };
 
 // Initializes the MUX control pins and IR emitter drive pin.
