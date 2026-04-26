@@ -22,21 +22,30 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const authApiBase = (
+    import.meta.env.VITE_AUTH_API_BASE_URL as string | undefined
+  ) ?? (import.meta.env.VITE_API_BASE_URL as string | undefined);
+
   const signIn = async (username: string, password: string) => {
     setLoading(true);
     try {
-      // Try the Spring Boot API first
-      const response = await fetch("http://localhost:8080/api/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-      });
+      // Only call backend auth if an explicit API base is configured.
+      if (authApiBase) {
+        const response = await fetch(`${authApiBase}/api/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username, password }),
+        });
 
-      if (!response.ok) throw new Error("Invalid credentials");
+        if (!response.ok) throw new Error("Invalid credentials");
 
-      const data = await response.json();
-      setToken(data.token);
-      setUser(data.user);
+        const data = await response.json();
+        setToken(data.token);
+        setUser(data.user);
+        return;
+      }
+
+      throw new Error("Auth API not configured");
     } catch (error) {
       // Fallback: mock login for development when backend is not running
       if (username === "admin" && password === "admin123") {

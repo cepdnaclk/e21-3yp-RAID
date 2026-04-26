@@ -13,6 +13,87 @@ export interface CrackEvent {
   [key: string]: any; // Allow other properties returned by the backend
 }
 
+type AnyRecord = Record<string, any>;
+
+function isRecord(value: unknown): value is AnyRecord {
+  return typeof value === 'object' && value !== null;
+}
+
+function unwrapDynamoValue(value: any): any {
+  if (!isRecord(value)) {
+    return value;
+  }
+
+  const keys = Object.keys(value);
+  if (keys.length === 1) {
+    const [key] = keys;
+    switch (key) {
+      case 'S':
+        return value.S;
+      case 'N': {
+        const parsed = Number(value.N);
+        return Number.isFinite(parsed) ? parsed : value.N;
+      }
+      case 'BOOL':
+        return Boolean(value.BOOL);
+      case 'NULL':
+        return null;
+      case 'M':
+        return unwrapDynamoValue(value.M);
+      case 'L':
+        return Array.isArray(value.L) ? value.L.map(unwrapDynamoValue) : [];
+      default:
+        break;
+    }
+  }
+
+  const normalized: AnyRecord = {};
+  for (const [k, v] of Object.entries(value)) {
+    normalized[k] = unwrapDynamoValue(v);
+  }
+  return normalized;
+}
+
+function firstNonEmptyString(candidates: any[]): string | undefined {
+  for (const candidate of candidates) {
+    if (typeof candidate === 'string' && candidate.trim().length > 0) {
+      return candidate;
+    }
+  }
+  return undefined;
+}
+
+function normalizeCrackEvent(raw: any): CrackEvent {
+  const base = unwrapDynamoValue(raw) ?? {};
+  const media = unwrapDynamoValue(base.media ?? base.Media ?? null);
+  const location = unwrapDynamoValue(base.location ?? base.Location ?? null);
+  const gps = unwrapDynamoValue(base.gps ?? location ?? null);
+
+  const imageUrl = firstNonEmptyString([
+    base.imageUrl,
+    base.image_url,
+    base.imageURL,
+    base.photoUrl,
+    base.photo_url,
+    base.url,
+    media?.imageUrl,
+    media?.image_url,
+    media?.photoUrl,
+    media?.photo_url,
+    media?.s3Url,
+    media?.s3_url,
+    media?.url,
+  ]);
+
+  return {
+    ...base,
+    media,
+    location,
+    gps,
+    imageUrl,
+  };
+}
+
 export function useTelemetry(deviceId: string, sensorId: string) {
   const [liveCracks, setLiveCracks] = useState<CrackEvent[]>([]);
   const [isConnected, setIsConnected] = useState<boolean>(false);
@@ -21,7 +102,12 @@ export function useTelemetry(deviceId: string, sensorId: string) {
     // 1. Fetch Historical Data (Cold Path)
     fetch(`http://localhost:8080/api/cracks/${deviceId}/${sensorId}`)
       .then(res => res.json())
-      .then(data => setLiveCracks(data.reverse()))
+      .then(data => {
+        const normalized = (Array.isArray(data) ? data : [])
+          .map(normalizeCrackEvent)
+          .reverse();
+        setLiveCracks(normalized);
+      })
       .catch(err => console.error("Historical fetch error:", err));
 
     // 2. Establish Real-Time Connection (Hot Path)
@@ -35,15 +121,8 @@ export function useTelemetry(deviceId: string, sensorId: string) {
 
         // Subscribe to IR Sensor crack data
         stompClient.subscribe(`/topic/cracks/${deviceId}/${sensorId}`, (message) => {
-            const rawData = JSON.parse(message.body);
-            
-            // DEFENSIVE PROGRAMMING: Ensure the payload always has the nested objects
-            // even if the hardware failed to send them.
-            const safeCrackEvent = {
-                ...rawData,
-                gps: rawData.gps || null,
-                media: rawData.media || null
-            };
+          const rawData = JSON.parse(message.body);
+          const safeCrackEvent = normalizeCrackEvent(rawData);
 
             setLiveCracks(prev => [safeCrackEvent, ...prev].slice(0, 100));
         });
@@ -51,14 +130,7 @@ export function useTelemetry(deviceId: string, sensorId: string) {
         // Subscribe to Camera detections (with image URLs)
         stompClient.subscribe(`/topic/camera-detections`, (message) => {
             const cameraData = JSON.parse(message.body);
-            
-            // Ensure imageUrl is accessible (Jackson converts image_url to imageUrl)
-            const cameraCrackEvent = {
-                ...cameraData,
-                imageUrl: cameraData.imageUrl || cameraData.image_url,
-                gps: cameraData.gps || null,
-                media: cameraData.media || null
-            };
+          const cameraCrackEvent = normalizeCrackEvent(cameraData);
 
             console.log("Camera detection received with imageUrl:", cameraCrackEvent.imageUrl);
             setLiveCracks(prev => [cameraCrackEvent, ...prev].slice(0, 100));

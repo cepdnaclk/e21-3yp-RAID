@@ -21,6 +21,32 @@ export default function CrackDetailModal({
 
   if (!isOpen || !crack) return null;
 
+  const locationLabel = (() => {
+    const location = crack.location;
+    if (typeof location === "string" && location.trim().length > 0) {
+      return location;
+    }
+
+    if (location && typeof location === "object") {
+      const lat = Number((location as any).lat);
+      const lng = Number((location as any).lng);
+      if (Number.isFinite(lat) && Number.isFinite(lng)) {
+        return `${lat.toFixed(4)}° N, ${lng.toFixed(4)}° E`;
+      }
+    }
+
+    return "Railway Track Section";
+  })();
+
+  const resolvedImageUrl =
+    crack.imageUrl ||
+    crack.image_url ||
+    crack.media?.imageUrl ||
+    crack.media?.image_url ||
+    crack.media?.s3Url ||
+    crack.media?.s3_url ||
+    crack.media?.url;
+
   const handleApprove = async () => {
     setIsUpdating(true);
     onStatusUpdate(crack.id || '', 'approved');
@@ -57,7 +83,7 @@ export default function CrackDetailModal({
           <div className="flex-1">
             <h2 className="text-2xl font-bold text-white">Crack Details</h2>
             <p className="text-blue-100 text-sm mt-1">
-              Alert #{crack.id} • {crack.location || `Railway Track Section`}
+              Alert #{crack.id} • {locationLabel}
             </p>
           </div>
           <div className="flex items-center gap-3">
@@ -94,13 +120,13 @@ export default function CrackDetailModal({
               )}
             </div>
             <div className="w-full bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl border-2 border-slate-300 overflow-hidden aspect-video flex items-center justify-center">
-              {crack.imageUrl ? (
+              {resolvedImageUrl ? (
                 <img
-                  src={crack.imageUrl}
+                  src={resolvedImageUrl}
                   alt="Track Defect"
                   className="w-full h-full object-cover"
                   onError={(e) => {
-                    console.error("Image failed to load:", crack.imageUrl);
+                    console.error("Image failed to load:", resolvedImageUrl);
                     (e.target as HTMLImageElement).src = '';
                   }}
                 />

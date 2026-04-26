@@ -19,13 +19,16 @@ public class IRSensorMapper {
         }
 
         // 4. The Data Extraction and Translation
-        return new IRSensorDataDTO(
+        IRSensorDataDTO dto = new IRSensorDataDTO(
                 entity.getSensorId(),
                 entity.getTimestamp(),
                 entity.getDeviceId(),
                 entity.isCrackDetected(),
                 entity.getStatus(),
                 new LocationDTO(entity.getLatitude(), entity.getLongitude()));
+
+        dto.setImageUrl(entity.getImageUrl());
+        return dto;
     }
 
     public IRSensorData toEntity(IRSensorDataDTO dto) {
@@ -39,6 +42,7 @@ public class IRSensorMapper {
         entity.setDeviceId(dto.getDeviceId());
         entity.setCrackDetected(dto.isCrackDetected());
         entity.setStatus(dto.getStatus());
+        entity.setImageUrl(dto.getImageUrl());
 
         if (dto.getLocation() != null) {
             entity.setLatitude(dto.getLocation().getLat());
