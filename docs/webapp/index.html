@@ -5,8 +5,22 @@
     <link rel="icon" type="image/svg+xml" href="/e21-3yp-RAID/webapp/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>webapp</title>
-    <script type="module" crossorigin src="/e21-3yp-RAID/webapp/assets/index-I-aQqufS.js"></script>
-    <link rel="stylesheet" crossorigin href="/e21-3yp-RAID/webapp/assets/index-D_dYlGfF.css">
+    <script>
+      // Restore deep-link route after GitHub Pages serves 404.html.
+      (function () {
+        var params = new URLSearchParams(window.location.search);
+        var p = params.get("p");
+        if (!p) return;
+
+        params.delete("p");
+        var nextQuery = params.toString();
+        var repoBase = "/e21-3yp-RAID/webapp/";
+        var target = repoBase + p.replace(/^\/+/, "") + (nextQuery ? "?" + nextQuery : "") + window.location.hash;
+        window.history.replaceState(null, "", target);
+      })();
+    </script>
+    <script type="module" crossorigin src="/e21-3yp-RAID/webapp/assets/index-n9kOISqA.js"></script>
+    <link rel="stylesheet" crossorigin href="/e21-3yp-RAID/webapp/assets/index-DDIKK1NZ.css">
   </head>
   <body>
     <div id="root"></div>
