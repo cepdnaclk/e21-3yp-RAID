@@ -10,6 +10,7 @@
 #include "sensor configuration/gps sensors/gps_sensor.h"
 
 // ================= Configuration =================
+#define CAMERA_TRIGGER_PIN 4
 const char *ssid = "Redmi Note 10";
 const char *password = "200170201635";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
@@ -318,6 +319,8 @@ void setup()
 {
   // CRITICAL: Disable brownout detector to prevent restart loops when camera + WiFi power on simultaneously
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
+  pinMode(CAMERA_TRIGGER_PIN, OUTPUT);
+  digitalWrite(CAMERA_TRIGGER_PIN, LOW);
   
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
@@ -420,6 +423,9 @@ void loop()
   // Triggers if a crack is found AND 2 seconds have passed since the last alert
   if (crack_detected && (now - lastCriticalAlert > 3000))
   {
+    digitalWrite(CAMERA_TRIGGER_PIN, HIGH);
+    delay(50); // 50ms pulse
+    digitalWrite(CAMERA_TRIGGER_PIN, LOW);
     lastCriticalAlert = now;
     lastHeartbeat = now; // Reset the heartbeat timer—we just proved the robot is alive!
 
