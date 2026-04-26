@@ -287,6 +287,7 @@ export default function Dashboard() {
                 deviceName="Robot-01"
                 isReal={true}
                 liveCracks={device1.liveCracks}
+                onCrackClick={handleCrackClick}
               />
             )}
             {selectedDevice === 'esp-002-mock' && (
@@ -295,6 +296,7 @@ export default function Dashboard() {
                 deviceName="Robot-02 (Mock)"
                 isReal={false}
                 liveCracks={device2.liveCracks}
+                onCrackClick={handleCrackClick}
               />
             )}
             {selectedDevice === 'esp-003-mock' && (
@@ -303,6 +305,7 @@ export default function Dashboard() {
                 deviceName="Robot-03 (Mock)"
                 isReal={false}
                 liveCracks={device3.liveCracks}
+                onCrackClick={handleCrackClick}
               />
             )}
           </>
@@ -330,12 +333,14 @@ function DetailedDeviceView({
   deviceId, 
   deviceName, 
   isReal, 
-  liveCracks 
+  liveCracks,
+  onCrackClick
 }: {
   deviceId: string;
   deviceName: string;
   isReal: boolean;
   liveCracks: any[];
+  onCrackClick: (crack: any) => void;
 }) {
   const total = liveCracks.length;
   const pending = liveCracks.filter(c => c.status === 'pending' || c.status !== 'ignored').length;
@@ -368,12 +373,13 @@ function DetailedDeviceView({
               <th className="p-4 font-semibold text-slate-600">Time</th>
               <th className="p-4 font-semibold text-slate-600">Location</th>
               <th className="p-4 font-semibold text-slate-600">Status</th>
+              <th className="p-4 font-semibold text-slate-600 text-right">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {liveCracks.length === 0 ? (
               <tr>
-                <td colSpan={3} className="p-8 text-center text-slate-400 italic">
+                <td colSpan={4} className="p-8 text-center text-slate-400 italic">
                   No detections yet. Awaiting telemetry data.
                 </td>
               </tr>
@@ -400,6 +406,16 @@ function DetailedDeviceView({
                     }`}>
                       {crack.status}
                     </span>
+                  </td>
+                  <td className="p-4 text-right">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => onCrackClick(crack)}
+                      className="font-semibold"
+                    >
+                      View Details
+                    </Button>
                   </td>
                 </tr>
               ))
