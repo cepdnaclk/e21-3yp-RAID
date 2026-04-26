@@ -12,7 +12,7 @@ import software.amazon.awssdk.enhanced.dynamodb.mapper.annotations.DynamoDbSortK
  * Every instance of this class represents one single row (one crack reading).
  */
 @DynamoDbBean
-public class IRSensorData {
+public class irsensorData {
 
     // We use standard Java "camelCase" naming conventions for our variables here
     // to keep our Java code clean and standard, regardless of how the database is
@@ -134,4 +134,6 @@ public class IRSensorData {
     }
 }
 
-//This is a 1-to-1 map of your DynamoDB table. It tells Java exactly what columns exist in your database so it can translate the JSON into a Java Object.
+// This is a 1-to-1 map of your DynamoDB table. It tells Java exactly what
+// columns exist in your database so it can translate the JSON into a Java
+// Object.

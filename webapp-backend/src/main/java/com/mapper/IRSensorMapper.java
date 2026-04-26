@@ -4,14 +4,14 @@ import org.springframework.stereotype.Component;
 
 import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.LocationDTO;
-import com.model.IRSensorData;
+import com.model.irsensorData;
 
 // 1. The Annotation
 @Component
 public class IRSensorMapper {
 
     // 2. The Method Signature
-    public IRSensorDataDTO toDTO(IRSensorData entity) {
+    public IRSensorDataDTO toDTO(irsensorData entity) {
 
         // 3. The Safety Net
         if (entity == null) {
@@ -31,12 +31,12 @@ public class IRSensorMapper {
         return dto;
     }
 
-    public IRSensorData toEntity(IRSensorDataDTO dto) {
+    public irsensorData toEntity(IRSensorDataDTO dto) {
         if (dto == null) {
             return null;
         }
 
-        IRSensorData entity = new IRSensorData();
+        irsensorData entity = new irsensorData();
         entity.setSensorId(dto.getSensorId());
         entity.setTimestamp(dto.getTimestamp());
         entity.setDeviceId(dto.getDeviceId());

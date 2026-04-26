@@ -5,7 +5,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Repository;
 
-import com.model.IRSensorData;
+import com.model.irsensorData;
 import com.repositary.IRSensorRepository;
 
 import software.amazon.awssdk.enhanced.dynamodb.DynamoDbEnhancedClient;
@@ -20,25 +20,25 @@ import software.amazon.awssdk.services.dynamodb.model.AttributeValue;
 @Repository
 public class IRSensorRepositoryImpl implements IRSensorRepository {
 
-    private final DynamoDbTable<IRSensorData> table;
+    private final DynamoDbTable<irsensorData> table;
 
     // Spring Boot automatically passes the DynamoDB client you configured earlier
     // into this constructor
     public IRSensorRepositoryImpl(DynamoDbEnhancedClient enhancedClient) {
         // We tell the client exactly which table to look at ("ir_sensor_logs")
-        // and which Java class maps to it (IRSensorData.class)
-        this.table = enhancedClient.table("ir_cracks_detection", TableSchema.fromBean(IRSensorData.class));
+        // and which Java class maps to it (irsensorData.class)
+        this.table = enhancedClient.table("ir_cracks_detection", TableSchema.fromBean(irsensorData.class));
     }
 
     @Override
-    public List<IRSensorData> getAllData() {
+    public List<irsensorData> getAllData() {
         // .scan() reads the whole table.
         // We then convert the AWS results into a standard Java List.
         return table.scan().items().stream().collect(Collectors.toList());
     }
 
     @Override
-    public List<IRSensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId) {
+    public List<irsensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId) {
 
         // 1. The Query: Jump directly to the physical partition for this SensorID
         // (Fast!)
@@ -64,7 +64,7 @@ public class IRSensorRepositoryImpl implements IRSensorRepository {
     }
 
     @Override
-    public IRSensorData save(IRSensorData data) {
+    public irsensorData save(irsensorData data) {
         table.putItem(data);
         return data;
     }

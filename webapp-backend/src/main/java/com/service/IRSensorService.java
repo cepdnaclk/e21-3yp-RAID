@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import com.dto.sensor.IRSensorDataDTO;
 import com.mapper.IRSensorMapper;
-import com.model.IRSensorData;
+import com.model.irsensorData;
 import com.repositary.IRSensorRepository;
 
 // 1. The Annotation
@@ -30,7 +30,7 @@ public class IRSensorService {
     public List<IRSensorDataDTO> getAllCrackData() {
 
         // Step A: Fetch the raw, heavy entities from the database
-        List<IRSensorData> rawData = repository.getAllData();
+        List<irsensorData> rawData = repository.getAllData();
 
         // Step B: Transform the raw entities into lightweight DTOs
         return rawData.stream()
@@ -41,7 +41,7 @@ public class IRSensorService {
     public List<IRSensorDataDTO> getSpecificCracks(String deviceId, String sensorId) {
 
         // 1. Ask the repository for the filtered data
-        List<IRSensorData> rawData = repository.getCracksByDeviceAndSensor(deviceId, sensorId);
+        List<irsensorData> rawData = repository.getCracksByDeviceAndSensor(deviceId, sensorId);
 
         // 2. Map the heavy entities to lightweight DTOs
         return rawData.stream()
@@ -50,12 +50,12 @@ public class IRSensorService {
     }
 
     public IRSensorDataDTO saveSensorData(IRSensorDataDTO dto) {
-        IRSensorData entity = crackEventHandler.toEntityForPersistence(dto, mapper);
+        irsensorData entity = crackEventHandler.toEntityForPersistence(dto, mapper);
         if (entity == null) {
             return null;
         }
 
-        IRSensorData saved = repository.save(entity);
+        irsensorData saved = repository.save(entity);
         return mapper.toDTO(saved);
     }
 

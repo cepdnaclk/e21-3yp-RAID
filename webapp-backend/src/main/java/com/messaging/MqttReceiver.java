@@ -9,12 +9,10 @@ import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
-import com.model.EspCamDetection;
-import com.dto.sensor.IRSensorDataDTO;
+
 import com.dto.sensor.UltrasonicSensorDataDTO;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+
 import com.service.IRSensorService;
 import com.service.UltrasonicSensorService;
 
@@ -78,7 +76,8 @@ public class MqttReceiver {
 
     private void handleUltrasonicMessage(String rawJsonPayload) throws Exception {
         UltrasonicSensorDataDTO ultrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
-        if (ultrasonicData == null) return;
+        if (ultrasonicData == null)
+            return;
         messagingTemplate.convertAndSend("/topic/ultrasonic", ultrasonicData);
         System.out.println("Broadcasted ultrasonic data to Web UI: " + ultrasonicData.getSensorId());
     }
