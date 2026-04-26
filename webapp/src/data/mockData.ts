@@ -150,6 +150,74 @@ export const crackAlerts: CrackAlert[] = [
   },
 ];
 
+// ============= Mock Ultrasonic Sensor Data =============
+export interface UltrasonicEvent {
+  sensorId: string;
+  deviceId: string;
+  timestamp: string;
+  distanceCm: number;
+  obstacleDetected: boolean;
+}
+
+export const mockUltrasonicData: UltrasonicEvent[] = [
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:20Z",
+    distanceCm: 42.5,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:15Z",
+    distanceCm: 38.2,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:10Z",
+    distanceCm: 65.8,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:05Z",
+    distanceCm: 72.3,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:35:00Z",
+    distanceCm: 45.6,
+    obstacleDetected: true,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:55Z",
+    distanceCm: 89.2,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:50Z",
+    distanceCm: 95.0,
+    obstacleDetected: false,
+  },
+  {
+    sensorId: "ULTRA_FRONT",
+    deviceId: "esp-001",
+    timestamp: "2024-04-24T14:34:45Z",
+    distanceCm: 120.5,
+    obstacleDetected: false,
+  },
+];
+
 export const getAlertById = (id: number): CrackAlert | undefined =>
   crackAlerts.find((a) => a.id === id);
 

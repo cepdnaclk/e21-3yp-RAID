@@ -23,6 +23,8 @@ public class IRSensorData {
     private boolean crackDetected;
     private String status;
     private int uptime;
+    private double latitude;
+    private double longitude;
 
     /**
      * @DynamoDbPartitionKey: Marks this field as the Primary Key (PK) for the
@@ -101,6 +103,24 @@ public class IRSensorData {
 
     public void setUptime(int uptime) {
         this.uptime = uptime;
+    }
+
+    @DynamoDbAttribute("latitude")
+    public double getLatitude() {
+        return latitude;
+    }
+
+    public void setLatitude(double latitude) {
+        this.latitude = latitude;
+    }
+
+    @DynamoDbAttribute("longitude")
+    public double getLongitude() {
+        return longitude;
+    }
+
+    public void setLongitude(double longitude) {
+        this.longitude = longitude;
     }
 }
 
