@@ -472,13 +472,13 @@ void loop()
     lastIrScanResult = irScan; // Store full result
     savedIrMinValue = irScan.minValue;
     waitingForCamera = true;
-    cameraWaitStart = millis();
+    cameraWaitStart = now;
 
     Serial.println("Hardware triggered! Waiting for Camera to return S3 URL...");
   }
 
   // SCENARIO A.2: The Timeout (If camera crashes or fails to upload)
-  if (waitingForCamera && (now - cameraWaitStart > 60000)) { // 15 second timeout
+  if (waitingForCamera && (now - cameraWaitStart > 60000)) { // 60 second timeout
       Serial.println("Camera upload timed out. Publishing alert without image.");
       publishUnifiedAlert("No Image (Timeout)", lastIrScanResult);
       waitingForCamera = false;
