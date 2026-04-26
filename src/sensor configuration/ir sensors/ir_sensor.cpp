@@ -67,7 +67,7 @@ namespace
         {
             return 0;
         }
-        if (!baselineReady || sensorBaseline[sensorIndex] <= 0)
+if (!baselineReady && sensorBaseline[sensorIndex] <= 0)
         {
             return LEGACY_CRACK_THRESHOLD;
         }
@@ -139,7 +139,7 @@ IRScanResult scanIRArray()
     result.minValue = 4095;
     int lowReadingCount = 0;
     int veryLowReadingCount = 0;
-    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
+ for (int i = 0; i < IR_SENSOR_COUNT; ++i)
     {
         result.values[i] = readAveragedChannel(i, SCAN_SAMPLES);
 
@@ -161,8 +161,8 @@ IRScanResult scanIRArray()
 
     // If almost all channels are near 0 simultaneously, treat as invalid frame
     // (temporary wiring/power/ADC glitch) instead of a real crack.
-    if (lowReadingCount >= MAX_LOW_READINGS_PER_FRAME ||
-         veryLowReadingCount >= MAX_VERY_LOW_READINGS_PER_FRAME)
+    if (lowReadingCount >= MAX_LOW_READINGS_PER_FRAME &&
+        veryLowReadingCount >= MAX_VERY_LOW_READINGS_PER_FRAME)
     {
         return result;
     }
