@@ -11,8 +11,8 @@
 
 // ================= Configuration =================
 #define CAMERA_TRIGGER_PIN 4
-const char *ssid = "Redmi Note 10";
-const char *password = "200170201635";
+const char *ssid = "SLT-4G-8018";
+const char *password = "200285303000";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
@@ -180,7 +180,7 @@ void connectWiFi()
       ESP.restart();
     }
   }
- Serial.println("  >> WiFi CONNECTED!");
+  Serial.println("  >> WiFi CONNECTED!");
   Serial.print("  IP Address  : ");
   Serial.println(WiFi.localIP());
   Serial.print("  Gateway     : ");
@@ -258,49 +258,60 @@ void connectAWS()
 }
 
 // ================= Unified AWS Publisher =================
-void publishUnifiedAlert(String imageUrl, const IRScanResult& irData) {
-    StaticJsonDocument<512> doc;
-    doc["sensorId"] = SENSOR_ID;
-    doc["deviceId"] = DEVICE_ID;
-    doc["timestamp"] = getIsoTimestamp();
-    doc["crack_detected"] = true;
-    doc["status"] = "CRITICAL_DEFECT";
-    doc["irSensor"] = irData.minValue;
-    doc["image_url"] = imageUrl; 
+void publishUnifiedAlert(String imageUrl, const IRScanResult &irData)
+{
+  StaticJsonDocument<512> doc;
+  doc["sensorId"] = SENSOR_ID;
+  doc["deviceId"] = DEVICE_ID;
+  doc["timestamp"] = getIsoTimestamp();
+  doc["crack_detected"] = true;
+  doc["status"] = "CRITICAL_DEFECT";
+  doc["irSensor"] = irData.minValue;
+  doc["image_url"] = imageUrl;
+  GPSData gps = readGPSData(); // ADD FROM HERE
+  doc["latitude"] = gps.valid ? gps.latitude : 0.0;
+  doc["longitude"] = gps.valid ? gps.longitude : 0.0;
+  doc["gps_valid"] = gps.valid; // ADD TO HERE
 
-    JsonArray irArray = doc.createNestedArray("irArray");
-    for (int i = 0; i < IR_SENSOR_COUNT; ++i)
-    {
-      irArray.add(irData.values[i]);
-    }
+  JsonArray irArray = doc.createNestedArray("irArray");
+  for (int i = 0; i < IR_SENSOR_COUNT; ++i)
+  {
+    irArray.add(irData.values[i]);
+  }
 
-    String payload;
-    serializeJson(doc, payload);
-    String topic = "device/" + DEVICE_ID + "/IR_Bottom";
+  String payload;
+  serializeJson(doc, payload);
+  String topic = "device/" + DEVICE_ID + "/IR_Bottom";
 
-    if (client.publish(topic.c_str(), payload.c_str())) {
-        Serial.println("\n🚨 UNIFIED ALERT PUBLISHED: " + payload);
-    } else {
-        Serial.println("❌ Failed to publish unified alert.");
-    }
+  if (client.publish(topic.c_str(), payload.c_str()))
+  {
+    Serial.println("\n🚨 UNIFIED ALERT PUBLISHED: " + payload);
+  }
+  else
+  {
+    Serial.println("❌ Failed to publish unified alert.");
+  }
 }
 
 // ================= MQTT Callback =================
 
 IRScanResult lastIrScanResult; // Global to hold values until camera returns
 
-void mqttCallback(char *topic, byte *payload, unsigned int length) {
+void mqttCallback(char *topic, byte *payload, unsigned int length)
+{
   // Catch the URL from the camera board
-  if (String(topic) == "device/esp-001/camera_url") {
-      StaticJsonDocument<512> doc;
-      DeserializationError error = deserializeJson(doc, payload, length);
-      
-      if (!error && waitingForCamera) {
-          String url = doc["image_url"].as<String>();
-          Serial.println("Received S3 URL from Camera!");
-          publishUnifiedAlert(url, lastIrScanResult); // Publish the final row with IR values!
-          waitingForCamera = false;
-      }
+  if (String(topic) == "device/esp-001/camera_url")
+  {
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (!error && waitingForCamera)
+    {
+      String url = doc["image_url"].as<String>();
+      Serial.println("Received S3 URL from Camera!");
+      publishUnifiedAlert(url, lastIrScanResult); // Publish the final row with IR values!
+      waitingForCamera = false;
+    }
   }
 }
 
@@ -340,8 +351,8 @@ String getIsoTimestamp()
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastCriticalAlert = 0; // Prevents database spam if the robot stops on a crack
-char mqtt_topic[64];      // Permanent buffer for the MQTT topic
-int consecutiveCracks = 0; // Counter to filter out sensor noise
+char mqtt_topic[64];                 // Permanent buffer for the MQTT topic
+int consecutiveCracks = 0;           // Counter to filter out sensor noise
 unsigned long lastSensorScan = 0;
 
 constexpr unsigned long SENSOR_SCAN_INTERVAL_MS = 50;
@@ -353,10 +364,10 @@ void setup()
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   pinMode(CAMERA_TRIGGER_PIN, OUTPUT);
   digitalWrite(CAMERA_TRIGGER_PIN, LOW);
-  
+
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
-  
+
   Serial.println("\n\n##############################");
   Serial.println("#   ESP32 AWS IoT Boot       #");
   Serial.println("##############################");
@@ -373,7 +384,7 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-
+  initGPSSensor();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -388,42 +399,40 @@ void setup()
   {
     Serial.println("  >> Subscription SUCCESSFUL");
   }
-  if (client.subscribe("device/esp-001/camera_url")) {
-      Serial.println("  >> Camera URL Subscription SUCCESSFUL");
+  if (client.subscribe("device/esp-001/camera_url"))
+  {
+    Serial.println("  >> Camera URL Subscription SUCCESSFUL");
   }
   else
   {
     Serial.println("  !! Subscription FAILED");
   }
-  
-  
+
   snprintf(mqtt_topic, sizeof(mqtt_topic), "device/%s/IR_Bottom", DEVICE_ID.c_str());
-  
 
   Serial.println("\n>>> Setup complete. Entering loop...\n");
-
 }
 
 // ================= Loop =================
-
 
 void loop()
 {
   static IRScanResult irScan{};
   static bool irScanReady = false;
-  
+  updateGPSStream();
+
   // 1. Maintain Connection & Re-subscribe to topics
   if (!client.connected())
   {
     Serial.println("\n!! MQTT connection LOST. Reconnecting...");
     connectAWS();
-    
+
     // Re-subscribe to topics after reconnection
     String commandTopic = "device/" + DEVICE_ID + "/command";
-    
+
     client.subscribe(commandTopic.c_str());
     client.subscribe("device/esp-001/camera_url");
-    
+
     Serial.println("Topics re-subscribed after reconnection.");
   }
 
@@ -451,7 +460,6 @@ void loop()
 
   bool crack_detected = (consecutiveCracks >= REQUIRED_CONSECUTIVE_CRACKS);
 
-
   // =========================================================
   // THE HYBRID HEARTBEAT LOGIC
   // =========================================================
@@ -459,7 +467,8 @@ void loop()
   // SCENARIO A: The Interrupt (Immediate Critical Alert)
   // Triggers if a crack is found AND 2 seconds have passed since the last alert
   // SCENARIO A: The Interrupt (Hardware Trigger + Wait for Image)
-  if (crack_detected && !waitingForCamera && (now - lastCriticalAlert > 3000)) {
+  if (crack_detected && !waitingForCamera && (now - lastCriticalAlert > 3000))
+  {
     lastCriticalAlert = now;
     lastHeartbeat = now;
 
@@ -478,17 +487,18 @@ void loop()
   }
 
   // SCENARIO A.2: The Timeout (If camera crashes or fails to upload)
-  if (waitingForCamera && (now - cameraWaitStart > 60000)) { // 60 second timeout
-      Serial.println("Camera upload timed out. Publishing alert without image.");
-      publishUnifiedAlert("No Image (Timeout)", lastIrScanResult);
-      waitingForCamera = false;
+  if (waitingForCamera && (now - cameraWaitStart > 60000))
+  { // 60 second timeout
+    Serial.println("Camera upload timed out. Publishing alert without image.");
+    publishUnifiedAlert("No Image (Timeout)", lastIrScanResult);
+    waitingForCamera = false;
   }
- // SCENARIO B: The Routine Heartbeat (Nominal Status)
+  // SCENARIO B: The Routine Heaartbeat (Nominal Status)
   // Only triggers if the track is safe AND 30 seconds have passed
   else if (now - lastHeartbeat >= 30000)
   {
     lastHeartbeat = now;
-StaticJsonDocument<512> doc;
+    StaticJsonDocument<512> doc;
     doc["sensorId"] = SENSOR_ID;
     doc["deviceId"] = DEVICE_ID;
     doc["timestamp"] = getIsoTimestamp();
@@ -498,14 +508,16 @@ StaticJsonDocument<512> doc;
     doc["severity"] = 0.10;
     doc["irSensor"] = irScan.minValue;
     doc["uptime"] = now / 1000;
+    GPSData gps = readGPSData(); // ADD FROM HERE
+    doc["latitude"] = gps.valid ? gps.latitude : 0.0;
+    doc["longitude"] = gps.valid ? gps.longitude : 0.0;
+    doc["gps_valid"] = gps.valid; // ADD TO HERE
 
     JsonArray irArray = doc.createNestedArray("irArray");
     for (int i = 0; i < IR_SENSOR_COUNT; ++i)
     {
       irArray.add(irScan.values[i]);
     }
-
-    
 
     String payload;
     serializeJson(doc, payload);
@@ -514,7 +526,7 @@ StaticJsonDocument<512> doc;
     if (client.publish(topic.c_str(), payload.c_str()))
     {
       Serial.println("\n💚 Heartbeat Check-in: " + payload);
-      
+
       // Print system diagnostics to the Serial Monitor during the heartbeat
       Serial.printf("   Uptime    : %lu s\n", now / 1000);
       Serial.printf("   Free Heap : %u bytes\n", ESP.getFreeHeap());
