@@ -5,10 +5,10 @@
 namespace
 {
     TinyGPSPlus gps;
-    HardwareSerial gpsSerial(2);
+    HardwareSerial gpsSerial(1);
 
-    constexpr int GPS_RX_PIN = 16;
-    constexpr int GPS_TX_PIN = 17;
+    constexpr int GPS_RX_PIN = 17;
+    constexpr int GPS_TX_PIN = 16;
     constexpr unsigned long GPS_BAUD_RATE = 9600;
 } // namespace
 
