@@ -1,8 +1,8 @@
 import { useState, useRef } from "react";
-import { FileText, Calendar, TrendingUp, Download } from "lucide-react";
+import { FileText, Calendar, TrendingUp, Download, ShieldCheck, Zap } from "lucide-react";
 import BottomNav from "@/components/BottomNav";
 import PageHeader from "@/components/PageHeader";
-import { useAlerts } from "@/context/AlertContext";
+import { useTelemetry } from "@/hooks/useTelemetry";
 import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
@@ -11,13 +11,14 @@ const tabs = ["Daily", "Weekly", "Monthly"] as const;
 
 const Reports = () => {
   const [active, setActive] = useState<typeof tabs[number]>("Daily");
-  const { alerts } = useAlerts();
   const reportRef = useRef<HTMLDivElement>(null);
 
-  const confirmed = alerts.filter((a) => a.status === "confirmed").length;
-  const ignored = alerts.filter((a) => a.status === "ignored").length;
-  const total = alerts.length;
-  const accuracy = total > 0 ? Math.round((confirmed / total) * 100) : 0;
+  // Real-time data from both robots
+  const device1 = useTelemetry("esp-001", "IR_Bottom");
+  const device2 = useTelemetry("esp-002", "IR_Bottom");
+
+  const combinedCracks = [...device1.liveCracks, ...device2.liveCracks];
+  const total = combinedCracks.length;
 
   const downloadPDF = async () => {
     if (!reportRef.current) return;
@@ -101,41 +102,59 @@ const Reports = () => {
             <span className="text-xs bg-accent/10 text-accent font-medium px-2.5 py-1 rounded-full">Feb 9, 2026</span>
           </div>
 
-          <div className="grid grid-cols-2 gap-3 mb-4">
+          <div className="grid grid-cols-1 gap-3 mb-4">
             <div className="stat-blue rounded-xl p-3.5">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Alerts</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Total Detections</p>
               <p className="text-3xl font-bold text-foreground mt-1">{total}</p>
-            </div>
-            <div className="stat-green rounded-xl p-3.5">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Confirmed</p>
-              <p className="text-3xl font-bold text-success mt-1">{confirmed}</p>
-            </div>
-            <div className="stat-red rounded-xl p-3.5">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Ignored</p>
-              <p className="text-3xl font-bold text-foreground mt-1">{ignored}</p>
-            </div>
-            <div className="stat-purple rounded-xl p-3.5">
-              <div className="flex items-center gap-1">
-                <TrendingUp size={12} className="text-muted-foreground" />
-                <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Accuracy</p>
-              </div>
-              <p className="text-3xl font-bold text-foreground mt-1">{accuracy}%</p>
             </div>
           </div>
 
-          <div className="space-y-2 pt-3 border-t border-border">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Distance Covered</span>
-              <span className="font-semibold text-foreground">23.5 km</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Inspection Time</span>
-              <span className="font-semibold text-foreground">4h 12m</span>
-            </div>
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Avg. Confidence</span>
-              <span className="font-semibold text-foreground">
-                {Math.round(alerts.reduce((s, a) => s + a.confidence, 0) / total)}%
+          <div className="space-y-4 pt-3 border-t border-border">
+            <h4 className="font-bold text-sm text-foreground mb-2">Crack Detection Details</h4>
+            {combinedCracks.length > 0 ? (
+              <div className="space-y-4">
+                {combinedCracks.map((crack, idx) => (
+                  <div key={crack.id || idx} className="bg-secondary/30 rounded-lg p-3 border border-border/50 text-xs">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <p className="text-muted-foreground font-semibold">Location (GPS)</p>
+                        <p className="text-foreground">
+                          Lat: {crack.gps?.latitude ?? crack.gps?.lat ?? 'N/A'}, 
+                          Long: {crack.gps?.longitude ?? crack.gps?.lng ?? 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground font-semibold">Device / Sensor</p>
+                        <p className="text-foreground">{crack.deviceId} / {crack.sensorId}</p>
+                      </div>
+                    </div>
+                    {crack.imageUrl && (
+                      <div className="mt-2">
+                        <p className="text-muted-foreground font-semibold mb-1">Evidence Image</p>
+                        <img 
+                          src={crack.imageUrl} 
+                          alt="Crack detection" 
+                          className="w-full h-32 object-cover rounded-md border border-border"
+                          crossOrigin="anonymous"
+                        />
+                        <p className="text-[10px] text-primary truncate mt-1">{crack.imageUrl}</p>
+                      </div>
+                    )}
+                    <div className="mt-2 text-[10px] text-muted-foreground flex justify-between">
+                      <span>Severity: {crack.severity}</span>
+                      <span>Time: {new Date(crack.timestamp).toLocaleString()}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">No detections reported in this period.</p>
+            )}
+            
+            <div className="flex justify-between text-sm pt-2 border-t border-border/30">
+              <span className="text-muted-foreground">Fleet Status</span>
+              <span className="font-semibold text-emerald-500">
+                {(device1.isConnected ? 1 : 0) + (device2.isConnected ? 1 : 0)}/2 Active
               </span>
             </div>
           </div>

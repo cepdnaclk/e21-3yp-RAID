@@ -8,7 +8,6 @@ import { AlertProvider } from "@/context/AlertContext";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
-import Alerts from "./pages/Alerts";
 import CrackDetails from "./pages/CrackDetails";
 import Decision from "./pages/Decision";
 import Reports from "./pages/Reports";
@@ -28,7 +27,6 @@ const App = () => (
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
-              <Route path="/alerts" element={<ProtectedRoute><Alerts /></ProtectedRoute>} />
               <Route path="/crack/:id" element={<ProtectedRoute><CrackDetails /></ProtectedRoute>} />
               <Route path="/decision/:id" element={<ProtectedRoute><Decision /></ProtectedRoute>} />
               <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
