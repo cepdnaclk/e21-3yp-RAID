@@ -14,19 +14,21 @@ namespace
     };
 
     // ==========================================
-    // CALIBRATION: Scaled for ESP32 (0 - 4095)
-    // Arduino threshold of 300 is roughly 1200 here.
+    // CALIBRATED THRESHOLDS (Calculated from V_N and V_C)
+    // S0, S1, S2(dead), S3(dead), S4, S5, S6, S7
     // ==========================================
-    constexpr int CRACK_THRESHOLD = 1200; 
+    const int THRESHOLDS[IR_SENSOR_COUNT] = {303, 292, 0, 0, 295, 318, 380, 361}; 
 
+    // ==========================================
     // MASKING: Set to false if a sensor is physically dead
-    // Note: Set to false at index 1 based on your last ESP code, 
-    // change to index 2 if Sensor 2 is the dead one!
-    const bool SENSOR_ACTIVE[IR_SENSOR_COUNT] = {true, false, true, true, true, true, true, true};
+    // Index 2 and Index 3 are disabled based on hardware failure
+    // ==========================================
+    const bool SENSOR_ACTIVE[IR_SENSOR_COUNT] = {true, true, false, false, true, true, true, true};
 
 #if defined(CONFIG_IDF_TARGET_ESP32S3)
     constexpr IRPinConfig PIN_CONFIG = {4, 3, 2, 6, 1, "ESP32-S3"};
 #else
+    // Updated LED IN to Pin 32
     constexpr IRPinConfig PIN_CONFIG = {25, 26, 27, 14, 34, "ESP32-Classic"};
 #endif
 
@@ -35,7 +37,9 @@ namespace
         digitalWrite(PIN_CONFIG.muxPinA, channel & 0x01);
         digitalWrite(PIN_CONFIG.muxPinB, (channel >> 1) & 0x01);
         digitalWrite(PIN_CONFIG.muxPinC, (channel >> 2) & 0x01);
-        delayMicroseconds(50); 
+        
+        // Increased delay to allow CD4051 Multiplexer to physically switch
+        delayMicroseconds(150); 
     }
 }
 
@@ -51,7 +55,7 @@ void initIRSensors()
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db);
 
-    // Keep IR emitter enabled constantly (Arduino Simple Mode)
+    // Keep IR emitter enabled constantly
     digitalWrite(PIN_CONFIG.ledInPin, HIGH);
     delay(50);
 }
@@ -67,6 +71,10 @@ IRScanResult scanIRArray()
     {
         selectOutput(i);
         
+        // DISCARD READ: Clear the ESP32's internal ADC capacitor
+        analogRead(PIN_CONFIG.irOutPin);
+        delayMicroseconds(50);
+        
         // Take 3 quick readings and average them to kill electrical noise
         int total = 0;
         for(int j = 0; j < 3; j++) {
@@ -74,31 +82,31 @@ IRScanResult scanIRArray()
         }
         result.values[i] = total / 3;
 
-        // Track the lowest value for AWS reporting
+        // Track the lowest value for reporting
         if (SENSOR_ACTIVE[i] && result.values[i] < result.minValue)
         {
             result.minValue = result.values[i];
         }
     }
 
-    // --- STEP 2: ARDUINO "OR" LOGIC BY PAIRS ---
+    // --- STEP 2: PAIR-BASED CRACK DETECTION ---
     for (int i = 0; i < 4; i++) {
         int sA = i;
         int sB = i + 4;
 
         bool crackInPair = false;
 
-        // If Sensor A is active AND drops below threshold
-        if (SENSOR_ACTIVE[sA] && result.values[sA] < CRACK_THRESHOLD) {
+        // If Sensor A is active AND drops below its specific threshold
+        if (SENSOR_ACTIVE[sA] && result.values[sA] < THRESHOLDS[sA]) {
             crackInPair = true;
         }
         
-        // If Sensor B is active AND drops below threshold
-        if (SENSOR_ACTIVE[sB] && result.values[sB] < CRACK_THRESHOLD) {
+        // If Sensor B is active AND drops below its specific threshold
+        if (SENSOR_ACTIVE[sB] && result.values[sB] < THRESHOLDS[sB]) {
             crackInPair = true;
         }
 
-        // If ANY sensor in the pair saw a crack, trigger the global alert
+        // If ANY active sensor in the pair saw a crack, trigger the global alert
         if (crackInPair) {
             result.crackDetected = true;
             break; 
