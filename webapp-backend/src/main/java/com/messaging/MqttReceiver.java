@@ -1,18 +1,17 @@
 
 package com.messaging;
 
-import com.dto.sensor.IRSensorDataDTO;
-import com.dto.sensor.EspCamDetectionDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.integration.mqtt.support.MqttHeaders;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.stereotype.Component;
 
+import com.dto.sensor.EspCamDetectionDTO;
+import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.UltrasonicSensorDataDTO;
 import com.fasterxml.jackson.databind.JsonNode;
-
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.service.IRSensorService;
 import com.service.UltrasonicSensorService;
 
@@ -42,7 +41,7 @@ public class MqttReceiver {
 
         try {
             JsonNode payloadNode = objectMapper.readTree(rawJsonPayload);
-            boolean ultrasonicTopic = "railway/ultrasonic".equals(mqttTopic);
+            boolean ultrasonicTopic = mqttTopic != null && mqttTopic.contains("ultrasonic");
             boolean crackTopic = "railway/cracks".equals(mqttTopic);
             boolean cameraTopic = mqttTopic != null && mqttTopic.contains("device/esp32-cam/status");
 
@@ -63,8 +62,8 @@ public class MqttReceiver {
     }
 
     private boolean isUltrasonicPayload(JsonNode node) {
-        return node.has("distance_cm") || node.has("distance_ahead");
-    }
+    return node.has("distanceCm") || node.has("obstacleDetected");
+}
 
     private boolean isCrackPayload(JsonNode node) {
         return node.has("crackDetected") || node.has("minValue");
@@ -75,12 +74,13 @@ public class MqttReceiver {
     }
 
     private void handleUltrasonicMessage(String rawJsonPayload) throws Exception {
-        UltrasonicSensorDataDTO ultrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
-        if (ultrasonicData == null)
-            return;
-        messagingTemplate.convertAndSend("/topic/ultrasonic", ultrasonicData);
-        System.out.println("Broadcasted ultrasonic data to Web UI: " + ultrasonicData.getSensorId());
-    }
+    UltrasonicSensorDataDTO ultrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
+    if (ultrasonicData == null)
+        return;
+    ultrasonicSensorService.saveSensorData(ultrasonicData);
+    messagingTemplate.convertAndSend("/topic/ultrasonic", ultrasonicData); // 📡 Live UI
+    System.out.println("Saved + Broadcasted ultrasonic data: " + ultrasonicData.getSensorId());
+}
 
     /*
      * 

@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  Wifi, MapPin, Bell, Map, FileText, 
+import {
+  Wifi, MapPin, Bell, Map, FileText,
   ChevronRight, LogOut, Camera, AlertTriangle, Grid3x3, List
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useTelemetry } from "@/hooks/useTelemetry";
+import { useUltrasonicTelemetry } from "@/hooks/useUltrasonicTelemetry";
 import { useMockTelemetry } from "@/hooks/useMockTelemetry";
 import DeviceCard from "@/components/DeviceCard";
 import CrackDetailModal from "@/components/CrackDetailModal";
@@ -25,10 +26,12 @@ export default function Dashboard() {
 
   // Device 1: Real data from backend
   const device1 = useTelemetry("esp-001", "IR_Bottom");
-  
+
+  const ultrasonic = useUltrasonicTelemetry("esp-001", "ULTRASONIC");
+
   // Device 2: Mock data
   const device2 = useMockTelemetry("esp-002-mock", "IR_Bottom");
-  
+
   // Device 3: Mock data
   const device3 = useMockTelemetry("esp-003-mock", "IR_Bottom");
 
@@ -42,11 +45,11 @@ export default function Dashboard() {
   const device1Load = device1.liveCracks.length;
   const device2Load = device2.liveCracks.length;
   const device3Load = device3.liveCracks.length;
-  
+
   const device1Percent = totalCracks > 0 ? Math.round((device1Load / totalCracks) * 100) : 0;
   const device2Percent = totalCracks > 0 ? Math.round((device2Load / totalCracks) * 100) : 0;
   const device3Percent = totalCracks > 0 ? Math.round((device3Load / totalCracks) * 100) : 0;
-  
+
   const avgLoad = totalCracks > 0 ? Math.round(totalCracks / 3) : 0;
   const loadBalance = Math.round(((Math.max(device1Load, device2Load, device3Load) - Math.min(device1Load, device2Load, device3Load)) / Math.max(1, avgLoad)) * 100);
   const isBalanced = loadBalance < 30;
@@ -73,8 +76,8 @@ export default function Dashboard() {
   const handleCrackStatusUpdate = (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => {
     // Update the crack status in the appropriate device's liveCracks array
     const updateCrackInDevice = (cracks: any[]) => {
-      return cracks.map(c => 
-        (c.id === crackId || c.id?.toString() === crackId?.toString()) 
+      return cracks.map(c =>
+        (c.id === crackId || c.id?.toString() === crackId?.toString())
           ? { ...c, status: newStatus }
           : c
       );
@@ -164,7 +167,7 @@ export default function Dashboard() {
         {/* Load Balancing Analytics */}
         <div className="mt-6 pt-6 border-t border-slate-700">
           <h3 className="text-sm font-bold text-slate-300 uppercase mb-4">📊 Load Distribution</h3>
-          
+
           <div className="space-y-3">
             {/* Device 1 Load Bar */}
             <div>
@@ -173,7 +176,7 @@ export default function Dashboard() {
                 <span className="text-xs font-bold text-amber-300">{device1Percent}% ({device1Load} events)</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all"
                   style={{ width: `${Math.max(device1Percent, 5)}%` }}
                 ></div>
@@ -187,7 +190,7 @@ export default function Dashboard() {
                 <span className="text-xs font-bold text-indigo-300">{device2Percent}% ({device2Load} events)</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="bg-gradient-to-r from-indigo-400 to-indigo-500 h-full rounded-full transition-all"
                   style={{ width: `${Math.max(device2Percent, 5)}%` }}
                 ></div>
@@ -201,7 +204,7 @@ export default function Dashboard() {
                 <span className="text-xs font-bold text-cyan-300">{device3Percent}% ({device3Load} events)</span>
               </div>
               <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div 
+                <div
                   className="bg-gradient-to-r from-cyan-400 to-cyan-500 h-full rounded-full transition-all"
                   style={{ width: `${Math.max(device3Percent, 5)}%` }}
                 ></div>
@@ -210,11 +213,10 @@ export default function Dashboard() {
           </div>
 
           {/* Load Balance Status */}
-          <div className={`mt-4 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${
-            isBalanced 
-              ? 'bg-emerald-900 text-emerald-200 border border-emerald-700' 
+          <div className={`mt-4 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${isBalanced
+              ? 'bg-emerald-900 text-emerald-200 border border-emerald-700'
               : 'bg-amber-900 text-amber-200 border border-amber-700'
-          }`}>
+            }`}>
             <span className={`inline-flex h-2 w-2 rounded-full ${isBalanced ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
             {isBalanced ? '✓ Load Balanced' : '⚠ Imbalanced Load'} • Variance: {loadBalance}%
           </div>
@@ -223,7 +225,7 @@ export default function Dashboard() {
 
       {/* ================= MAIN CONTENT ================= */}
       <div className="px-6 mt-8">
-        
+
         {viewMode === 'grid' ? (
           /* ========== GRID VIEW: 3 Device Cards ========== */
           <>
@@ -282,7 +284,7 @@ export default function Dashboard() {
             </div>
 
             {selectedDevice === 'esp-001' && (
-              <DetailedDeviceView 
+              <DetailedDeviceView
                 deviceId="esp-001"
                 deviceName="Robot-01"
                 isReal={true}
@@ -291,7 +293,7 @@ export default function Dashboard() {
               />
             )}
             {selectedDevice === 'esp-002-mock' && (
-              <DetailedDeviceView 
+              <DetailedDeviceView
                 deviceId="esp-002-mock"
                 deviceName="Robot-02 (Mock)"
                 isReal={false}
@@ -300,7 +302,7 @@ export default function Dashboard() {
               />
             )}
             {selectedDevice === 'esp-003-mock' && (
-              <DetailedDeviceView 
+              <DetailedDeviceView
                 deviceId="esp-003-mock"
                 deviceName="Robot-03 (Mock)"
                 isReal={false}
@@ -319,7 +321,93 @@ export default function Dashboard() {
         onClose={() => setShowCrackDetail(false)}
         onStatusUpdate={handleCrackStatusUpdate}
       />
+      {/* ================= ULTRASONIC PANEL ================= */}
+      <div className="px-6 mt-8">
+        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
 
+          {/* Panel Header */}
+          <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
+            <div>
+              <h2 className="text-lg font-bold text-white">🚧 Obstacle Detection</h2>
+              <p className="text-xs text-slate-400 mt-0.5">HC-SR04 Ultrasonic Sensor • esp-001</p>
+            </div>
+            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${ultrasonic.isConnected
+                ? 'bg-emerald-900 text-emerald-300 border border-emerald-700'
+                : 'bg-slate-700 text-slate-400'
+              }`}>
+              <span className={`inline-flex h-2 w-2 rounded-full ${ultrasonic.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
+                }`}></span>
+              {ultrasonic.isConnected ? 'Live' : 'Offline'}
+            </div>
+          </div>
+
+          {/* Latest Reading */}
+          {ultrasonic.liveUltrasonic.length > 0 && (
+            <div className={`px-6 py-4 border-b border-slate-100 ${ultrasonic.liveUltrasonic[0].obstacleDetected
+                ? 'bg-rose-50'
+                : 'bg-emerald-50'
+              }`}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-500 uppercase font-semibold">Latest Reading</p>
+                  <p className="text-3xl font-bold text-slate-900 mt-1">
+                    {ultrasonic.liveUltrasonic[0].distanceCm.toFixed(1)}
+                    <span className="text-lg font-normal text-slate-500 ml-1">cm</span>
+                  </p>
+                  <p className="text-xs text-slate-500 mt-1">
+                    {new Date(ultrasonic.liveUltrasonic[0].timestamp).toLocaleTimeString()}
+                  </p>
+                </div>
+                <div className={`px-4 py-2 rounded-xl text-sm font-bold ${ultrasonic.liveUltrasonic[0].obstacleDetected
+                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
+                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
+                  }`}>
+                  {ultrasonic.liveUltrasonic[0].obstacleDetected ? '⚠️ OBSTACLE' : '✅ CLEAR'}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* History Table */}
+          <table className="w-full text-left text-sm">
+            <thead className="bg-slate-50 border-b border-slate-200">
+              <tr>
+                <th className="p-4 font-semibold text-slate-600">Time</th>
+                <th className="p-4 font-semibold text-slate-600">Distance</th>
+                <th className="p-4 font-semibold text-slate-600">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {ultrasonic.liveUltrasonic.length === 0 ? (
+                <tr>
+                  <td colSpan={3} className="p-8 text-center text-slate-400 italic">
+                    No ultrasonic data yet. Hold an object in front of HC-SR04.
+                  </td>
+                </tr>
+              ) : (
+                ultrasonic.liveUltrasonic.slice(0, 10).map((event, index) => (
+                  <tr key={index} className="hover:bg-slate-50 transition-colors">
+                    <td className="p-4 text-slate-600">
+                      {new Date(event.timestamp).toLocaleTimeString()}
+                    </td>
+                    <td className="p-4 font-bold text-slate-900">
+                      {event.distanceCm.toFixed(1)} cm
+                    </td>
+                    <td className="p-4">
+                      <span className={`px-2 py-1 rounded text-xs font-bold ${event.obstacleDetected
+                          ? 'bg-rose-100 text-rose-700'
+                          : 'bg-emerald-100 text-emerald-700'
+                        }`}>
+                        {event.obstacleDetected ? '⚠️ Obstacle' : '✅ Clear'}
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {/* Bottom navigation bar */}
       <BottomNav />
     </div>
@@ -397,13 +485,12 @@ function DetailedDeviceView({
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                      crack.status === 'confirmed' 
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${crack.status === 'confirmed'
                         ? 'bg-emerald-100 text-emerald-700'
                         : crack.status === 'pending'
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
+                          ? 'bg-amber-100 text-amber-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
                       {crack.status}
                     </span>
                   </td>

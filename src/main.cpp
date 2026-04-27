@@ -8,6 +8,8 @@
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_sensor.h"
+#include "sensor configuration/ultrasonic sensors/ultrasonic_sensor.h"
+
 
 // ================= Configuration =================
 #define CAMERA_TRIGGER_PIN 4
@@ -351,6 +353,7 @@ String getIsoTimestamp()
 
 unsigned long lastHeartbeat = 0;
 unsigned long lastCriticalAlert = 0; // Prevents database spam if the robot stops on a crack
+unsigned long lastObstacleAlert = 0;
 char mqtt_topic[64];                 // Permanent buffer for the MQTT topic
 int consecutiveCracks = 0;           // Counter to filter out sensor noise
 unsigned long lastSensorScan = 0;
@@ -385,6 +388,7 @@ void setup()
   connectAWS();
   initIRSensors();
   initGPSSensor();
+  initUltrasonicSensor();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -420,6 +424,32 @@ void loop()
   static IRScanResult irScan{};
   static bool irScanReady = false;
   updateGPSStream();
+  UltrasonicResult ultrasonicScan = scanUltrasonic();
+
+if (ultrasonicScan.obstacleDetected && (millis() - lastObstacleAlert > 5000)) {
+    lastObstacleAlert = millis();
+
+    GPSData gps = readGPSData();
+    StaticJsonDocument<256> uDoc;
+    uDoc["deviceId"] = DEVICE_ID;
+    uDoc["sensorId"] = "ULTRASONIC";
+    uDoc["timestamp"] = getIsoTimestamp();
+    uDoc["obstacleDetected"] = true;
+    uDoc["distanceCm"] = ultrasonicScan.distanceCm;
+    uDoc["latitude"] = gps.valid ? gps.latitude : 0.0;
+    uDoc["longitude"] = gps.valid ? gps.longitude : 0.0;
+    uDoc["status"] = "OBSTACLE_DETECTED";
+
+    String uPayload;
+    serializeJson(uDoc, uPayload);
+    String uTopic = "device/" + DEVICE_ID + "/ultrasonic";
+
+    if (client.publish(uTopic.c_str(), uPayload.c_str())) {
+        Serial.println("🚧 OBSTACLE ALERT PUBLISHED: " + uPayload);
+    } else {
+        Serial.println("❌ Failed to publish obstacle alert.");
+    }
+}
 
   // 1. Maintain Connection & Re-subscribe to topics
   if (!client.connected())
