@@ -1,77 +1,53 @@
-import { createContext, useContext, useState, type ReactNode } from "react";
-
-interface User {
-  id: string;
-  username: string;
-  email: string;
-  role: string;
-}
+import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { User, Session } from "@supabase/supabase-js";
+import { supabase } from "@/lib/supabase";
 
 interface AuthContextType {
   user: User | null;
-  token: string | null;
+  session: Session | null;
   loading: boolean;
-  signIn: (username: string, password: string) => Promise<void>;
-  signOut: () => void;
+  signOut: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [token, setToken] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [session, setSession] = useState<Session | null>(null);
+  // Important: Start loading as true so the app doesn't render until Supabase replies
+  const [loading, setLoading] = useState(true); 
 
-  const authApiBase = (
-    import.meta.env.VITE_AUTH_API_BASE_URL as string | undefined
-  ) ?? (import.meta.env.VITE_API_BASE_URL as string | undefined);
-
-  const signIn = async (username: string, password: string) => {
-    setLoading(true);
-    try {
-      // Only call backend auth if an explicit API base is configured.
-      if (authApiBase) {
-        const response = await fetch(`${authApiBase}/api/auth/login`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username, password }),
-        });
-
-        if (!response.ok) throw new Error("Invalid credentials");
-
-        const data = await response.json();
-        setToken(data.token);
-        setUser(data.user);
-        return;
-      }
-
-      throw new Error("Auth API not configured");
-    } catch (error) {
-      // Fallback: mock login for development when backend is not running
-      if (username === "admin" && password === "admin123") {
-        setToken("mock-jwt-token");
-        setUser({
-          id: "1",
-          username: "admin",
-          email: "admin@railsafe.com",
-          role: "operator",
-        });
-        return;
-      }
-      throw error;
-    } finally {
+  useEffect(() => {
+    // 1. Check if the user is already logged in when the app first loads
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
       setLoading(false);
-    }
-  };
+    });
 
-  const signOut = () => {
-    setUser(null);
-    setToken(null);
+    // 2. Set up a listener that watches for any login or logout events globally
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      setLoading(false);
+    });
+
+    // Clean up the listener when the component unmounts
+    return () => {
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+    // No need to manually clear state here; the onAuthStateChange listener 
+    // will detect the sign out and update the user/session state automatically.
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, loading, signIn, signOut }}>
-      {children}
+    <AuthContext.Provider value={{ user, session, loading, signOut }}>
+      {/* Do not render the protected routes until Supabase confirms the session state */}
+      {!loading && children}
     </AuthContext.Provider>
   );
 };
