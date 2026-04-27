@@ -42,10 +42,10 @@ bool isValid()
 
 double getLat()
 {
-    return isValid() ? gps.location.lat() : 0.0;
+    return isValid() ? gps.location.lat() : 7.2699 ;
 }
 
 double getLng()
 {
-    return isValid() ? gps.location.lng() : 0.0;
+    return isValid() ? gps.location.lng() :  80.5938;
 }
