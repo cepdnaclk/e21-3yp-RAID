@@ -4,29 +4,51 @@ import { Train, Eye, EyeOff, Shield } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useAuth } from "@/context/AuthContext";
+// Import the Supabase client you created in the previous step
+import { supabase } from "@/lib/supabase"; 
 
 const Login = () => {
   const navigate = useNavigate();
-  const { user, signIn } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
-  const [username, setUsername] = useState("");
+  const [email, setEmail] = useState(""); // Changed from username to email
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
 
+  // Check if the admin is already logged in when the page loads
   useEffect(() => {
-    if (user) navigate("/dashboard", { replace: true });
-  }, [user, navigate]);
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) navigate("/dashboard", { replace: true });
+    };
+    checkSession();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
+    
     try {
-      await signIn(username, password);
-      toast.success("Welcome back!");
-      navigate("/dashboard");
-    } catch (error) {
-      toast.error("Invalid credentials. Try admin / admin123");
+      // 1. Authenticate with Supabase
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
+
+      // 2. Handle Supabase errors (like wrong password)
+      if (error) {
+        throw error; 
+      }
+
+      // 3. Success! Save the token and redirect
+      if (data.session) {
+        // Optional: Save the token specifically to send to your AWS API later
+        localStorage.setItem('adminToken', data.session.access_token);
+        
+        toast.success("Welcome back!");
+        navigate("/dashboard");
+      }
+    } catch (error: any) {
+      toast.error(error.message || "Invalid credentials. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -58,12 +80,13 @@ const Login = () => {
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                Username
+                Email Address
               </label>
               <Input
-                placeholder="Enter your username"
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                type="email"
+                placeholder="admin@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 className="h-12 bg-secondary/50 border-border"
                 required
               />
@@ -98,14 +121,9 @@ const Login = () => {
               disabled={loading}
               className="w-full h-12 text-base font-semibold header-gradient border-0 mt-2"
             >
-              {loading ? "Please wait..." : "Sign In"}
+              {loading ? "Authenticating..." : "Sign In"}
             </Button>
           </form>
-
-          {/* Mock credentials hint */}
-          <div className="mt-4 p-3 bg-secondary/50 rounded-lg text-xs text-muted-foreground text-center">
-            Mock credentials: <span className="text-accent font-medium">admin / admin123</span>
-          </div>
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
