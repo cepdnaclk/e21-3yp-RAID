@@ -89,22 +89,14 @@ export default function Home() {
               
               <div className="flex flex-wrap gap-4">
                 <Link
-                  to="/specifications"
+                  to="/architecture"
                   className="relative inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-cyan-500 hover:to-blue-600 text-white px-6 py-3 rounded-lg font-semibold transition-transform transform hover:-translate-y-0.5 shadow-lg hover:shadow-2xl focus:outline-none focus:ring-4 focus:ring-cyan-300 group"
                 >
                   <span className="absolute inset-0 rounded-lg bg-white/5 opacity-0 group-hover:opacity-20 transition-opacity" aria-hidden="true"></span>
                   <span className="inline-flex items-center gap-2 relative z-10">
-                    View Specifications
+                    See Architecture
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
                   </span>
-                </Link>
-
-                <Link
-                  to="/architecture"
-                  className="relative inline-flex items-center gap-2 bg-white/8 hover:bg-white/16 backdrop-blur-sm border border-white/20 text-white px-6 py-3 rounded-lg font-medium transition transform hover:-translate-y-0.5 shadow-sm hover:shadow-md group"
-                >
-                  <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" aria-hidden="true"></span>
-                  <span className="relative z-10">See Architecture</span>
                 </Link>
               </div>
             </div>
@@ -281,13 +273,6 @@ export default function Home() {
                 View Tech Stack
                 <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
               </span>
-            </Link>
-            <Link
-              to="/contact"
-              className="relative inline-flex items-center gap-2 bg-white/8 hover:bg-white/16 backdrop-blur-sm border border-white/20 text-white px-8 py-4 rounded-lg font-medium transition transform hover:-translate-y-0.5 shadow-sm hover:shadow-md group"
-            >
-              <span className="absolute inset-0 rounded-lg bg-gradient-to-r from-white/5 to-transparent opacity-0 group-hover:opacity-30 transition-opacity" aria-hidden="true"></span>
-              <span className="relative z-10">Get in Touch</span>
             </Link>
           </div>
         </div>

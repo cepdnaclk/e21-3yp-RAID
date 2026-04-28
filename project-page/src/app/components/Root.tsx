@@ -8,13 +8,10 @@ export default function Root() {
 
   const navItems = [
     { path: "/", label: "Home" },
-    { path: "/specifications", label: "Specifications" },
     { path: "/architecture", label: "Architecture" },
     { path: "/tech-stack", label: "Tech Stack" },
-    { path: "/testing", label: "Testing" },
     { path: "/budget", label: "Budget" },
     { path: "/team", label: "Team" },
-    { path: "/gallery", label: "Gallery" },
   ];
 
   const isActive = (path: string) => {
@@ -115,11 +112,6 @@ export default function Root() {
               <h3 className="font-semibold text-white mb-4">Quick Links</h3>
               <ul className="space-y-2 text-sm">
                 <li>
-                  <Link to="/specifications" className="hover:text-blue-400 transition-colors">
-                    Specifications
-                  </Link>
-                </li>
-                <li>
                   <Link to="/architecture" className="hover:text-blue-400 transition-colors">
                     Architecture
                   </Link>
@@ -142,12 +134,6 @@ export default function Root() {
               <p className="text-sm text-slate-400 mb-2">
                 This project aims to revolutionize railway safety through autonomous monitoring and early defect detection.
               </p>
-              <Link
-                to="/contact"
-                className="inline-block mt-2 text-sm text-blue-400 hover:text-blue-300 transition-colors"
-              >
-                Get in touch →
-              </Link>
             </div>
           </div>
 
