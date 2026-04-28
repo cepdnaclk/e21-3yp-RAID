@@ -1,5 +1,5 @@
 import { Layers, Database, Wifi, Cloud, Shield, Activity } from "lucide-react";
-import systemArchImg from "../../../assets/system arch.png";
+import systemArchImg from "../../../assets/system-arch.png";
 
 export default function Architecture() {
   return (
