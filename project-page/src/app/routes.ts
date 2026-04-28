@@ -18,4 +18,4 @@ export const router = createHashRouter([
       { path: "team", Component: Team },
     ],
   },
-], { basename: import.meta.env.BASE_URL });
+]);
