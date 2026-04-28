@@ -1,4 +1,5 @@
 import { Layers, Database, Wifi, Cloud, Shield, Activity } from "lucide-react";
+import systemArchImg from "../../../assets/system arch.png";
 
 export default function Architecture() {
   return (
@@ -21,9 +22,18 @@ export default function Architecture() {
           <div className="bg-white rounded-xl border border-slate-200 p-8 mb-8">
             <p className="text-slate-600 mb-8 leading-relaxed">
               The RailGuard system is built on a three-tier architecture consisting of the Edge Layer (robot hardware), 
-              Communication Layer (IoT connectivity), and Cloud Layer (data processing and visualization). This design 
-              ensures real-time data collection, reliable transmission, and comprehensive analysis.
+              Communication Layer (IoT connectivity), and Cloud & Backend Layer (data processing and visualization). This design 
+              ensures real-time data collection, reliable transmission, and comprehensive analysis via Java Spring Boot.
             </p>
+
+            {/* Architecture Diagram Image */}
+            <div className="mb-12 flex justify-center">
+              <img 
+                src={systemArchImg} 
+                alt="System Architecture Diagram" 
+                className="w-full max-w-4xl rounded-xl shadow-lg border border-slate-200"
+              />
+            </div>
 
             {/* Architecture Diagram */}
             <div className="bg-gradient-to-br from-slate-50 to-blue-50 rounded-xl p-8 border-2 border-blue-200">
@@ -92,36 +102,36 @@ export default function Architecture() {
                   </div>
                 </div>
 
-                {/* Layer 3: Cloud */}
+                {/* Layer 3: Cloud & Backend */}
                 <div className="space-y-4">
                   <div className="text-center mb-4">
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-purple-600 rounded-full mb-3">
                       <Cloud className="w-8 h-8 text-white" />
                     </div>
-                    <h3 className="font-bold text-lg text-slate-900">Cloud Layer</h3>
+                    <h3 className="font-bold text-lg text-slate-900">Cloud & Backend</h3>
                     <p className="text-sm text-slate-600">Processing & Storage</p>
                   </div>
                   
                   <div className="space-y-3">
                     <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
                       <div className="font-medium text-slate-900 text-sm mb-1">AWS IoT Core</div>
-                      <div className="text-xs text-slate-600">Device management</div>
+                      <div className="text-xs text-slate-600">MQTT Broker</div>
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                      <div className="font-medium text-slate-900 text-sm mb-1">S3 Storage</div>
-                      <div className="text-xs text-slate-600">Image storage</div>
+                      <div className="font-medium text-slate-900 text-sm mb-1">Java Spring Boot</div>
+                      <div className="text-xs text-slate-600">Backend Processing</div>
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                      <div className="font-medium text-slate-900 text-sm mb-1">DynamoDB</div>
-                      <div className="text-xs text-slate-600">Sensor data storage</div>
+                      <div className="font-medium text-slate-900 text-sm mb-1">AWS DynamoDB & S3</div>
+                      <div className="text-xs text-slate-600">NoSQL & Object Storage</div>
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                      <div className="font-medium text-slate-900 text-sm mb-1">Lambda Functions</div>
-                      <div className="text-xs text-slate-600">Data processing</div>
+                      <div className="font-medium text-slate-900 text-sm mb-1">React Web Dashboard</div>
+                      <div className="text-xs text-slate-600">Frontend UI (Vite/Tailwind)</div>
                     </div>
                     <div className="bg-white rounded-lg p-4 border border-slate-200 shadow-sm">
-                      <div className="font-medium text-slate-900 text-sm mb-1">Web Dashboard</div>
-                      <div className="text-xs text-slate-600">Visualization</div>
+                      <div className="font-medium text-slate-900 text-sm mb-1">Supabase</div>
+                      <div className="text-xs text-slate-600">Authentication</div>
                     </div>
                   </div>
                 </div>
@@ -133,7 +143,7 @@ export default function Architecture() {
                 <span className="text-2xl text-blue-600">→</span>
                 <span>Communication</span>
                 <span className="text-2xl text-blue-600">→</span>
-                <span>Cloud</span>
+                <span>Cloud & Backend</span>
               </div>
             </div>
           </div>
@@ -230,20 +240,20 @@ export default function Architecture() {
                   4
                 </div>
                 <div className="flex-1">
-                  <h3 className="font-semibold text-slate-900 mb-2">Cloud Processing</h3>
+                  <h3 className="font-semibold text-slate-900 mb-2">Backend Processing</h3>
                   <p className="text-slate-600 text-sm mb-3">
-                    AWS Lambda functions process incoming data, perform advanced image analysis using OpenCV, 
-                    classify defect severity, and store results in DynamoDB. Images are archived in S3.
+                    AWS IoT Core routes data to a Java Spring Boot backend server. The backend processes the telemetry, 
+                    handles imagery uploads, classifies defect severity, and persistently stores results in AWS DynamoDB and S3.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                      Image Analysis
+                      Java Spring Boot
                     </span>
                     <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                      Severity Classification
+                      Data Processing
                     </span>
                     <span className="px-3 py-1 bg-purple-100 text-purple-700 rounded-full text-xs font-medium">
-                      Data Storage
+                      DynamoDB Storage
                     </span>
                   </div>
                 </div>
@@ -258,18 +268,18 @@ export default function Architecture() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-slate-900 mb-2">Alert & Visualization</h3>
                   <p className="text-slate-600 text-sm mb-3">
-                    The web dashboard displays defects in real-time on an interactive map. Critical defects trigger 
-                    immediate alerts via email and SMS to maintenance teams for rapid response.
+                    A Next.js/React web dashboard streams data via WebSockets (STOMP) for real-time visualization on an 
+                    interactive map. Critical defects trigger immediate UI alerts and log notifications for rapid response. User auth is handled via Supabase.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                      Real-time Dashboard
+                      React Dashboard
                     </span>
                     <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                      Alert Notifications
+                      WebSocket Streaming
                     </span>
                     <span className="px-3 py-1 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-                      Map Visualization
+                      Supabase Auth
                     </span>
                   </div>
                 </div>
@@ -313,67 +323,6 @@ export default function Architecture() {
                 <li>• Multi-factor authentication</li>
                 <li>• Audit logging for all actions</li>
               </ul>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* System Integration */}
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl font-bold text-slate-900 mb-8">Integration Points</h2>
-          
-          <div className="grid md:grid-cols-2 gap-8">
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Database className="w-8 h-8 text-blue-600" />
-                <h3 className="font-semibold text-slate-900">Database Schema</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-2">Defects Table</div>
-                  <code className="text-xs text-slate-600 block">
-                    {`{ id, timestamp, location, severity, image_url, status }`}
-                  </code>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-2">Devices Table</div>
-                  <code className="text-xs text-slate-600 block">
-                    {`{ device_id, last_seen, battery_level, status }`}
-                  </code>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-2">Maintenance Table</div>
-                  <code className="text-xs text-slate-600 block">
-                    {`{ task_id, defect_id, assigned_to, completed_at }`}
-                  </code>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white rounded-xl border border-slate-200 p-6">
-              <div className="flex items-center gap-3 mb-4">
-                <Activity className="w-8 h-8 text-green-600" />
-                <h3 className="font-semibold text-slate-900">API Endpoints</h3>
-              </div>
-              <div className="space-y-3">
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-1">GET /api/defects</div>
-                  <div className="text-xs text-slate-600">Retrieve all detected defects</div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-1">POST /api/defects</div>
-                  <div className="text-xs text-slate-600">Report new defect from robot</div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-1">GET /api/devices/:id</div>
-                  <div className="text-xs text-slate-600">Get device status and telemetry</div>
-                </div>
-                <div className="bg-slate-50 rounded-lg p-4 border border-slate-200">
-                  <div className="font-medium text-sm text-slate-900 mb-1">POST /api/maintenance</div>
-                  <div className="text-xs text-slate-600">Create maintenance task</div>
-                </div>
-              </div>
             </div>
           </div>
         </div>
