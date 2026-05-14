@@ -15,17 +15,6 @@ type CrackLocation = {
     severity: number;
 };
 
-type UltrasonicLocation = {
-    sensorId: string;
-    timestamp: string;
-    deviceId: string;
-    obstacleDetected: boolean;
-    distanceCm: number;
-    lat: number;
-    lng: number;
-    severity: number;
-};
-
 const toSeverityBucket = (severity: number): "HIGH" | "MEDIUM" | "LOW" => {
     if (severity >= 0.7) return "HIGH";
     if (severity >= 0.4) return "MEDIUM";
@@ -87,54 +76,6 @@ const parsePayload = (payload: unknown): CrackLocation | null => {
     };
 };
 
-const parseUltrasonicPayload = (
-    payload: unknown,
-    fallbackLocation?: { lat: number; lng: number }
-): UltrasonicLocation | null => {
-    if (typeof payload !== "object" || payload === null) return null;
-    const obj = payload as Record<string, unknown>;
-
-    const location = (obj.location as Record<string, unknown> | undefined) ?? {};
-    const rawLat = location.lat ?? location.latitude ?? obj.lat ?? obj.latitude;
-    const rawLng = location.lng ?? location.longitude ?? obj.lng ?? obj.longitude;
-
-    let lat = Number(rawLat ?? Number.NaN);
-    let lng = Number(rawLng ?? Number.NaN);
-
-    if (!Number.isFinite(lat) || !Number.isFinite(lng) || (lat === 0 && lng === 0)) {
-        if (!fallbackLocation) {
-            return null;
-        }
-        lat = fallbackLocation.lat;
-        lng = fallbackLocation.lng;
-    }
-
-    const obstacleDetected =
-        typeof obj.obstacleDetected === "string"
-            ? obj.obstacleDetected.toLowerCase() === "true"
-            : Boolean(obj.obstacleDetected);
-
-    if (!obstacleDetected) {
-        return null;
-    }
-
-    const distanceCm = Number(obj.distanceCm ?? Number.NaN);
-    const distance = Number.isFinite(distanceCm) ? distanceCm : 200;
-
-    const severity = distance <= 25 ? 0.9 : distance <= 50 ? 0.6 : 0.35;
-
-    return {
-        sensorId: String(obj.sensorId ?? "ultrasonic"),
-        timestamp: String(obj.timestamp ?? ""),
-        deviceId: String(obj.deviceId ?? "unknown"),
-        obstacleDetected,
-        distanceCm: distance,
-        lat,
-        lng,
-        severity,
-    };
-};
-
 const wsToSockJsUrl = (wsUrl: string): string => {
     return wsUrl.replace(/^ws:/, "http:").replace(/^wss:/, "https:").replace(/\/+$/, "").replace(/\/ws$/, "/raid-websocket");
 };
@@ -170,30 +111,7 @@ const MapPage = () => {
             const crackData = (await crackResponse.json()) as unknown[];
             const crackParsed = crackData.map(parsePayload).filter((x): x is CrackLocation => x !== null);
 
-            let ultrasonicParsed: CrackLocation[] = [];
-            try {
-                const ultrasonicResponse = await fetch(`${apiBaseUrl}/api/ultrasonic`);
-                if (ultrasonicResponse.ok) {
-                    const ultrasonicData = (await ultrasonicResponse.json()) as unknown[];
-                    ultrasonicParsed = ultrasonicData
-                        .map((payload) => parseUltrasonicPayload(payload))
-                        .filter((x): x is UltrasonicLocation => x !== null)
-                        .map((u) => ({
-                            sensorId: u.sensorId,
-                            timestamp: u.timestamp,
-                            deviceId: u.deviceId,
-                            crackDetected: true,
-                            status: `ULTRASONIC ${u.distanceCm.toFixed(1)}cm`,
-                            lat: u.lat,
-                            lng: u.lng,
-                            severity: u.severity,
-                        }));
-                }
-            } catch (e) {
-                console.warn("Failed to fetch ultrasonic history", e);
-            }
-
-            setLocations([...crackParsed, ...ultrasonicParsed]);
+            setLocations([...crackParsed]);
         };
 
         loadHistory().catch((err) => {
@@ -270,29 +188,6 @@ const MapPage = () => {
                         }
                     } catch (e) {
                         console.error("Failed to parse /topic/cracks payload", e);
-                    }
-                });
-
-                client.subscribe("/topic/ultrasonic", (message) => {
-                    try {
-                        const payload = JSON.parse(message.body) as unknown;
-                        const parsed = parseUltrasonicPayload(payload, lastRobotPositionRef.current ?? undefined);
-                        if (!parsed) {
-                            return;
-                        }
-
-                        upsertLocation({
-                            sensorId: parsed.sensorId,
-                            timestamp: parsed.timestamp,
-                            deviceId: parsed.deviceId,
-                            crackDetected: true,
-                            status: `ULTRASONIC ${parsed.distanceCm.toFixed(1)}cm`,
-                            lat: parsed.lat,
-                            lng: parsed.lng,
-                            severity: parsed.severity,
-                        });
-                    } catch (e) {
-                        console.error("Failed to parse /topic/ultrasonic payload", e);
                     }
                 });
             },

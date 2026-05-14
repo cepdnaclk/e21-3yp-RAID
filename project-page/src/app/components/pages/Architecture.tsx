@@ -164,15 +164,12 @@ export default function Architecture() {
                 <div className="flex-1">
                   <h3 className="font-semibold text-slate-900 mb-2">Data Acquisition</h3>
                   <p className="text-slate-600 text-sm mb-3">
-                    Sensors continuously scan the railway track and collect data at 10Hz sampling rate. 
-                    IR sensors detect surface anomalies while ultrasonic sensors measure depth variations.
+                    Sensors continuously scan the railway track and collect data at 10Hz sampling rate.
+                    IR sensors detect surface anomalies while cameras capture the location.
                   </p>
                   <div className="flex flex-wrap gap-2">
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                       IR Sensor Data
-                    </span>
-                    <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-                      Ultrasonic Data
                     </span>
                     <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
                       GPS Coordinates

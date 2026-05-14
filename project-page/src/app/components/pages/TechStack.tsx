@@ -32,11 +32,7 @@ const techCategories = [
         desc: "Infrared reflective sensor array for crack detection",
       },
       {
-        name: "Ultrasonic sensor",
-        logo: "",
-        desc: "Distance measurement scanning sensor",
-      },
-      {
+
         name: "ESP32 camera",
         logo: "",
         desc: "Camera module for visual image capture",

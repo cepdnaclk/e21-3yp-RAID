@@ -47,6 +47,7 @@ function unwrapDynamoValue(value: any): any {
     }
   }
 
+
   const normalized: AnyRecord = {};
   for (const [k, v] of Object.entries(value)) {
     normalized[k] = unwrapDynamoValue(v);
@@ -120,7 +121,7 @@ export function useTelemetry(deviceId: string, sensorId: string) {
         console.log(`Connected to telemetry stream: ${deviceId}/${sensorId}`);
 
         // Subscribe to IR Sensor crack data
-        stompClient.subscribe(`/topic/cracks/${deviceId}/${sensorId}`, (message) => {
+        stompClient.subscribe(`/topic/alerts`, (message) => {
           const rawData = JSON.parse(message.body);
           const safeCrackEvent = normalizeCrackEvent(rawData);
 
