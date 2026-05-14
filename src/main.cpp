@@ -7,7 +7,7 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
-#include "sensor configuration/gps sensors/gps_sensor.h"
+#include "sensor configuration/gps sensors/gps_module.h"
 
 // ================= Configuration =================
 #define CAMERA_TRIGGER_PIN 4
@@ -23,6 +23,9 @@ String getIsoTimestamp();
 bool waitingForCamera = false;
 unsigned long cameraWaitStart = 0;
 int savedIrMinValue = 0;
+
+// GPS module instance (uses TinyGPS++ under the hood)
+GPSModule gps;
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -268,10 +271,16 @@ void publishUnifiedAlert(String imageUrl, const IRScanResult &irData)
   doc["status"] = "CRITICAL_DEFECT";
   doc["irSensor"] = irData.minValue;
   doc["image_url"] = imageUrl;
-  GPSData gps = readGPSData(); // ADD FROM HERE
-  doc["latitude"] = gps.valid ? gps.latitude : 0.0;
-  doc["longitude"] = gps.valid ? gps.longitude : 0.0;
-  doc["gps_valid"] = gps.valid; // ADD TO HERE
+  // Prefer frozen coordinates if available (captured at trigger time),
+  // otherwise fall back to the current live location.
+  bool useFrozen = gps.isFrozenValid();
+  double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
+  double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
+  bool valid = useFrozen ? gps.isFrozenValid() : gps.isLiveLocationValid();
+
+  doc["latitude"] = valid ? lat : 0.0;
+  doc["longitude"] = valid ? lng : 0.0;
+  doc["gps_valid"] = valid;
 
   JsonArray irArray = doc.createNestedArray("irArray");
   for (int i = 0; i < IR_SENSOR_COUNT; ++i)
@@ -384,7 +393,7 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-  initGPSSensor();
+  gps.begin();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -419,7 +428,8 @@ void loop()
 {
   static IRScanResult irScan{};
   static bool irScanReady = false;
-  updateGPSStream();
+  // Keep GPS parser fed with incoming serial data
+  gps.update();
 
   // 1. Maintain Connection & Re-subscribe to topics
   if (!client.connected())
@@ -480,6 +490,8 @@ void loop()
     // 2. Save the IR state and start the waiting timer
     lastIrScanResult = irScan; // Store full result
     savedIrMinValue = irScan.minValue;
+    // Freeze GPS coordinates at the exact moment of trigger
+    gps.freezeCoordinates();
     waitingForCamera = true;
     cameraWaitStart = now;
 
@@ -508,10 +520,13 @@ void loop()
     doc["severity"] = 0.10;
     doc["irSensor"] = irScan.minValue;
     doc["uptime"] = now / 1000;
-    GPSData gps = readGPSData(); // ADD FROM HERE
-    doc["latitude"] = gps.valid ? gps.latitude : 0.0;
-    doc["longitude"] = gps.valid ? gps.longitude : 0.0;
-    doc["gps_valid"] = gps.valid; // ADD TO HERE
+    // Use live GPS coordinates for heartbeat messages
+    bool liveValid = gps.isLiveLocationValid();
+    double liveLat = gps.getLiveLat();
+    double liveLng = gps.getLiveLng();
+    doc["latitude"] = liveValid ? liveLat : 0.0;
+    doc["longitude"] = liveValid ? liveLng : 0.0;
+    doc["gps_valid"] = liveValid;
 
     JsonArray irArray = doc.createNestedArray("irArray");
     for (int i = 0; i < IR_SENSOR_COUNT; ++i)
