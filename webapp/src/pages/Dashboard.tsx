@@ -7,7 +7,6 @@ import {
 
 import { useAuth } from "@/context/AuthContext";
 import { useTelemetry } from "@/hooks/useTelemetry";
-import { useUltrasonicTelemetry } from "@/hooks/useUltrasonicTelemetry";
 import { useMockTelemetry } from "@/hooks/useMockTelemetry";
 import DeviceCard from "@/components/DeviceCard";
 import CrackDetailModal from "@/components/CrackDetailModal";
@@ -26,8 +25,6 @@ export default function Dashboard() {
 
   // Device 1: Real data from backend
   const device1 = useTelemetry("esp-001", "IR_Bottom");
-
-  const ultrasonic = useUltrasonicTelemetry("esp-001", "ULTRASONIC");
 
   // Device 2: Mock data
   const device2 = useMockTelemetry("esp-002-mock", "IR_Bottom");
@@ -321,93 +318,7 @@ export default function Dashboard() {
         onClose={() => setShowCrackDetail(false)}
         onStatusUpdate={handleCrackStatusUpdate}
       />
-      {/* ================= ULTRASONIC PANEL ================= */}
-      <div className="px-6 mt-8">
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
-
-          {/* Panel Header */}
-          <div className="bg-slate-900 px-6 py-4 flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-bold text-white">🚧 Obstacle Detection</h2>
-              <p className="text-xs text-slate-400 mt-0.5">HC-SR04 Ultrasonic Sensor • esp-001</p>
-            </div>
-            <div className={`flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold ${ultrasonic.isConnected
-                ? 'bg-emerald-900 text-emerald-300 border border-emerald-700'
-                : 'bg-slate-700 text-slate-400'
-              }`}>
-              <span className={`inline-flex h-2 w-2 rounded-full ${ultrasonic.isConnected ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'
-                }`}></span>
-              {ultrasonic.isConnected ? 'Live' : 'Offline'}
-            </div>
-          </div>
-
-          {/* Latest Reading */}
-          {ultrasonic.liveUltrasonic.length > 0 && (
-            <div className={`px-6 py-4 border-b border-slate-100 ${ultrasonic.liveUltrasonic[0].obstacleDetected
-                ? 'bg-rose-50'
-                : 'bg-emerald-50'
-              }`}>
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-xs text-slate-500 uppercase font-semibold">Latest Reading</p>
-                  <p className="text-3xl font-bold text-slate-900 mt-1">
-                    {ultrasonic.liveUltrasonic[0].distanceCm.toFixed(1)}
-                    <span className="text-lg font-normal text-slate-500 ml-1">cm</span>
-                  </p>
-                  <p className="text-xs text-slate-500 mt-1">
-                    {new Date(ultrasonic.liveUltrasonic[0].timestamp).toLocaleTimeString()}
-                  </p>
-                </div>
-                <div className={`px-4 py-2 rounded-xl text-sm font-bold ${ultrasonic.liveUltrasonic[0].obstacleDetected
-                    ? 'bg-rose-100 text-rose-700 border border-rose-200'
-                    : 'bg-emerald-100 text-emerald-700 border border-emerald-200'
-                  }`}>
-                  {ultrasonic.liveUltrasonic[0].obstacleDetected ? '⚠️ OBSTACLE' : '✅ CLEAR'}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* History Table */}
-          <table className="w-full text-left text-sm">
-            <thead className="bg-slate-50 border-b border-slate-200">
-              <tr>
-                <th className="p-4 font-semibold text-slate-600">Time</th>
-                <th className="p-4 font-semibold text-slate-600">Distance</th>
-                <th className="p-4 font-semibold text-slate-600">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100">
-              {ultrasonic.liveUltrasonic.length === 0 ? (
-                <tr>
-                  <td colSpan={3} className="p-8 text-center text-slate-400 italic">
-                    No ultrasonic data yet. Hold an object in front of HC-SR04.
-                  </td>
-                </tr>
-              ) : (
-                ultrasonic.liveUltrasonic.slice(0, 10).map((event, index) => (
-                  <tr key={index} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-4 text-slate-600">
-                      {new Date(event.timestamp).toLocaleTimeString()}
-                    </td>
-                    <td className="p-4 font-bold text-slate-900">
-                      {event.distanceCm.toFixed(1)} cm
-                    </td>
-                    <td className="p-4">
-                      <span className={`px-2 py-1 rounded text-xs font-bold ${event.obstacleDetected
-                          ? 'bg-rose-100 text-rose-700'
-                          : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                        {event.obstacleDetected ? '⚠️ Obstacle' : '✅ Clear'}
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
+      
       {/* Bottom navigation bar */}
       <BottomNav />
     </div>

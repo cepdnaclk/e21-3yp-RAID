@@ -9,28 +9,23 @@ import org.springframework.stereotype.Component;
 
 import com.dto.sensor.EspCamDetectionDTO;
 import com.dto.sensor.IRSensorDataDTO;
-import com.dto.sensor.UltrasonicSensorDataDTO;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.service.IRSensorService;
-import com.service.UltrasonicSensorService;
 
 @Component
 public class MqttReceiver {
 
     private final ObjectMapper objectMapper;
     private final SimpMessagingTemplate messagingTemplate; // The WebSocket Broadcaster
-    private final UltrasonicSensorService ultrasonicSensorService;
     private final IRSensorService irSensorService;
 
     // Spring injects both the Mapper and the WebSocket Template
     public MqttReceiver(ObjectMapper objectMapper,
             SimpMessagingTemplate messagingTemplate,
-            UltrasonicSensorService ultrasonicSensorService,
             IRSensorService irSensorService) {
         this.objectMapper = objectMapper;
         this.messagingTemplate = messagingTemplate;
-        this.ultrasonicSensorService = ultrasonicSensorService;
         this.irSensorService = irSensorService;
     }
 
@@ -41,13 +36,10 @@ public class MqttReceiver {
 
         try {
             JsonNode payloadNode = objectMapper.readTree(rawJsonPayload);
-            boolean ultrasonicTopic = mqttTopic != null && mqttTopic.contains("ultrasonic");
             boolean crackTopic = "railway/cracks".equals(mqttTopic);
             boolean cameraTopic = mqttTopic != null && mqttTopic.contains("device/esp32-cam/status");
 
-            if (ultrasonicTopic || isUltrasonicPayload(payloadNode)) {
-                handleUltrasonicMessage(rawJsonPayload);
-            } else if (crackTopic || isCrackPayload(payloadNode)) {
+            if (crackTopic || isCrackPayload(payloadNode)) {
                 handleIRSensorMessage(rawJsonPayload);
             } else if (cameraTopic || isCameraPayload(payloadNode)) {
                 handleCameraMessage(rawJsonPayload);
@@ -61,10 +53,6 @@ public class MqttReceiver {
         }
     }
 
-    private boolean isUltrasonicPayload(JsonNode node) {
-    return node.has("distanceCm") || node.has("obstacleDetected");
-}
-
     private boolean isCrackPayload(JsonNode node) {
         return node.has("crackDetected") || node.has("minValue");
     }
@@ -72,15 +60,6 @@ public class MqttReceiver {
     private boolean isCameraPayload(JsonNode node) {
         return node.has("image_url") || node.has("imageUrl");
     }
-
-    private void handleUltrasonicMessage(String rawJsonPayload) throws Exception {
-    UltrasonicSensorDataDTO ultrasonicData = objectMapper.readValue(rawJsonPayload, UltrasonicSensorDataDTO.class);
-    if (ultrasonicData == null)
-        return;
-    ultrasonicSensorService.saveSensorData(ultrasonicData);
-    messagingTemplate.convertAndSend("/topic/ultrasonic", ultrasonicData); // 📡 Live UI
-    System.out.println("Saved + Broadcasted ultrasonic data: " + ultrasonicData.getSensorId());
-}
 
     /*
      * 
