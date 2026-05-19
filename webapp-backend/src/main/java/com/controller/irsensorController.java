@@ -15,13 +15,13 @@ import com.service.IRSensorService;
 @RestController
 @RequestMapping("/api/cracks")
 @CrossOrigin(originPatterns = "*")
-public class IRSensorController {
+public class irsensorController {
 
     // 2. The Dependency
     private final IRSensorService service;
 
     // 3. Dependency Injection
-    public IRSensorController(IRSensorService service) {
+    public irsensorController(IRSensorService service) {
         this.service = service;
     }
 
