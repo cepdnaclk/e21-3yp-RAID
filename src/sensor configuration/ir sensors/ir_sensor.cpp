@@ -6,13 +6,12 @@ namespace
     // ==========================================
     // 3-ZONE HARDWARE CONFIGURATION
     // ==========================================
-    const int MUX_A = 25;
-    const int MUX_B = 26;
-    const int MUX_C = 27;
-    const int LED_IN = 14;
+    const int MUX_A = 10;
+    const int MUX_B = 11;
+    const int MUX_C = 12;
 
     // LEFT = 0, CENTER = 1, RIGHT = 2
-    const int IR_OUT_PINS[3] = {34, 35, 36}; 
+    const int IR_OUT_PINS[3] = {4, 5, 10}; 
 
     // CALIBRATED THRESHOLDS 
     const int THRESHOLDS[IR_SENSOR_COUNT] = {303, 292, 0, 0, 295, 318, 380, 361}; 
@@ -36,7 +35,6 @@ void initIRSensors()
     pinMode(MUX_A, OUTPUT);
     pinMode(MUX_B, OUTPUT);
     pinMode(MUX_C, OUTPUT);
-    pinMode(LED_IN, OUTPUT);
     
     // Initialize all 3 analog input pins
     for(int z = 0; z < 3; z++) {
@@ -46,10 +44,6 @@ void initIRSensors()
     // Configure ADC for maximum range (0V - 3.1V)
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db);
-
-    // Keep IR emitters enabled constantly
-    digitalWrite(LED_IN, HIGH);
-    delay(50);
 }
 
 MultiZoneScanResult scanAllZones()

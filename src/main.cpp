@@ -13,8 +13,8 @@
 const int CAM_TRIGGERS[3] = {4, 5, 18}; // LEFT, CENTER, RIGHT Pins
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
-const char *ssid = "Suvini";
-const char *password = "suvini12345678";
+const char *ssid = "Dialog 4G 515";
+const char *password = "2F22ECEF";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
