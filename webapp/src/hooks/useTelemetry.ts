@@ -86,8 +86,11 @@ function normalizeCrackEvent(raw: any): CrackEvent {
     media?.url,
   ]);
 
+  const computedId = base.id || btoa(`${base.sensorId ?? 'unknown'}|${base.timestamp ?? Date.now()}`);
+
   return {
     ...base,
+    id: computedId,
     media,
     location,
     gps,

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { X, MapPin, Clock, CheckCircle, XCircle, Map } from "lucide-react";
+import { X, MapPin, Clock, CheckCircle, XCircle, Map as MapIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrackEvent } from "@/hooks/useTelemetry";
 
@@ -65,13 +65,10 @@ export default function CrackDetailModal({
     }, 500);
   };
 
-  const openMapInNewTab = () => {
-    const lat = crack.gps?.lat || 28.6155;
-    const lng = crack.gps?.lng || 77.2100;
-    window.open(
-      `https://www.google.com/maps/?q=${lat},${lng}`,
-      '_blank'
-    );
+  const handleViewOnMap = (crackId: string | number | undefined) => {
+    if (crackId) {
+      window.open(`${import.meta.env.BASE_URL}map/${encodeURIComponent(crackId.toString())}`, '_blank');
+    }
   };
 
   return (
@@ -148,10 +145,10 @@ export default function CrackDetailModal({
                 Location Data
               </h3>
               <button
-                onClick={openMapInNewTab}
+                onClick={() => handleViewOnMap(crack.id)}
                 className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
               >
-                <Map size={16} />
+                <MapIcon size={16} />
                 View on Map
               </button>
             </div>

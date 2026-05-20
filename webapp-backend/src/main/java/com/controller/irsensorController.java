@@ -15,13 +15,13 @@ import com.service.IRSensorService;
 @RestController
 @RequestMapping("/api/cracks")
 @CrossOrigin(originPatterns = "*")
-public class IRSensorController {
+public class irsensorController {
 
     // 2. The Dependency
     private final IRSensorService service;
 
     // 3. Dependency Injection
-    public IRSensorController(IRSensorService service) {
+    public irsensorController(IRSensorService service) {
         this.service = service;
     }
 
@@ -29,11 +29,19 @@ public class IRSensorController {
     @GetMapping("/{deviceId}/{sensorId}")
     public List<IRSensorDataDTO> getCracksByDeviceAndSensor(
             @PathVariable String deviceId,
-
             @PathVariable String sensorId) {
 
         // Hand the variables off to the Service layer
         return service.getSpecificCracks(deviceId, sensorId);
+    }
+
+    @GetMapping("/{crackId}")
+    public org.springframework.http.ResponseEntity<IRSensorDataDTO> getCrackById(@PathVariable String crackId) {
+        IRSensorDataDTO data = service.getCrackById(crackId);
+        if (data == null) {
+            return org.springframework.http.ResponseEntity.notFound().build();
+        }
+        return org.springframework.http.ResponseEntity.ok(data);
     }
 
 }

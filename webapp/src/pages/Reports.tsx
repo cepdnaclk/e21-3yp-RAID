@@ -142,7 +142,7 @@ const Reports = () => {
                     )}
                     <div className="mt-2 text-[10px] text-muted-foreground flex justify-between">
                       <span>Severity: {crack.severity}</span>
-                      <span>Time: {new Date(crack.timestamp).toLocaleString()}</span>
+                      <span>Time: {new Date(crack.timestamp || Date.now()).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}

@@ -9,6 +9,8 @@ public interface IRSensorRepository {
 
     List<irsensorData> getCracksByDeviceAndSensor(String deviceId, String sensorId);
 
+    irsensorData getCrackById(String sensorId, String timestamp);
+
     irsensorData save(irsensorData data);
 }
 

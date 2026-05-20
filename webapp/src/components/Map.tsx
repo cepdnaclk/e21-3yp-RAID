@@ -1,5 +1,5 @@
 import "mapbox-gl/dist/mapbox-gl.css";
-import Map from "react-map-gl";
+import Map from "react-map-gl/mapbox";
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN;
 

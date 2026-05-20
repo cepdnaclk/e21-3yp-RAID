@@ -7,9 +7,17 @@ from datetime import datetime
 # ================= Configuration =================
 LB_ADDR = ('127.0.0.1', 7000)
 DEVICE_ID = "esp-001"
-# Starting coordinates (Kandy/Peradeniya area)
-BASE_LAT = 7.2525
-BASE_LON = 80.5925
+# Fixed Kandy-area locations to cycle through.
+KANDY_ROUTE = [
+    ("Kandy Lake", 7.2906, 80.6337),
+    ("Temple of the Tooth", 7.2936, 80.6414),
+    ("Kandy Railway Station", 7.2902, 80.6323),
+    ("Asgiriya Stadium", 7.2946, 80.6281),
+    ("Udawattakele", 7.3006, 80.6355),
+    ("Katugastota", 7.3250, 80.6200),
+    ("Peradeniya", 7.2698, 80.5970),
+    ("Royal Botanical Gardens", 7.2690, 80.5954)
+]
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -33,9 +41,13 @@ try:
         severity = round(random.uniform(0.85, 0.98), 2) if crack_found else 0.10
         status = "CRITICAL_DEFECT" if crack_found else "NOMINAL_HEARTBEAT"
         
-        # 2. SIMULATE MOVEMENT (Small increments to GPS)
-        current_lat = BASE_LAT + (count * 0.0001)
-        current_lon = BASE_LON + (count * 0.00005)
+        # 2. SIMULATE MOVEMENT (Cycle through Kandy locations)
+        route_index = count % len(KANDY_ROUTE)
+        place_name, base_lat, base_lon = KANDY_ROUTE[route_index]
+        jitter_lat = random.uniform(-0.0002, 0.0002)
+        jitter_lon = random.uniform(-0.0002, 0.0002)
+        current_lat = base_lat + jitter_lat
+        current_lon = base_lon + jitter_lon
 
         # 3. CONSTRUCT THE FULL PAYLOAD (Matches your ESP32 C++ structure)
         payload = {
@@ -62,7 +74,10 @@ try:
         
         # 5. LOG TO TERMINAL
         icon = "🚨" if crack_found else "💚"
-        print(f"{icon} [{status}] Lat: {current_lat:.5f}, Lon: {current_lon:.5f}, IR: {ir_value}")
+        print(
+            f"{icon} [{status}] {place_name} | Lat: {current_lat:.5f}, "
+            f"Lon: {current_lon:.5f}, IR: {ir_value}"
+        )
         
         # Send data every 2 seconds for a realistic flow
         time.sleep(2)

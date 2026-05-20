@@ -64,6 +64,14 @@ public class IRSensorRepositoryImpl implements IRSensorRepository {
     }
 
     @Override
+    public irsensorData getCrackById(String sensorId, String timestamp) {
+        return table.getItem(software.amazon.awssdk.enhanced.dynamodb.Key.builder()
+                .partitionValue(sensorId)
+                .sortValue(timestamp)
+                .build());
+    }
+
+    @Override
     public irsensorData save(irsensorData data) {
         table.putItem(data);
         return data;

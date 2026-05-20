@@ -59,6 +59,22 @@ public class IRSensorService {
         return mapper.toDTO(saved);
     }
 
+    public IRSensorDataDTO getCrackById(String crackId) {
+        try {
+            String decoded = new String(java.util.Base64.getDecoder().decode(crackId));
+            String[] parts = decoded.split("\\|");
+            if (parts.length == 2) {
+                irsensorData data = repository.getCrackById(parts[0], parts[1]);
+                if (data != null) {
+                    return mapper.toDTO(data);
+                }
+            }
+        } catch (Exception e) {
+            // base64 decode failed or not found
+        }
+        return null;
+    }
+
 }
 
 /*
