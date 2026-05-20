@@ -8,6 +8,12 @@
 #include "soc/rtc_cntl_reg.h"  // Required for Brownout fix
 #include "secrets.h"           // Ensure ssid, password, botToken, chatId, and AWS certs are here
 
+#ifndef CAMERA_POSITION
+  #define CAMERA_POSITION "UNKNOWN" // Fallback just in case
+#endif
+
+const String CAMERA_ID = CAMERA_POSITION;
+
 // --- CAMERA PINS (AI-THINKER) ---
 #define PWDN_GPIO_NUM  32
 #define RESET_GPIO_NUM -1
@@ -77,7 +83,7 @@ String sendPhotoToS3(camera_fb_t *fb) {
     String region = "eu-north-1"; 
     
     // This is the standard S3 URL format
-    String fileName = "railway_snap_" + String(millis()) + ".jpg";
+    String fileName = "railway_snap_" + String(millis()) + "_" + CAMERA_ID + ".jpg";
     String url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
 
     Serial.println("Uploading to S3: " + url);
@@ -102,7 +108,7 @@ String sendPhotoToS3(camera_fb_t *fb) {
 }
 
 // --- CAPTURE & AWS NOTIFY ---
-// --- CAPTURE & AWS NOTIFY ---
+
 void captureAndSend() {
     camera_fb_t * fb = esp_camera_fb_get();
     if (!fb) {
@@ -122,6 +128,7 @@ void captureAndSend() {
     // If S3 upload worked, send the URL back to the Main IR Board
     if (s3Url != "FAILED") {
         StaticJsonDocument<200> doc;
+        doc["camera_id"] = CAMERA_ID;
         doc["image_url"] = s3Url; 
         
         char buffer[200];
@@ -187,6 +194,7 @@ void connectAWS() {
     mqttClient.setCallback(mqttCallback);
 
     Serial.print("Connecting to AWS IoT...");
+    String clientId = "ESP32_CAM_" + CAMERA_ID;
     while (!mqttClient.connect("ESP32_CAM")) {
         Serial.print(".");
         delay(1000);
