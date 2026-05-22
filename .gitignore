@@ -10,6 +10,7 @@ node_modules/
 # Build outputs
 dist/
 build/
+docs/webapp/
 
 # Environment variables
 .env
