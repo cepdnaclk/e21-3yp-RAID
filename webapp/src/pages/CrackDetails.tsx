@@ -3,6 +3,7 @@ import { ArrowLeft, MapPin, Camera, Activity, Clock, Navigation } from "lucide-r
 import { Button } from "@/components/ui/button";
 import { useAlerts } from "@/context/AlertContext";
 import { statusColor } from "@/data/mockData";
+import MapComponent from "@/components/Map";
 
 const CrackDetails = () => {
   const navigate = useNavigate();
@@ -55,30 +56,43 @@ const CrackDetails = () => {
         </div>
 
         {/* Location */}
-        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="text-accent" size={16} />
-            <span className="text-sm font-semibold text-foreground">Location Data</span>
-            <button 
-              onClick={() => navigate(`/map?focus=${alert.id}`)}
-              className="ml-auto flex items-center gap-1 text-xs text-accent font-medium"
-            >
-              <Navigation size={12} />
-              View on Map
-            </button>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-secondary/50 rounded-xl p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Track Marker</p>
-              <p className="font-bold text-foreground mt-0.5">KM {alert.km}</p>
-            </div>
-            <div className="bg-secondary/50 rounded-xl p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">GPS Coordinates</p>
-              <p className="font-bold text-foreground text-sm mt-0.5">{alert.lat.toFixed(4)}°N</p>
-              <p className="text-xs text-muted-foreground">{alert.lng.toFixed(4)}°E</p>
-            </div>
-          </div>
-        </div>
+        <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border">
+  <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+    <MapPin className="text-accent" size={16} />
+    <span className="text-sm font-semibold text-foreground">Location Data</span>
+    <button
+  onClick={() => navigate(`/map?lat=${alert.lat}&lng=${alert.lng}&id=${alert.id}`)}
+  className="ml-auto flex items-center gap-1 text-xs text-accent font-medium"
+>
+  <Navigation size={12} />
+  View on Map
+</button>
+  </div>
+
+  {/* Embedded mini map */}
+  <div className="w-full h-48">
+    <MapComponent
+      singleMarker={{ lat: alert.lat, lng: alert.lng }}
+      centerLat={alert.lat}
+      centerLng={alert.lng}
+      zoom={16}
+      height="100%"
+    />
+  </div>
+
+  {/* Coordinate cards — unchanged from your original */}
+  <div className="grid grid-cols-2 gap-3 p-4">
+    <div className="bg-secondary/50 rounded-xl p-3">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Track Marker</p>
+      <p className="font-bold text-foreground mt-0.5">KM {alert.km}</p>
+    </div>
+    <div className="bg-secondary/50 rounded-xl p-3">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">GPS Coordinates</p>
+      <p className="font-bold text-foreground text-sm mt-0.5">{alert.lat.toFixed(4)}°N</p>
+      <p className="text-xs text-muted-foreground">{alert.lng.toFixed(4)}°E</p>
+    </div>
+  </div>
+</div>
 
         {/* Sensor */}
         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">

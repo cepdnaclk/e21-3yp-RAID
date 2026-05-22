@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { X, MapPin, Clock, CheckCircle, XCircle, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrackEvent } from "@/hooks/useTelemetry";
+
 
 interface CrackDetailModalProps {
   crack: CrackEvent | null;
@@ -18,6 +20,7 @@ export default function CrackDetailModal({
 }: CrackDetailModalProps) {
   const [isUpdating, setIsUpdating] = useState(false);
   const [showMap, setShowMap] = useState(false);
+  const navigate = useNavigate();
 
   if (!isOpen || !crack) return null;
 
@@ -65,13 +68,12 @@ export default function CrackDetailModal({
     }, 500);
   };
 
-  const openMapInNewTab = () => {
+  // ── CHANGED: navigate to internal map instead of opening Google Maps ──────
+  const openMapInInternalApp = () => {
     const lat = crack.gps?.lat || 28.6155;
     const lng = crack.gps?.lng || 77.2100;
-    window.open(
-      `https://www.google.com/maps/?q=${lat},${lng}`,
-      '_blank'
-    );
+    navigate(`/map?lat=${lat}&lng=${lng}&id=${crack.id}`);
+    onClose();
   };
 
   return (
@@ -147,8 +149,9 @@ export default function CrackDetailModal({
                 <MapPin size={18} className="text-blue-600" />
                 Location Data
               </h3>
+              {/* ── CHANGED: calls openMapInInternalApp instead of openMapInNewTab ── */}
               <button
-                onClick={openMapInNewTab}
+                onClick={openMapInInternalApp}
                 className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
               >
                 <Map size={16} />
