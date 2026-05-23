@@ -10,13 +10,6 @@ const CrackDetails = () => {
   const { id } = useParams();
   const { alerts } = useAlerts();
   const alert = alerts.find((a) => a.id === Number(id));
-// Inside CrackDetails.tsx, before the return statement or inline:
-const severityMap: Record<string, number> = {
-  HIGH: 0.9,
-  MEDIUM: 0.5,
-  LOW: 0.2
-};
-
 
   if (!alert) {
     return (
@@ -79,15 +72,10 @@ const severityMap: Record<string, number> = {
   {/* Mini Mapbox map */}
   <div className="w-full h-48">
     <MapComponent
-  markers={[{ 
-    id: String(alert.id), 
-    lat: alert.lat, 
-    lng: alert.lng, 
-    severity: severityMap[alert.severity] // Use the mapped number
-  }]}
-  center={[alert.lng, alert.lat]}
-  zoom={16}
-/>
+      markers={[{ id: String(alert.id), lat: alert.lat, lng: alert.lng, severity: alert.severity }]}
+      center={[alert.lng, alert.lat]}
+      zoom={16}
+    />
   </div>
 
   {/* Coordinates row below the map */}
