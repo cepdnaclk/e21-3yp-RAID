@@ -8,6 +8,7 @@
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_module.h"
+#include "sensor configuration/encoder_config/encoder_odometry.h"
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {4, 5, 18}; // LEFT, CENTER, RIGHT Pins
@@ -21,8 +22,6 @@ const String DEVICE_ID = "esp-001";
 const char *SENSOR_ID = "IR_Bottom";
 
 String getIsoTimestamp();
-
-
 
 int consecutiveCracks[3] = {0, 0, 0};
 bool pendingTrigger[3] = {false, false, false};
@@ -279,20 +278,22 @@ void publishUnifiedAlert(String imageUrl, String sensorId, const IRScanResult &i
   doc["timestamp"] = getIsoTimestamp();
   doc["crackDetected"] = true;
   doc["crack_detected"] = true;
-  
+
   doc["status"] = "CRITICAL_DEFECT";
   doc["irSensor"] = irData.minValue;
   doc["image_url"] = imageUrl;
   // Prefer frozen coordinates if available (captured at trigger time),
   // otherwise fall back to the current live location.
   bool useFrozen = gps.isFrozenValid();
-  double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
-  double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  bool valid = useFrozen ? gps.isFrozenValid() : gps.isLiveLocationValid();
+  double lat = useFrozen ? gps.getFrozenLat() : gps.getBestLatitude();                         // ← CHANGED
+  double lng = useFrozen ? gps.getFrozenLng() : gps.getBestLongitude();                        // ← CHANGED
+  bool valid = useFrozen ? gps.isFrozenValid() : (gps.isLiveLocationValid() || enc_originSet); // ← CHANGED
 
   doc["latitude"] = valid ? lat : 0.0;
   doc["longitude"] = valid ? lng : 0.0;
   doc["gps_valid"] = valid;
+  doc["locationSource"] = gps.isPositionFromEncoder() ? "ENCODER" : "GPS"; // ← NEW
+  doc["gpsSats"] = gps.getSatellites();                                    // ← NEW
 
   JsonArray irArray = doc.createNestedArray("irArray");
   for (int i = 0; i < IR_SENSOR_COUNT; ++i)
@@ -316,35 +317,36 @@ void publishUnifiedAlert(String imageUrl, String sensorId, const IRScanResult &i
 
 // ================= MQTT Callback =================
 
-
-
 void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
-    if (String(topic) == "device/esp-001/camera_url")
+  if (String(topic) == "device/esp-001/camera_url")
+  {
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, payload, length);
+
+    if (!error)
     {
-        StaticJsonDocument<512> doc;
-        DeserializationError error = deserializeJson(doc, payload, length);
+      String camId = doc["camera_id"].as<String>(); // "LEFT", "CENTER", or "RIGHT"
+      String url = doc["image_url"].as<String>();
 
-        if (!error)
-        {
-            String camId = doc["camera_id"].as<String>(); // "LEFT", "CENTER", or "RIGHT"
-            String url = doc["image_url"].as<String>();
-            
-            // Map the string ID to our array index (0, 1, or 2)
-            int z = -1;
-            if (camId == "LEFT") z = 0;
-            else if (camId == "CENTER") z = 1;
-            else if (camId == "RIGHT") z = 2;
+      // Map the string ID to our array index (0, 1, or 2)
+      int z = -1;
+      if (camId == "LEFT")
+        z = 0;
+      else if (camId == "CENTER")
+        z = 1;
+      else if (camId == "RIGHT")
+        z = 2;
 
-            // If we found a valid zone and were actually waiting for it
-            if (z != -1 && waitingForCamera[z])
-            {
-                Serial.println("Received S3 URL from Camera: " + camId);
-                publishUnifiedAlert(url, camId, lastIrScanResult[z]); 
-                waitingForCamera[z] = false;
-            }
-        }
+      // If we found a valid zone and were actually waiting for it
+      if (z != -1 && waitingForCamera[z])
+      {
+        Serial.println("Received S3 URL from Camera: " + camId);
+        publishUnifiedAlert(url, camId, lastIrScanResult[z]);
+        waitingForCamera[z] = false;
+      }
     }
+  }
 }
 
 void syncTime()
@@ -383,8 +385,8 @@ String getIsoTimestamp()
 
 unsigned long lastHeartbeat = 0;
 
-char mqtt_topic[64];                 // Permanent buffer for the MQTT topic
-         // Counter to filter out sensor noise
+char mqtt_topic[64]; // Permanent buffer for the MQTT topic
+                     // Counter to filter out sensor noise
 unsigned long lastSensorScan = 0;
 
 constexpr unsigned long SENSOR_SCAN_INTERVAL_MS = 50;
@@ -394,10 +396,11 @@ void setup()
 {
   // CRITICAL: Disable brownout detector to prevent restart loops when camera + WiFi power on simultaneously
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-  for(int i = 0; i < 3; i++) {
-        pinMode(CAM_TRIGGERS[i], OUTPUT);
-        digitalWrite(CAM_TRIGGERS[i], LOW);
-    }
+  for (int i = 0; i < 3; i++)
+  {
+    pinMode(CAM_TRIGGERS[i], OUTPUT);
+    digitalWrite(CAM_TRIGGERS[i], LOW);
+  }
 
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
@@ -418,6 +421,8 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
+  Wire.begin(21, 22); // ← NEW: AS5600 I2C pins
+  encoder_init();     // ← NEW: initialise encoder baseline
   gps.begin();
 
   client.setCallback(mqttCallback);
@@ -451,119 +456,128 @@ void setup()
 
 void loop()
 {
-    static bool irScanReady = false;
-    gps.update();
+  static bool irScanReady = false;
+  encoder_update(); // ← NEW: must run every loop tick for accurate ticks
+  gps.update();
 
-    if (!client.connected())
-    {
-        Serial.println("\n!! MQTT connection LOST. Reconnecting...");
-        connectAWS();
-        String commandTopic = "device/" + DEVICE_ID + "/command";
-        client.subscribe(commandTopic.c_str());
-        client.subscribe("device/esp-001/camera_url");
-    }
+  if (!client.connected())
+  {
+    Serial.println("\n!! MQTT connection LOST. Reconnecting...");
+    connectAWS();
+    String commandTopic = "device/" + DEVICE_ID + "/command";
+    client.subscribe(commandTopic.c_str());
+    client.subscribe("device/esp-001/camera_url");
+  }
 
-    client.loop();
-    unsigned long now = millis();
+  client.loop();
+  unsigned long now = millis();
 
-    // =========================================================
-    // 1. SCAN SENSORS & TRACK DELAYS
-    // =========================================================
-    if (!irScanReady || (now - lastSensorScan >= SENSOR_SCAN_INTERVAL_MS))
-    {
-        lastSensorScan = now;
-        currentZones = scanAllZones(); // Read all 3 arrays
-        irScanReady = true;
+  // =========================================================
+  // 1. SCAN SENSORS & TRACK DELAYS
+  // =========================================================
+  if (!irScanReady || (now - lastSensorScan >= SENSOR_SCAN_INTERVAL_MS))
+  {
+    lastSensorScan = now;
+    currentZones = scanAllZones(); // Read all 3 arrays
+    irScanReady = true;
 
-        for (int z = 0; z < 3; z++)
-        {
-            // Debounce logic per zone
-            if (currentZones.zone[z].crackDetected) {
-                consecutiveCracks[z]++;
-            } else {
-                consecutiveCracks[z] = 0;
-            }
-
-            bool crack_detected = (consecutiveCracks[z] >= REQUIRED_CONSECUTIVE_CRACKS);
-
-            // PHASE 1: Detect Crack -> Start Offset Delay Timer
-            if (crack_detected && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
-            {
-                pendingTrigger[z] = true;
-                crackDetectedTime[z] = now;
-                lastIrScanResult[z] = currentZones.zone[z]; // Save the IR state for when camera returns
-                gps.freezeCoordinates(); // Lock GPS at exact detection point
-                
-                Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]! Waiting " + String(OFFSET_DELAY_MS) + "ms to align camera...");
-            }
-        }
-    }
-
-    // =========================================================
-    // 2. PROCESS PENDING TRIGGERS (The Physics Offset Delay)
-    // =========================================================
     for (int z = 0; z < 3; z++)
     {
-        // PHASE 2: Delay passed -> Fire Camera Trigger
-        if (pendingTrigger[z] && (now - crackDetectedTime[z] >= OFFSET_DELAY_MS))
-        {
-            pendingTrigger[z] = false;
-            waitingForCamera[z] = true;
-            cameraWaitStart[z] = now;
-            lastCriticalAlert[z] = now;
-            lastHeartbeat = now; // Reset heartbeat
+      // Debounce logic per zone
+      if (currentZones.zone[z].crackDetected)
+      {
+        consecutiveCracks[z]++;
+      }
+      else
+      {
+        consecutiveCracks[z] = 0;
+      }
 
-            // FIRE THE SPECIFIC CAMERA
-            digitalWrite(CAM_TRIGGERS[z], HIGH);
-            delay(50);
-            digitalWrite(CAM_TRIGGERS[z], LOW);
+      bool crack_detected = (consecutiveCracks[z] >= REQUIRED_CONSECUTIVE_CRACKS);
 
-            Serial.println("📸 Hardware triggered [" + ZONE_NAMES[z] + "]! Waiting for S3 URL...");
-        }
+      // PHASE 1: Detect Crack -> Start Offset Delay Timer
+      if (crack_detected && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
+      {
+        pendingTrigger[z] = true;
+        crackDetectedTime[z] = now;
+        lastIrScanResult[z] = currentZones.zone[z]; // Save the IR state for when camera returns
+        gps.freezeCoordinates();                    // Lock GPS at exact detection point
 
-        // PHASE 3: Timeout if Camera Crashes or WiFi fails
-        if (waitingForCamera[z] && (now - cameraWaitStart[z] > 60000))
-        {
-            Serial.println("❌ Camera upload timed out for [" + ZONE_NAMES[z] + "]. Publishing alert without image.");
-            publishUnifiedAlert("No Image (Timeout)", ZONE_NAMES[z], lastIrScanResult[z]);
-            waitingForCamera[z] = false;
-        }
+        Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]! Waiting " + String(OFFSET_DELAY_MS) + "ms to align camera...");
+      }
     }
+  }
 
-    // =========================================================
-    // 3. HYBRID HEARTBEAT LOGIC
-    // =========================================================
-    if (now - lastHeartbeat >= 30000)
+  // =========================================================
+  // 2. PROCESS PENDING TRIGGERS (The Physics Offset Delay)
+  // =========================================================
+  for (int z = 0; z < 3; z++)
+  {
+    // PHASE 2: Delay passed -> Fire Camera Trigger
+    if (pendingTrigger[z] && (now - crackDetectedTime[z] >= OFFSET_DELAY_MS))
     {
-        lastHeartbeat = now;
-        StaticJsonDocument<512> doc;
-        
-        doc["deviceId"] = DEVICE_ID;
-        doc["timestamp"] = getIsoTimestamp();
-        doc["crack_detected"] = false;
-        doc["status"] = "NOMINAL_HEARTBEAT";
-        doc["uptime"] = now / 1000;
-        
-        // Find the absolute lowest IR reading across all 3 zones for the heartbeat metric
-        int minHeartbeatIr = 4095;
-        for(int z=0; z<3; z++) {
-            if(currentZones.zone[z].minValue < minHeartbeatIr) {
-                minHeartbeatIr = currentZones.zone[z].minValue;
-            }
-        }
-        doc["irSensor"] = minHeartbeatIr;
+      pendingTrigger[z] = false;
+      waitingForCamera[z] = true;
+      cameraWaitStart[z] = now;
+      lastCriticalAlert[z] = now;
+      lastHeartbeat = now; // Reset heartbeat
 
-        bool liveValid = gps.isLiveLocationValid();
-        doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
-        doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
-        doc["gps_valid"] = liveValid;
+      // FIRE THE SPECIFIC CAMERA
+      digitalWrite(CAM_TRIGGERS[z], HIGH);
+      delay(50);
+      digitalWrite(CAM_TRIGGERS[z], LOW);
 
-        String payload;
-        serializeJson(doc, payload);
-        String topic = "device/" + DEVICE_ID + "/IR_Bottom"; // Your general topic
-
-        if (client.publish(topic.c_str(), payload.c_str())) {
-            Serial.println("\n💚 Heartbeat Check-in: " + payload);
-        }
+      Serial.println("📸 Hardware triggered [" + ZONE_NAMES[z] + "]! Waiting for S3 URL...");
     }
+
+    // PHASE 3: Timeout if Camera Crashes or WiFi fails
+    if (waitingForCamera[z] && (now - cameraWaitStart[z] > 60000))
+    {
+      Serial.println("❌ Camera upload timed out for [" + ZONE_NAMES[z] + "]. Publishing alert without image.");
+      publishUnifiedAlert("No Image (Timeout)", ZONE_NAMES[z], lastIrScanResult[z]);
+      waitingForCamera[z] = false;
+    }
+  }
+
+  // =========================================================
+  // 3. HYBRID HEARTBEAT LOGIC
+  // =========================================================
+  if (now - lastHeartbeat >= 30000)
+  {
+    lastHeartbeat = now;
+    StaticJsonDocument<512> doc;
+
+    doc["deviceId"] = DEVICE_ID;
+    doc["timestamp"] = getIsoTimestamp();
+    doc["crack_detected"] = false;
+    doc["status"] = "NOMINAL_HEARTBEAT";
+    doc["uptime"] = now / 1000;
+
+    // Find the absolute lowest IR reading across all 3 zones for the heartbeat metric
+    int minHeartbeatIr = 4095;
+    for (int z = 0; z < 3; z++)
+    {
+      if (currentZones.zone[z].minValue < minHeartbeatIr)
+      {
+        minHeartbeatIr = currentZones.zone[z].minValue;
+      }
+    }
+    doc["irSensor"] = minHeartbeatIr;
+
+    bool liveValid = gps.isLiveLocationValid() || enc_originSet; // ← CHANGED
+    doc["latitude"] = liveValid ? gps.getBestLatitude() : 0.0;   // ← CHANGED
+    doc["longitude"] = liveValid ? gps.getBestLongitude() : 0.0; // ← CHANGED
+    doc["gps_valid"] = liveValid;
+    doc["locationSource"] = gps.isPositionFromEncoder() ? "ENCODER" : "GPS"; // ← NEW
+    doc["gpsSats"] = gps.getSatellites();                                    // ← NEW
+
+    String payload;
+    serializeJson(doc, payload);
+    String topic = "device/" + DEVICE_ID + "/IR_Bottom"; // Your general topic
+
+    if (client.publish(topic.c_str(), payload.c_str()))
+    {
+      Serial.println("\n💚 Heartbeat Check-in: " + payload);
+    }
+  }
 }
