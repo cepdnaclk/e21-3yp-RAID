@@ -11,7 +11,9 @@ namespace
     const int MUX_C = 12;
 
     // LEFT = 0, CENTER = 1, RIGHT = 2
-    const int IR_OUT_PINS[3] = {4, 5, 10}; 
+    const int IR_OUT_PINS[3] = {4, 5, 6}; 
+    // Define 3 hardware trigger pins to command the cameras
+const int CAM_TRIGGER_PINS[3] = {15, 16, 17}; // Left, Center, Right
 
     // CALIBRATED THRESHOLDS 
     const int THRESHOLDS[IR_SENSOR_COUNT] = {303, 292, 0, 0, 295, 318, 380, 361}; 

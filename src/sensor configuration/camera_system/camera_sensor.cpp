@@ -195,7 +195,7 @@ void connectAWS() {
 
     Serial.print("Connecting to AWS IoT...");
     String clientId = "ESP32_CAM_" + CAMERA_ID;
-    while (!mqttClient.connect("ESP32_CAM")) {
+    while (!mqttClient.connect(clientId.c_str())) {
         Serial.print(".");
         delay(1000);
     }

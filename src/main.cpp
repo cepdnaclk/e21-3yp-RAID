@@ -7,14 +7,14 @@
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
-#include "sensor configuration/gps sensors/gps_module.h"
+// #include "sensor configuration/gps sensors/gps_module.h"
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {4, 5, 18}; // LEFT, CENTER, RIGHT Pins
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
-const char *ssid = "Dialog 4G 515";
-const char *password = "2F22ECEF";
+const char *ssid = "Redmi Note 10";
+const char *password = "200170201635";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID = "esp32";
 const String DEVICE_ID = "esp-001";
@@ -35,7 +35,7 @@ IRScanResult lastIrScanResult[3]; // Store values per zone while waiting for cam
 MultiZoneScanResult currentZones; // Globally available for the heartbeat
 
 // GPS module instance (uses TinyGPS++ under the hood)
-GPSModule gps;
+// GPSModule gps;
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -285,14 +285,14 @@ void publishUnifiedAlert(String imageUrl, String sensorId, const IRScanResult &i
   doc["image_url"] = imageUrl;
   // Prefer frozen coordinates if available (captured at trigger time),
   // otherwise fall back to the current live location.
-  bool useFrozen = gps.isFrozenValid();
-  double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
-  double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  bool valid = useFrozen ? gps.isFrozenValid() : gps.isLiveLocationValid();
+  // bool useFrozen = gps.isFrozenValid();
+  // double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
+  // double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
+  // bool valid = useFrozen ? gps.isFrozenValid() : gps.isLiveLocationValid();
 
-  doc["latitude"] = valid ? lat : 0.0;
-  doc["longitude"] = valid ? lng : 0.0;
-  doc["gps_valid"] = valid;
+  // doc["latitude"] = valid ? lat : 0.0;
+  // doc["longitude"] = valid ? lng : 0.0;
+  // doc["gps_valid"] = valid;
 
   JsonArray irArray = doc.createNestedArray("irArray");
   for (int i = 0; i < IR_SENSOR_COUNT; ++i)
@@ -418,7 +418,7 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-  gps.begin();
+  // gps.begin();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -452,7 +452,7 @@ void setup()
 void loop()
 {
     static bool irScanReady = false;
-    gps.update();
+    // gps.update();
 
     if (!client.connected())
     {
@@ -492,7 +492,7 @@ void loop()
                 pendingTrigger[z] = true;
                 crackDetectedTime[z] = now;
                 lastIrScanResult[z] = currentZones.zone[z]; // Save the IR state for when camera returns
-                gps.freezeCoordinates(); // Lock GPS at exact detection point
+                // gps.freezeCoordinates(); // Lock GPS at exact detection point
                 
                 Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]! Waiting " + String(OFFSET_DELAY_MS) + "ms to align camera...");
             }
@@ -515,7 +515,7 @@ void loop()
 
             // FIRE THE SPECIFIC CAMERA
             digitalWrite(CAM_TRIGGERS[z], HIGH);
-            delay(50);
+            delayMicroseconds(500); // 0.5ms pulse is plenty to trip the interrupt
             digitalWrite(CAM_TRIGGERS[z], LOW);
 
             Serial.println("📸 Hardware triggered [" + ZONE_NAMES[z] + "]! Waiting for S3 URL...");
@@ -553,10 +553,10 @@ void loop()
         }
         doc["irSensor"] = minHeartbeatIr;
 
-        bool liveValid = gps.isLiveLocationValid();
-        doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
-        doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
-        doc["gps_valid"] = liveValid;
+        // bool liveValid = gps.isLiveLocationValid();
+        // doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
+        // doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
+        // doc["gps_valid"] = liveValid;
 
         String payload;
         serializeJson(doc, payload);
