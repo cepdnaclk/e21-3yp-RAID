@@ -421,7 +421,7 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-  Wire.begin(21, 22); // ← NEW: AS5600 I2C pins
+  Wire.begin(14, 15); // ← NEW: AS5600 I2C pins (GPIO 14=SDA, GPIO 15=SCL)
   encoder_init();     // ← NEW: initialise encoder baseline
   gps.begin();
 
