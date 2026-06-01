@@ -4,13 +4,11 @@
 #include <Arduino.h>
 #include <ArduinoJson.h>
 #include <time.h>
-#include "soc/soc.h"
-#include "soc/rtc_cntl_reg.h"
 #include "sensor configuration/ir sensors/ir_sensor.h"
 // #include "sensor configuration/gps sensors/gps_module.h"
 
 // ================= Configuration =================
-const int CAM_TRIGGERS[3] = {4, 5, 18}; // LEFT, CENTER, RIGHT Pins
+const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
 const char *ssid = "Redmi Note 10";
@@ -159,6 +157,8 @@ void connectWiFi()
   Serial.println("Starting WiFi connection...");
 
   WiFi.mode(WIFI_STA);
+  WiFi.disconnect(true);
+  delay(100);
   WiFi.begin(ssid, password);
 
   int attempts = 0;
@@ -392,8 +392,6 @@ constexpr int REQUIRED_CONSECUTIVE_CRACKS = 6; // ~300ms stable crack indication
 // ================= Setup =================
 void setup()
 {
-  // CRITICAL: Disable brownout detector to prevent restart loops when camera + WiFi power on simultaneously
-  WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
   for(int i = 0; i < 3; i++) {
         pinMode(CAM_TRIGGERS[i], OUTPUT);
         digitalWrite(CAM_TRIGGERS[i], LOW);
@@ -515,7 +513,7 @@ void loop()
 
             // FIRE THE SPECIFIC CAMERA
             digitalWrite(CAM_TRIGGERS[z], HIGH);
-            delayMicroseconds(500); // 0.5ms pulse is plenty to trip the interrupt
+            delay(20); // 0.5ms pulse is plenty to trip the interrupt
             digitalWrite(CAM_TRIGGERS[z], LOW);
 
             Serial.println("📸 Hardware triggered [" + ZONE_NAMES[z] + "]! Waiting for S3 URL...");
