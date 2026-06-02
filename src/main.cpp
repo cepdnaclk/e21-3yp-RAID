@@ -9,6 +9,8 @@
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
+const int BUZZER_PIN = 23; // Set this to the digital logic pin connected to your YXDZ buzzer
+const unsigned long BUZZER_DURATION_MS = 500; // Duration of the beep in ms
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
 const char *ssid = "Redmi Note 10";
@@ -28,6 +30,10 @@ unsigned long crackDetectedTime[3] = {0, 0, 0};
 bool waitingForCamera[3] = {false, false, false};
 unsigned long cameraWaitStart[3] = {0, 0, 0};
 unsigned long lastCriticalAlert[3] = {0, 0, 0};
+
+// Buzzer state
+bool buzzerActive = false;
+unsigned long buzzerStartTime = 0;
 
 IRScanResult lastIrScanResult[3]; // Store values per zone while waiting for camera
 MultiZoneScanResult currentZones; // Globally available for the heartbeat
@@ -397,6 +403,10 @@ void setup()
         digitalWrite(CAM_TRIGGERS[i], LOW);
     }
 
+  // Initialize Buzzer
+  pinMode(BUZZER_PIN, OUTPUT);
+  digitalWrite(BUZZER_PIN, LOW);
+
   Serial.begin(115200);
   delay(1000); // Let Serial stabilize
 
@@ -491,6 +501,11 @@ void loop()
                 crackDetectedTime[z] = now;
                 lastIrScanResult[z] = currentZones.zone[z]; // Save the IR state for when camera returns
                 // gps.freezeCoordinates(); // Lock GPS at exact detection point
+
+                // Trigger Buzzer
+                buzzerActive = true;
+                buzzerStartTime = now;
+                digitalWrite(BUZZER_PIN, HIGH);
                 
                 Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]! Waiting " + String(OFFSET_DELAY_MS) + "ms to align camera...");
             }
@@ -563,5 +578,14 @@ void loop()
         if (client.publish(topic.c_str(), payload.c_str())) {
             Serial.println("\n💚 Heartbeat Check-in: " + payload);
         }
+    }
+
+    // =========================================================
+    // 4. BUZZER TIMEOUT LOGIC
+    // =========================================================
+    if (buzzerActive && (now - buzzerStartTime >= BUZZER_DURATION_MS))
+    {
+        buzzerActive = false;
+        digitalWrite(BUZZER_PIN, LOW);
     }
 }

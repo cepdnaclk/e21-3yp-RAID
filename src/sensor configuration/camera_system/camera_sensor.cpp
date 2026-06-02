@@ -32,7 +32,7 @@ const String CAMERA_ID = CAMERA_POSITION;
 #define HREF_GPIO_NUM  23
 #define PCLK_GPIO_NUM  22
 
-#define HARDWARE_TRIGGER_PIN 12
+#define HARDWARE_TRIGGER_PIN 13
 volatile bool captureRequested = false;
 
 void IRAM_ATTR onHardwareTrigger() {
@@ -141,14 +141,7 @@ void captureAndSend() {
         mqttClient.publish("device/esp-001/camera_url", buffer);
         Serial.println("Sent S3 URL back to Main Board!");
     } else {
-        Serial.println("S3 Upload Failed. Sending failure message to Main Board.");
-        StaticJsonDocument<200> doc;
-        doc["camera_id"] = CAMERA_ID;
-        doc["image_url"] = "No Image (Timeout)"; 
-        
-        char buffer[200];
-        serializeJson(doc, buffer);
-        mqttClient.publish("device/esp-001/camera_url", buffer);
+        Serial.println("S3 Upload Failed. Cannot send URL.");
     }
     // --------------------------------------
 
@@ -200,60 +193,30 @@ void connectAWS() {
     net.setCACert(AWS_CERT_CA);
     net.setCertificate(AWS_CERT_CRT);
     net.setPrivateKey(AWS_CERT_PRIVATE);
-    
     mqttClient.setServer(aws_endpoint, 8883);
     mqttClient.setCallback(mqttCallback);
-    mqttClient.setBufferSize(2048); 
 
     Serial.print("Connecting to AWS IoT...");
-    
-    // 2. DYNAMIC CLIENT ID FIX: Generate an absolute unique ID using the chip's MAC address
-    // This guarantees your camera never collides with your main board or python mock script.
-    String clientId = "ESP32_CAM_" + String((uint32_t)ESP.getEfuseMac(), HEX);
-    
-    mqttClient.setKeepAlive(60); 
+    String clientId = "ESP32_CAM_" + CAMERA_ID;
     while (!mqttClient.connect(clientId.c_str())) {
-        Serial.printf(" Failed (State: %d) Retrying...\n", mqttClient.state());
-        delay(2000);
+        Serial.print(".");
+        delay(1000);
     }
     Serial.println(" Connected!");
-    mqttClient.subscribe("device/esp-001/IR_Bottom"); 
+    mqttClient.subscribe("device/esp-001/IR_Bottom"); // Listen to crack detection data
 }
+
 void setup() {
     // 1. DISABLE BROWNOUT (Crucial for heat/stability)
     WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
 
-    pinMode(HARDWARE_TRIGGER_PIN, INPUT);
+    pinMode(HARDWARE_TRIGGER_PIN, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(HARDWARE_TRIGGER_PIN), onHardwareTrigger, RISING);
 
 
     Serial.begin(115200);
 
-    WiFi.mode(WIFI_STA); 
-    Serial.println("\nScan started");
-    int n = WiFi.scanNetworks();
-    Serial.printf("%d networks found\n", n);
-    for (int i = 0; i < n; ++i) {
-        Serial.println(WiFi.SSID(i));
-    }
-    // 2. WIFI & TIME SYNC (CONNECT EARLY FOR HEAP REASONS)
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-    Serial.println("\nWiFi Connected");
-
-    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
-    Serial.print("Syncing Time");
-    while (time(nullptr) < 100000) { delay(500); Serial.print("."); }
-    time_t now = time(nullptr);
-    struct tm timeinfo;
-    gmtime_r(&now, &timeinfo);
-    Serial.print("\nTime Synced! Current Year: ");
-    Serial.println(timeinfo.tm_year + 1900);
-
-    // 3. AWS CONNECT
-    connectAWS();
-
-    // 4. CAMERA CONFIG
+    // 2. CAMERA CONFIG
     camera_config_t config;
     config.ledc_channel = LEDC_CHANNEL_0;
     config.ledc_timer = LEDC_TIMER_0;
@@ -275,6 +238,25 @@ void setup() {
         Serial.println("Camera init failed");
         return;
     }
+
+    WiFi.mode(WIFI_STA); 
+    Serial.println("\nScan started");
+    int n = WiFi.scanNetworks();
+    Serial.printf("%d networks found\n", n);
+    for (int i = 0; i < n; ++i) {
+    Serial.println(WiFi.SSID(i));
+    }
+    // 3. WIFI & TIME SYNC
+    WiFi.begin(ssid, password);
+    while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
+    Serial.println("\nWiFi Connected");
+
+    configTime(0, 0, "pool.ntp.org", "time.nist.gov");
+    Serial.print("Syncing Time");
+    while (time(nullptr) < 100000) { delay(500); Serial.print("."); }
+    Serial.println("\nTime Synced!");
+
+    connectAWS();
 }
 
 void loop() {
