@@ -423,7 +423,9 @@ void setup()
   syncTime();
   connectAWS();
   initIRSensors();
-  // gps.begin();
+  Wire.begin(8, 13); // ← NEW: AS5600 I2C pins (GPIO 8=SDA, GPIO 13=SCL)
+  encoder_init();     // ← NEW: initialise encoder baseline
+  gps.begin();
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
