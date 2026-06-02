@@ -26,7 +26,10 @@ export default function DeviceCard({
 }: DeviceCardProps) {
   
   const total = liveCracks.length;
-  const highSeverity = liveCracks.filter(c => c.severity === 'HIGH').length;
+  const highSeverity = liveCracks.filter(c => {
+  if (typeof c.severity === 'number') return c.severity >= 0.7;
+  return c.severity === 'HIGH';
+}).length;
 
   return (
     <div className={`rounded-2xl shadow-md overflow-hidden border-2 transition-all hover:shadow-lg ${

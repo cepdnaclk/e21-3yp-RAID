@@ -35,8 +35,11 @@ export default function Dashboard() {
   // Total number of detected events across all devices
   const totalCracks = device1.liveCracks.length + device2.liveCracks.length + device3.liveCracks.length;
   const totalCritical = [device1, device2, device3]
-    .flatMap(d => d.liveCracks)
-    .filter(c => c.severity === 'HIGH').length;
+  .flatMap(d => d.liveCracks)
+  .filter(c => {
+    if (typeof c.severity === 'number') return c.severity >= 0.7;
+    return c.severity === 'HIGH';
+  }).length;
 
   // Load Balancing Metrics
   const device1Load = device1.liveCracks.length;

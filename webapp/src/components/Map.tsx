@@ -8,7 +8,7 @@ export type CrackMarker = {
   id: string;
   lat: number;
   lng: number;
-  severity: number;
+  severity: number | string; 
 };
 
 interface Props {
@@ -51,6 +51,7 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
     if (!mapRef.current) return;
     const currentIds = new Set(markers.map((m) => m.id));
 
+    // Remove old markers
     Object.keys(markersRef.current).forEach((id) => {
       if (!currentIds.has(id)) {
         markersRef.current[id].remove();
@@ -58,8 +59,20 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
       }
     });
 
+    // Add/Update markers
     markers.forEach((crack) => {
-      const color = crack.severity >= 0.7 ? "#dc2626" : crack.severity >= 0.4 ? "#f59e0b" : "#2563eb";
+      // SAFE SEVERITY LOGIC: Handles both String ("HIGH") and Number (0.9)
+      let numericSeverity = 0.5;
+      if (typeof crack.severity === 'number') {
+        numericSeverity = crack.severity;
+      } else if (typeof crack.severity === 'string') {
+        const s = crack.severity.toUpperCase();
+        if (s === 'HIGH') numericSeverity = 0.9;
+        else if (s === 'MEDIUM') numericSeverity = 0.5;
+        else if (s === 'LOW') numericSeverity = 0.2;
+      }
+
+      const color = numericSeverity >= 0.7 ? "#dc2626" : numericSeverity >= 0.4 ? "#f59e0b" : "#2563eb";
 
       if (markersRef.current[crack.id]) {
         markersRef.current[crack.id].setLngLat([crack.lng, crack.lat]);
@@ -73,7 +86,7 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
         .setLngLat([crack.lng, crack.lat])
         .setPopup(
           new mapboxgl.Popup({ offset: 12 }).setHTML(
-            `<div style="font-size:12px"><b>Severity:</b> ${crack.severity.toFixed(2)}<br/><b>Lat/Lng:</b> ${crack.lat.toFixed(5)}, ${crack.lng.toFixed(5)}</div>`
+            `<div style="font-size:12px"><b>Severity:</b> ${numericSeverity.toFixed(2)}<br/><b>Lat/Lng:</b> ${crack.lat.toFixed(5)}, ${crack.lng.toFixed(5)}</div>`
           )
         )
         .addTo(mapRef.current!);
@@ -87,7 +100,8 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
     if (!t) return;
 
     const doFly = () => {
-      mapRef.current!.flyTo({ center: [t.lng, t.lat], zoom: 17, speed: 1.4 });
+      if (!mapRef.current) return;
+      mapRef.current.flyTo({ center: [t.lng, t.lat], zoom: 17, speed: 1.4 });
 
       setTimeout(() => {
         const el = markersRef.current[flyToId]?.getElement();
@@ -101,7 +115,6 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
       }, 1500);
     };
 
-    // Wait for map to be ready if it isn't yet
     if (mapReadyRef.current) {
       doFly();
     } else {
