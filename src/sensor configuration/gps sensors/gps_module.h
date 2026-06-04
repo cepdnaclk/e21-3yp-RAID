@@ -6,7 +6,7 @@
 #include <HardwareSerial.h>
 
 // Define the ESP32 Hardware UART pins for the NEO-6M
-#define GPS_RX_PIN 18
+#define GPS_RX_PIN 1
 #define GPS_TX_PIN 46
 #define GPS_BAUD_RATE 9600
 
