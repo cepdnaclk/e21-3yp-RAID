@@ -35,6 +35,13 @@ const String CAMERA_ID = CAMERA_POSITION;
 #define HARDWARE_TRIGGER_PIN 13
 volatile bool captureRequested = false;
 
+// ── State set by the Master via MQTT cam_cmd ────────────────────────────────────
+// crack_id   : unique event ID — echoed back so Master can match the DynamoDB row.
+// presigned_url : time-limited S3 PUT URL from the presign Lambda.
+//                Empty string means fall back to the public-PUT bucket method.
+String pendingCrackId     = "";
+String pendingPresignedUrl = "";
+
 void IRAM_ATTR onHardwareTrigger() {
     captureRequested = true;
 }
@@ -74,81 +81,95 @@ String sendPhotoToTelegram(camera_fb_t *fb) {
     return "OK";
 }
 
-// --- NEW: S3 UPLOAD FUNCTION ---
-String sendPhotoToS3(camera_fb_t *fb) {
+// ── S3 UPLOAD (Pre-signed PUT) ───────────────────────────────────────────────────
+// Sends the JPEG frame buffer to S3 using the provided PUT URL.
+// - If a pre-signed URL was received via MQTT, it is used (secure, no public bucket).
+// - If the pre-signed URL is empty, falls back to a direct public PUT (development mode).
+// Returns the final public object URL on success, or "FAILED" on error.
+String sendPhotoToS3(camera_fb_t *fb, const String &s3PutUrl) {
     WiFiClientSecure secureClient;
-    secureClient.setInsecure(); // Critical for HTTPS communication without a hardcoded CA cert
-    
-    HTTPClient http;
-    
-    // ⚠️ REPLACE WITH YOUR BUCKET DETAILS
-    String bucketName = "railway-system-photos-01-533350584731-eu-north-1-an"; 
-    String region = "eu-north-1"; 
-    
-    // This is the standard S3 URL format
-    String fileName = "railway_snap_" + String(millis()) + "_" + CAMERA_ID + ".jpg";
-    String url = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
+    secureClient.setInsecure();
 
-    Serial.println("Uploading to S3: " + url);
-    
-    http.begin(secureClient, url); // Pass the secure client!
+    HTTPClient http;
+    Serial.println("[S3] PUT → " + s3PutUrl.substring(0, 80) + "..."); // Trim for Serial
+
+    http.begin(secureClient, s3PutUrl);
     http.addHeader("Content-Type", "image/jpeg");
-    
-    // Note: This requires your S3 bucket to have 'Public Write' or a 
-    // specific Bucket Policy enabled for testing.
     int httpResponseCode = http.PUT(fb->buf, fb->len);
 
     String resultUrl = "FAILED";
-    if (httpResponseCode == 200 || httpResponseCode == 201) {
-        Serial.printf("S3 Upload Success: %d\n", httpResponseCode);
-        resultUrl = url; // Return the URL so MQTT can send it to DynamoDB
+    if (httpResponseCode == 200 || httpResponseCode == 201 || httpResponseCode == 204) {
+        // For pre-signed URLs, S3 returns 200/204 but the *public* URL is the key, not the signed URL.
+        // Extract the clean object URL from the PUT URL by stripping query params.
+        int qpos = s3PutUrl.indexOf('?');
+        resultUrl = (qpos > 0) ? s3PutUrl.substring(0, qpos) : s3PutUrl;
+        Serial.printf("[S3] ✅ Upload success (HTTP %d)\n", httpResponseCode);
     } else {
-        Serial.printf("S3 Upload Failed: %d\n", httpResponseCode);
+        Serial.printf("[S3] ❌ Upload failed (HTTP %d)\n", httpResponseCode);
     }
-    
-    http.end(); // CRITICAL: Frees up memory for MQTT
+
+    http.end();
     return resultUrl;
 }
 
-// --- CAPTURE & AWS NOTIFY ---
-
+// ── CAPTURE & REPORT ────────────────────────────────────────────────────────────────
+// Called when captureRequested is set (by GPIO ISR or MQTT cam_cmd).
 void captureAndSend() {
-    camera_fb_t * fb = esp_camera_fb_get();
+    camera_fb_t *fb = esp_camera_fb_get();
     if (!fb) {
-        Serial.println("Camera capture failed");
+        Serial.println("[CAM] ❌ Frame buffer capture failed");
         return;
     }
 
-    // 1. Send to Telegram (For Alerts)
-    Serial.println("Snap! Sending to Telegram...");
-    sendPhotoToTelegram(fb);
-
-    // 2. Send to S3 (For Frontend URL)
-    Serial.println("Uploading to S3...");
-    String s3Url = sendPhotoToS3(fb);
-    
-    // --- THIS IS THE NEW HANDSHAKE CODE ---
-    // If S3 upload worked, send the URL back to the Main IR Board
-    if (s3Url != "FAILED") {
-        StaticJsonDocument<200> doc;
-        doc["camera_id"] = CAMERA_ID;
-        doc["image_url"] = s3Url; 
-        
-        char buffer[200];
-        serializeJson(doc, buffer);
-        
-        // Publish to the internal topic the Main board is listening to!
-        mqttClient.publish("device/esp-001/camera_url", buffer);
-        Serial.println("Sent S3 URL back to Main Board!");
+    // ── Step 1: Choose the S3 PUT target URL ──────────────────────────────────
+    // Priority: pre-signed URL (secure) → fallback public-PUT URL (dev mode)
+    String targetUrl;
+    if (pendingPresignedUrl.length() > 10) {
+        targetUrl = pendingPresignedUrl;
+        Serial.println("[CAM] Using pre-signed URL from Master");
     } else {
-        Serial.println("S3 Upload Failed. Cannot send URL.");
+        // Fallback: construct a direct URL (requires public bucket write policy)
+        String bucketName = "railway-system-photos-01-533350584731-eu-north-1-an";
+        String region     = "eu-north-1";
+        String fileName   = "cracks/fallback_" + String(millis()) + "_" + CAMERA_ID + ".jpg";
+        targetUrl = "https://" + bucketName + ".s3." + region + ".amazonaws.com/" + fileName;
+        Serial.println("[CAM] ⚠️  No presigned URL — using fallback public PUT");
     }
-    // --------------------------------------
 
-    // WE DELETED THE OLD AWS NOTIFY STUFF HERE
-    
+    // Snapshot the local crack_id before clearing (loop() may not wait)
+    String localCrackId = pendingCrackId;
+
+    // Clear pending state now — we have local copies
+    pendingPresignedUrl = "";
+    pendingCrackId      = "";
+
+    // ── Step 2: Upload to S3 ────────────────────────────────────────────────────
+    Serial.println("[CAM] Uploading to S3...");
+    String s3Url = sendPhotoToS3(fb, targetUrl);
+
+    // ── Step 3: Send S3 object URL + crack_id back to Master via MQTT ───────
+    // Master's mqttCallback listens on device/esp-001/camera_url and will
+    // then publish the full unified alert to AWS IoT Core → Lambda → DynamoDB.
+    if (s3Url != "FAILED") {
+        StaticJsonDocument<300> doc;
+        doc["camera_id"] = CAMERA_ID;
+        doc["image_url"] = s3Url;
+        doc["crack_id"]  = localCrackId; // Echo back for Master correlation
+
+        char buffer[300];
+        serializeJson(doc, buffer);
+
+        if (mqttClient.publish("device/esp-001/camera_url", buffer)) {
+            Serial.println("[CAM] ✅ S3 URL reported to Master — crack_id=" + localCrackId);
+        } else {
+            Serial.println("[CAM] ❌ camera_url publish failed");
+        }
+    } else {
+        Serial.println("[CAM] S3 upload failed — not reporting to Master");
+    }
+
     esp_camera_fb_return(fb);
-    Serial.println("Cycle Complete.");
+    Serial.println("[CAM] Cycle complete.");
 }
 
 
@@ -167,28 +188,42 @@ void captureAndSend() {
 //     }
 // }
 
-// --- AWS CALLBACK (Listen for Friend's IR & Manual Overrides) ---
+// ── MQTT CALLBACK ──────────────────────────────────────────────────────────────────
 void mqttCallback(char* topic, byte* payload, unsigned int length) {
-    Serial.print("Message arrived on topic: ");
-    Serial.println(topic);
+    String topicStr = String(topic);
+    Serial.println("[MQTT] Received on: " + topicStr);
 
-    // Parse the incoming JSON properly
-    StaticJsonDocument<512> doc;
+    StaticJsonDocument<768> doc;
     DeserializationError error = deserializeJson(doc, payload, length);
-
     if (error) {
-        Serial.print("JSON Parse failed: ");
-        Serial.println(error.c_str());
+        Serial.println("[MQTT] JSON parse failed: " + String(error.c_str()));
         return;
     }
 
-    // Check if the payload says a crack was detected
+    // ── Handler 1: Master sends cam_cmd with crack_id + presigned_url ────────────
+    // Topic: device/esp-001/cam_cmd/<CAMERA_ID>  (e.g. .../cam_cmd/LEFT)
+    String camCmdTopic = "device/esp-001/cam_cmd/" + CAMERA_ID;
+    if (topicStr == camCmdTopic) {
+        pendingCrackId      = doc["crack_id"].as<String>();
+        pendingPresignedUrl = doc["presigned_url"].as<String>();
+
+        Serial.println("[MQTT] ✅ cam_cmd received:");
+        Serial.println("       crack_id     = " + pendingCrackId);
+        Serial.println("       presigned    = (" + String(pendingPresignedUrl.length()) + " chars)");
+
+        // Set the capture flag — loop() will call captureAndSend()
+        // GPIO ISR may also fire; both paths converge on the same flag.
+        captureRequested = true;
+        return;
+    }
+
+    // ── Handler 2: Generic crack_detected broadcast (legacy / test path) ───────
     if (doc["crack_detected"] == true || doc["crackDetected"] == true) {
-        Serial.println("MQTT TRIGGER: Crack event received!");
-        captureRequested = true; // Set the same flag the hardware uses
+        Serial.println("[MQTT] Legacy crack_detected trigger received");
+        captureRequested = true;
     }
 }
-// --- AWS CONNECT ---
+// ── AWS IoT CONNECT ───────────────────────────────────────────────────────────────
 void connectAWS() {
     net.setCACert(AWS_CERT_CA);
     net.setCertificate(AWS_CERT_CRT);
@@ -196,14 +231,23 @@ void connectAWS() {
     mqttClient.setServer(aws_endpoint, 8883);
     mqttClient.setCallback(mqttCallback);
 
-    Serial.print("Connecting to AWS IoT...");
+    Serial.print("[AWS] Connecting MQTT...");
     String clientId = "ESP32_CAM_" + CAMERA_ID;
     while (!mqttClient.connect(clientId.c_str())) {
         Serial.print(".");
         delay(1000);
     }
     Serial.println(" Connected!");
-    mqttClient.subscribe("device/esp-001/IR_Bottom"); // Listen to crack detection data
+
+    // Subscribe to the per-camera command topic so the Master can send
+    // {crack_id, presigned_url} directly to this camera node.
+    String camCmdTopic = "device/esp-001/cam_cmd/" + CAMERA_ID;
+    mqttClient.subscribe(camCmdTopic.c_str());
+    Serial.println("[AWS] Subscribed to cam_cmd: " + camCmdTopic);
+
+    // Also subscribe to the legacy IR broadcast topic (for test triggers)
+    mqttClient.subscribe("device/esp-001/IR_Bottom");
+    Serial.println("[AWS] Subscribed to IR_Bottom broadcast");
 }
 
 void setup() {

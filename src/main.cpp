@@ -1,5 +1,6 @@
 #include <WiFi.h>
 #include <WiFiClientSecure.h>
+#include <HTTPClient.h>       // For pre-signed URL fetch
 #include <PubSubClient.h>
 #include <Arduino.h>
 #include <ArduinoJson.h>
@@ -14,15 +15,20 @@ LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
-const int BUZZER_PIN = 18; // Used for YXDZ Buzzer
+const int BUZZER_PIN = 4; // Used for YXDZ Buzzer
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
 const char *ssid = "Redmi Note 10";
 const char *password = "200170201635";
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
-const char *CLIENT_ID = "esp32";
-const String DEVICE_ID = "esp-001";
-const char *SENSOR_ID = "IR_Bottom";
+const char *CLIENT_ID   = "esp32";
+const String DEVICE_ID  = "esp-001";
+const char *SENSOR_ID   = "IR_Bottom";
+
+// ── Pre-sign Lambda Function URL ──────────────────────────────────────────
+// Deploy aws/lambda_presign/lambda_function.py and paste the Function URL here.
+// Example: "https://abcdef1234.lambda-url.eu-north-1.on.aws/"
+const char *PRESIGN_LAMBDA_URL = "https://kmtogp7ysh7fbhoj6yrb5hlu7q0ubbhb.lambda-url.eu-north-1.on.aws/";
 
 String getIsoTimestamp();
 
@@ -31,9 +37,14 @@ void updateLocalDisplay(bool faultActive, String activeZone, int activeCh);
 int consecutiveCracks[3] = {0, 0, 0};
 bool pendingTrigger[3] = {false, false, false};
 unsigned long crackDetectedTime[3] = {0, 0, 0};
-bool waitingForCamera[3] = {false, false, false};
-unsigned long cameraWaitStart[3] = {0, 0, 0};
+bool waitingForCamera[3]           = {false, false, false};
+unsigned long cameraWaitStart[3]   = {0, 0, 0};
 unsigned long lastCriticalAlert[3] = {0, 0, 0};
+
+// ── Per-zone crack tracking ───────────────────────────────────────────────
+// Unique ID generated at detection time; echoed back by camera so the
+// Master can correlate the S3 URL with the correct DynamoDB row.
+String crackId[3] = {"", "", ""};
 
 unsigned long buzzerTurnOffTime = 0;
 bool buzzerActive = false;
@@ -282,33 +293,78 @@ void connectAWS()
   Serial.println("=============================\n");
 }
 
-// ================= Unified AWS Publisher =================
-void publishUnifiedAlert(String imageUrl, String sensorId, const IRScanResult &irData)
+// ================= Pre-signed URL Fetcher =================
+// Calls the presign Lambda (GET ?key=<objectKey>) and returns the URL.
+// The ESP32-CAM will PUT its JPEG directly to this URL — no public bucket needed.
+String fetchPresignedUrl(const String &objectKey)
 {
-  StaticJsonDocument<512> doc;
-  doc["SensorId"] = sensorId;
-  doc["deviceId"] = DEVICE_ID;
-  doc["timestamp"] = getIsoTimestamp();
-  doc["crackDetected"] = true;
-  doc["crack_detected"] = true;
-  
-  doc["status"] = "CRITICAL_DEFECT";
-  doc["irSensor"] = irData.minValue;
-  doc["image_url"] = imageUrl;
-  // Prefer frozen coordinates if available (captured at trigger time),
-  // otherwise fall back to the current live location.
+    WiFiClientSecure secureClient;
+    secureClient.setInsecure(); // CA check not needed; URL itself is the secret
+    HTTPClient http;
+
+    String url = String(PRESIGN_LAMBDA_URL) + "?key=" + objectKey;
+    Serial.println("[PRESIGN] Requesting: " + url);
+
+    http.begin(secureClient, url);
+    http.setTimeout(8000); // 8 s — generous for a cold Lambda start
+    int code = http.GET();
+    String result = "";
+
+    if (code == 200) {
+        result = http.getString();
+        result.trim();
+        Serial.println("[PRESIGN] ✅ URL received (len=" + String(result.length()) + ")");
+    } else {
+        Serial.printf("[PRESIGN] ❌ HTTP %d — camera will use fallback upload\n", code);
+    }
+    http.end();
+    return result;
+}
+
+// ================= Unified AWS Publisher =================
+void publishUnifiedAlert(String imageUrl, String sensorId,
+                         const IRScanResult &irData,
+                         String crack_id = "", int severity = 0)
+{
+  StaticJsonDocument<768> doc;
+
+  // ── Identity ──────────────────────────────────────────────────────────────
+  doc["SensorId"]      = sensorId;
+  doc["deviceId"]      = DEVICE_ID;
+  doc["timestamp"]     = getIsoTimestamp();
+
+  // ── Crack event payload ───────────────────────────────────────────────────
+  doc["crack_detected"]  = true;
+  doc["crackDetected"]   = true;  // camelCase alias for Lambda compatibility
+  doc["status"]          = "CRITICAL_DEFECT";
+  doc["irSensor"]        = irData.minValue;
+  doc["image_url"]       = imageUrl;
+
+  // ── Unique event ID (links DynamoDB row ↔ S3 object) ─────────────────────
+  doc["crack_id"] = crack_id.length() > 0
+      ? crack_id
+      : ("auto_" + DEVICE_ID + "_" + String(millis()));
+
+  // ── Severity (0-100 scale: 100 = strongest crack signal) ─────────────────
+  // Uses the IR minValue: lower ADC reading = more light gap = worse crack
+  doc["severity"] = severity > 0
+      ? severity
+      : constrain(map(irData.minValue, 0, 4095, 100, 0), 0, 100);
+
+  // ── GPS (stub: left at 0.0 until GPS module is re-enabled) ───────────────
   // bool useFrozen = gps.isFrozenValid();
   // double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
   // double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  // bool valid = useFrozen ? gps.isFrozenValid() : gps.isLiveLocationValid();
+  // doc["latitude"]     = useFrozen ? lat : 0.0;
+  // doc["longitude"]    = useFrozen ? lng : 0.0;
+  // doc["locationValid"] = useFrozen;
+  doc["latitude"]      = 0.0;
+  doc["longitude"]     = 0.0;
+  doc["locationValid"] = false;
 
-  // doc["latitude"] = valid ? lat : 0.0;
-  // doc["longitude"] = valid ? lng : 0.0;
-  // doc["gps_valid"] = valid;
-
+  // ── Raw IR array ──────────────────────────────────────────────────────────
   JsonArray irArray = doc.createNestedArray("irArray");
-  for (int i = 0; i < IR_SENSOR_COUNT; ++i)
-  {
+  for (int i = 0; i < IR_SENSOR_COUNT; ++i) {
     irArray.add(irData.values[i]);
   }
 
@@ -316,12 +372,9 @@ void publishUnifiedAlert(String imageUrl, String sensorId, const IRScanResult &i
   serializeJson(doc, payload);
   String topic = "device/" + DEVICE_ID + "/IR_Bottom";
 
-  if (client.publish(topic.c_str(), payload.c_str()))
-  {
-    Serial.println("\n🚨 UNIFIED ALERT PUBLISHED: " + payload);
-  }
-  else
-  {
+  if (client.publish(topic.c_str(), payload.c_str())) {
+    Serial.println("\n🚨 UNIFIED ALERT PUBLISHED → DynamoDB row: crack_id=" + String(doc["crack_id"].as<String>()));
+  } else {
     Serial.println("❌ Failed to publish unified alert.");
   }
 }
@@ -334,27 +387,43 @@ void mqttCallback(char *topic, byte *payload, unsigned int length)
 {
     if (String(topic) == "device/esp-001/camera_url")
     {
-        StaticJsonDocument<512> doc;
+        StaticJsonDocument<768> doc;
         DeserializationError error = deserializeJson(doc, payload, length);
+        if (error) {
+            Serial.println("[MQTT CB] JSON parse failed: " + String(error.c_str()));
+            return;
+        }
 
-        if (!error)
+        String camId = doc["camera_id"].as<String>(); // "LEFT", "CENTER", or "RIGHT"
+        String url   = doc["image_url"].as<String>();
+
+        // Pick up the echoed crack_id — fall back to locally stored one
+        // so the row is always traceable even if the camera drops that field.
+        String receivedCrackId = doc["crack_id"] | "";
+
+        // Map camera name → zone index
+        int z = -1;
+        if      (camId == "LEFT")   z = 0;
+        else if (camId == "CENTER") z = 1;
+        else if (camId == "RIGHT")  z = 2;
+
+        if (z != -1 && waitingForCamera[z])
         {
-            String camId = doc["camera_id"].as<String>(); // "LEFT", "CENTER", or "RIGHT"
-            String url = doc["image_url"].as<String>();
-            
-            // Map the string ID to our array index (0, 1, or 2)
-            int z = -1;
-            if (camId == "LEFT") z = 0;
-            else if (camId == "CENTER") z = 1;
-            else if (camId == "RIGHT") z = 2;
+            // Use the echoed crack_id; fall back to our locally generated one
+            String resolvedCrackId = (receivedCrackId.length() > 0)
+                ? receivedCrackId
+                : crackId[z];
 
-            // If we found a valid zone and were actually waiting for it
-            if (z != -1 && waitingForCamera[z])
-            {
-                Serial.println("Received S3 URL from Camera: " + camId);
-                publishUnifiedAlert(url, camId, lastIrScanResult[z]); 
-                waitingForCamera[z] = false;
-            }
+            // Severity: how far below 4095 (max ADC) the crack reading was
+            int severity = constrain(
+                map(lastIrScanResult[z].minValue, 0, 4095, 100, 0), 0, 100);
+
+            Serial.println("[MQTT CB] S3 URL confirmed for [" + camId
+                + "] — crack_id=" + resolvedCrackId
+                + ", severity=" + String(severity) + "%");
+
+            publishUnifiedAlert(url, camId, lastIrScanResult[z], resolvedCrackId, severity);
+            waitingForCamera[z] = false;
         }
     }
 }
@@ -523,20 +592,27 @@ void loop()
             activeFaultCh = currentZones.zone[z].minValueIndex; 
           }
 
-            // PHASE 1: Detect Crack -> Start Offset Delay Timer
+            // PHASE 1: Detect Crack → Start Offset Delay Timer
             if (crack_detected && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
             {
-                pendingTrigger[z] = true;
+                pendingTrigger[z]    = true;
                 crackDetectedTime[z] = now;
-                lastIrScanResult[z] = currentZones.zone[z]; // Save the IR state for when camera returns
+                lastIrScanResult[z]  = currentZones.zone[z]; // Snapshot IR state
+
+                // Generate a unique, traceable Crack ID for this event.
+                // Format: crack_<deviceId>_<zone>_<millis>
+                crackId[z] = "crack_" + DEVICE_ID + "_" + ZONE_NAMES[z] + "_" + String(now);
+
                 // gps.freezeCoordinates(); // Lock GPS at exact detection point
 
-                // SOUND THE BUZZER
+                // Sound the buzzer
                 digitalWrite(BUZZER_PIN, HIGH);
-                buzzerTurnOffTime = now + 1000; // Buzz for 1000 ms (1 second)
+                buzzerTurnOffTime = now + 1000;
                 buzzerActive = true;
-                
-                Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]! Waiting " + String(OFFSET_DELAY_MS) + "ms to align camera...");
+
+                Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]!");
+                Serial.println("   CrackID: " + crackId[z]);
+                Serial.println("   Waiting " + String(OFFSET_DELAY_MS) + "ms for camera alignment...");
             }
         }
     }
@@ -546,28 +622,58 @@ void loop()
     // =========================================================
     for (int z = 0; z < 3; z++)
     {
-        // PHASE 2: Delay passed -> Fire Camera Trigger
+        // PHASE 2: d/v delay elapsed → fetch pre-signed URL, command camera, fire GPIO
         if (pendingTrigger[z] && (now - crackDetectedTime[z] >= OFFSET_DELAY_MS))
         {
-            pendingTrigger[z] = false;
-            waitingForCamera[z] = true;
-            cameraWaitStart[z] = now;
+            pendingTrigger[z]    = false;
+            waitingForCamera[z]  = true;
+            cameraWaitStart[z]   = now;
             lastCriticalAlert[z] = now;
-            lastHeartbeat = now; // Reset heartbeat
+            lastHeartbeat        = now; // Reset heartbeat so we don't spam
 
-            // FIRE THE SPECIFIC CAMERA
+            // ── Step A: Build the S3 object key ──────────────────────────────
+            String objectKey = "cracks/" + crackId[z] + ".jpg";
+
+            // ── Step B: Fetch pre-signed PUT URL from the presign Lambda ──────
+            // This HTTP GET is synchronous but fast (< 2 s typical).
+            // The camera will use this URL for a direct, authenticated PUT to S3.
+            String presignedUrl = fetchPresignedUrl(objectKey);
+
+            // ── Step C: Send MQTT command to the specific camera ──────────────
+            // The camera subscribes to device/<DEVICE_ID>/cam_cmd/<ZONE>
+            // and will use crack_id + presigned_url from this command.
+            StaticJsonDocument<768> cmdDoc;
+            cmdDoc["crack_id"]      = crackId[z];
+            cmdDoc["presigned_url"] = presignedUrl; // Empty string if presign failed
+            String cmdPayload;
+            serializeJson(cmdDoc, cmdPayload);
+
+            String cmdTopic = "device/" + DEVICE_ID + "/cam_cmd/" + ZONE_NAMES[z];
+            if (client.publish(cmdTopic.c_str(), cmdPayload.c_str())) {
+                Serial.println("📤 cam_cmd sent to [" + ZONE_NAMES[z]
+                    + "] — crack_id=" + crackId[z]
+                    + (presignedUrl.length() > 10 ? " ✅ presigned" : " ⚠️ no presigned URL"));
+            } else {
+                Serial.println("❌ cam_cmd publish failed for [" + ZONE_NAMES[z] + "]");
+            }
+
+            // ── Step D: Fire GPIO hardware trigger as a reliable backup ───────
+            // The camera ISR sets captureRequested = true on the RISING edge.
+            // Even if MQTT is slow, the GPIO pulse guarantees the camera wakes up.
             digitalWrite(CAM_TRIGGERS[z], HIGH);
-            delay(20); // 0.5ms pulse is plenty to trip the interrupt
+            delay(20); // 20 ms pulse — well above ISR debounce
             digitalWrite(CAM_TRIGGERS[z], LOW);
 
-            Serial.println("📸 Hardware triggered [" + ZONE_NAMES[z] + "]! Waiting for S3 URL...");
+            Serial.println("📸 Hardware GPIO fired [" + ZONE_NAMES[z] + "]. Waiting for S3 confirm...");
         }
 
-        // PHASE 3: Timeout if Camera Crashes or WiFi fails
+        // PHASE 3: Timeout if camera crashes or upload fails within 60 s
         if (waitingForCamera[z] && (now - cameraWaitStart[z] > 60000))
         {
-            Serial.println("❌ Camera upload timed out for [" + ZONE_NAMES[z] + "]. Publishing alert without image.");
-            publishUnifiedAlert("No Image (Timeout)", ZONE_NAMES[z], lastIrScanResult[z]);
+            int severity = constrain(map(lastIrScanResult[z].minValue, 0, 4095, 100, 0), 0, 100);
+            Serial.println("❌ Camera upload timed out for [" + ZONE_NAMES[z] + "]. Publishing without image.");
+            publishUnifiedAlert("No Image (Timeout)", ZONE_NAMES[z],
+                                lastIrScanResult[z], crackId[z], severity);
             waitingForCamera[z] = false;
         }
     }
