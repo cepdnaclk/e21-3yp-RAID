@@ -6,6 +6,11 @@
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
 // #include "sensor configuration/gps sensors/gps_module.h"
+#include <LiquidCrystal_I2C.h>
+
+// Initialize the 20x4 LCD Screen. 
+// Most PCF8574 backpacks default to address 0x27. If yours is blank, change to 0x3F.
+LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
@@ -21,7 +26,7 @@ const char *SENSOR_ID = "IR_Bottom";
 
 String getIsoTimestamp();
 
-
+void updateLocalDisplay(bool faultActive, String activeZone, int activeCh); 
 
 int consecutiveCracks[3] = {0, 0, 0};
 bool pendingTrigger[3] = {false, false, false};
@@ -32,6 +37,9 @@ unsigned long lastCriticalAlert[3] = {0, 0, 0};
 
 unsigned long buzzerTurnOffTime = 0;
 bool buzzerActive = false;
+
+unsigned long lastDisplayRefresh = 0;
+constexpr unsigned long DISPLAY_REFRESH_MS = 250;
 
 IRScanResult lastIrScanResult[3]; // Store values per zone while waiting for camera
 MultiZoneScanResult currentZones; // Globally available for the heartbeat
@@ -405,7 +413,19 @@ void setup()
   digitalWrite(BUZZER_PIN, LOW);
 
   Serial.begin(115200);
+   Wire.begin(8, 9, 100000); 
+  Serial.println("[I2C] Bus Active.");
+
+
+lcd.init();
+lcd.backlight();
+lcd.setCursor(0, 0);
+lcd.print("RAILWAY BOT V1.0");
+
   delay(1000); // Let Serial stabilize
+
+ 
+
 
   Serial.println("\n\n##############################");
   Serial.println("#   ESP32 AWS IoT Boot       #");
@@ -471,6 +491,10 @@ void loop()
     client.loop();
     unsigned long now = millis();
 
+    static bool anyFaultActive = false;
+    static String activeFaultZone = "";
+    static int activeFaultCh = -1;
+
     // =========================================================
     // 1. SCAN SENSORS & TRACK DELAYS
     // =========================================================
@@ -480,6 +504,8 @@ void loop()
         currentZones = scanAllZones(); // Read all 3 arrays
         irScanReady = true;
 
+        anyFaultActive = false;
+        
         for (int z = 0; z < 3; z++)
         {
             // Debounce logic per zone
@@ -490,6 +516,12 @@ void loop()
             }
 
             bool crack_detected = (consecutiveCracks[z] >= REQUIRED_CONSECUTIVE_CRACKS);
+
+            if (crack_detected) {
+            anyFaultActive = true;
+            activeFaultZone = ZONE_NAMES[z];
+            activeFaultCh = currentZones.zone[z].minValueIndex; 
+          }
 
             // PHASE 1: Detect Crack -> Start Offset Delay Timer
             if (crack_detected && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
@@ -541,7 +573,15 @@ void loop()
     }
 
     // =========================================================
-    // 3. HYBRID HEARTBEAT LOGIC
+    // 3. REFRESH LOCAL DISPLAY INTERFACE
+    // =========================================================
+    if (now - lastDisplayRefresh >= DISPLAY_REFRESH_MS) {
+        lastDisplayRefresh = now;
+        updateLocalDisplay(anyFaultActive, activeFaultZone, activeFaultCh);
+    }
+
+    // =========================================================
+    // 4. HYBRID HEARTBEAT LOGIC
     // =========================================================
     if (now - lastHeartbeat >= 30000)
     {
@@ -578,11 +618,48 @@ void loop()
     }
 
     // =========================================================
-    // 4. BUZZER MANAGEMENT
+    // 5. BUZZER MANAGEMENT
     // =========================================================
     if (buzzerActive && (now >= buzzerTurnOffTime))
     {
         digitalWrite(BUZZER_PIN, LOW); // Turn off the buzzer
         buzzerActive = false;
+    }
+}
+
+void updateLocalDisplay(bool faultActive, String activeZone, int activeCh) {
+    static bool lastFaultState = false;
+    
+    // --- ANTI-CORRUPTION ENGINE ---
+    // If the system switches states, force the I2C backpack to re-initialize.
+    // This instantly fixes any 4-bit synchronization loss caused by camera noise.
+    if (faultActive != lastFaultState) {
+        lcd.init(); 
+        lastFaultState = faultActive;
+    }
+
+    lcd.clear(); // Clear out any corrupted remnant characters from the screen memory
+
+    if (faultActive) {
+        // Line 1 (Max 20 chars)
+        lcd.setCursor(0, 0); 
+        lcd.print("!! CRACK DETECTED !!");
+        
+        // Line 2
+        lcd.setCursor(0, 1); 
+        lcd.print("ZONE: [" + activeZone + "]");
+        
+        // Line 3
+        lcd.setCursor(0, 2); 
+        lcd.print("CHANNEL TRIP: " + String(activeCh));
+        
+        // Line 4
+        lcd.setCursor(0, 3); 
+        lcd.print("BUZZER ACTIVE (1S)  ");
+    } else {
+        lcd.setCursor(0, 0); lcd.print("SYSTEM: NOMINAL RUN ");
+        lcd.setCursor(0, 1); lcd.print("SCANNING ALL RAILS  ");
+        lcd.setCursor(0, 2); lcd.print("WIFI CONNECTION: OK ");
+        lcd.setCursor(0, 3); lcd.print("AWS CLOUD LINKED    ");
     }
 }

@@ -7,6 +7,7 @@ struct IRScanResult
 {
   bool crackDetected;
   int minValue;
+  int minValueIndex; // Add this line
   int values[IR_SENSOR_COUNT];
 };
 
