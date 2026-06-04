@@ -85,6 +85,7 @@ MultiZoneScanResult scanAllZones()
             if (isActiveForZone && results.zone[z].values[i] < results.zone[z].minValue)
             {
                 results.zone[z].minValue = results.zone[z].values[i];
+                results.zone[z].minValueIndex = i;
             }
         }
     }
