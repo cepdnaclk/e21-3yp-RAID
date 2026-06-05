@@ -7,7 +7,7 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
-// #include "sensor configuration/gps sensors/gps_module.h"
+#include "sensor configuration/gps sensors/gps_module.h"
 #include <LiquidCrystal_I2C.h>
 
 // Initialize the 20x4 LCD Screen. 
@@ -71,7 +71,7 @@ IRScanResult lastIrScanResult[3]; // Store values per zone while waiting for cam
 MultiZoneScanResult currentZones; // Globally available for the heartbeat
 
 // GPS module instance (uses TinyGPS++ under the hood)
-// GPSModule gps;
+GPSModule gps;
 
 // ================= AWS IoT =================
 WiFiClientSecure espClient;
@@ -356,16 +356,13 @@ void publishUnifiedAlert(String imageUrl, String sensorId,
       ? severity
       : constrain(map(irData.minValue, 0, 4095, 100, 0), 0, 100);
 
-  // ── GPS (stub: left at 0.0 until GPS module is re-enabled) ───────────────
-  // bool useFrozen = gps.isFrozenValid();
-  // double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
-  // double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  // doc["latitude"]     = useFrozen ? lat : 0.0;
-  // doc["longitude"]    = useFrozen ? lng : 0.0;
-  // doc["locationValid"] = useFrozen;
-  doc["latitude"]      = 0.0;
-  doc["longitude"]     = 0.0;
-  doc["locationValid"] = false;
+  // ── GPS — frozen at crack detection moment ────────────────────────────────
+  bool useFrozen = gps.isFrozenValid();
+  double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
+  double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
+  doc["latitude"]      = useFrozen ? lat : 0.0;
+  doc["longitude"]     = useFrozen ? lng : 0.0;
+  doc["locationValid"] = useFrozen;
 
   // ── Raw IR array ──────────────────────────────────────────────────────────
   JsonArray irArray = doc.createNestedArray("irArray");
@@ -517,7 +514,8 @@ lcd.print("RAILWAY BOT V1.0");
   syncTime();
   connectAWS();
   initIRSensors();
-  // gps.begin();
+  gps.begin();
+  gps.waitForFix(4);
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -551,7 +549,7 @@ lcd.print("RAILWAY BOT V1.0");
 void loop()
 {
     static bool irScanReady = false;
-    // gps.update();
+    gps.update();
 
     if (!client.connected())
     {
@@ -608,7 +606,7 @@ void loop()
                 // Format: crack_<deviceId>_<zone>_<millis>
                 crackId[z] = "crack_" + DEVICE_ID + "_" + ZONE_NAMES[z] + "_" + String(now);
 
-                // gps.freezeCoordinates(); // Lock GPS at exact detection point
+                gps.freezeCoordinates(); // Lock GPS at exact detection point
 
                 // Sound the buzzer
                 digitalWrite(BUZZER_PIN, HIGH);
@@ -714,10 +712,10 @@ void loop()
         }
         doc["irSensor"] = minHeartbeatIr;
 
-        // bool liveValid = gps.isLiveLocationValid();
-        // doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
-        // doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
-        // doc["gps_valid"] = liveValid;
+        bool liveValid = gps.isLiveLocationValid();
+        doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
+        doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
+        doc["gps_valid"] = liveValid;
 
         String payload;
         serializeJson(doc, payload);

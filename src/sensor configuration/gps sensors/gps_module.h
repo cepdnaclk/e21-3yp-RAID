@@ -6,8 +6,8 @@
 #include <HardwareSerial.h>
 
 // Define the ESP32 Hardware UART pins for the NEO-6M
-#define GPS_RX_PIN 16
-#define GPS_TX_PIN 17
+#define GPS_RX_PIN 1
+#define GPS_TX_PIN 2
 #define GPS_BAUD_RATE 9600
 
 class GPSModule {
@@ -36,9 +36,11 @@ public:
     bool isLiveLocationValid();
     int getSatellites();
 
+    // Block until GPS has a valid fix with enough satellites
+    void waitForFix(int minSatellites = 4);
+
     // Call this exact moment the camera detects a crack
     void freezeCoordinates();
-
     // Retrieve the frozen coordinates for your MQTT JSON payload
     double getFrozenLat();
     double getFrozenLng();

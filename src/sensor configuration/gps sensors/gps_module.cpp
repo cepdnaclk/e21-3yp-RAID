@@ -20,6 +20,24 @@ void GPSModule::update() {
     }
 }
 
+void GPSModule::waitForFix(int minSatellites) {
+    Serial.println("⏳ Waiting for GPS fix — do not start scanning yet...");
+    while (true) {
+        update();
+        if (gps.location.isValid() && gps.satellites.value() >= minSatellites) {
+            Serial.print("✅ GPS fix acquired! Satellites: ");
+            Serial.println(gps.satellites.value());
+            Serial.print("📍 Initial position: ");
+            Serial.print(gps.location.lat(), 6);
+            Serial.print(", ");
+            Serial.println(gps.location.lng(), 6);
+            break;
+        }
+        Serial.print(".");
+        delay(500);
+    }
+}
+
 // ---------------- LIVE DATA METHODS ----------------
 
 double GPSModule::getLiveLat() {
@@ -43,14 +61,20 @@ int GPSModule::getSatellites() {
 
 void GPSModule::freezeCoordinates() {
     // Lock in the exact coordinates at the moment the brake is applied
-    frozenLat = gps.location.lat();
-    frozenLng = gps.location.lng();
+    frozenLat   = gps.location.lat();
+    frozenLng   = gps.location.lng();
     frozenValid = gps.location.isValid();
-    
-    Serial.print("📍 Coordinates Frozen: ");
-    Serial.print(frozenLat, 6);
-    Serial.print(", ");
-    Serial.println(frozenLng, 6);
+
+    if (!frozenValid) {
+        Serial.println("⚠️  GPS freeze attempted but NO FIX — coordinates stored as 0.0, 0.0");
+    } else {
+        Serial.print("📍 Coordinates Frozen: ");
+        Serial.print(frozenLat, 6);
+        Serial.print(", ");
+        Serial.println(frozenLng, 6);
+        Serial.print("🛰️  Satellites locked: ");
+        Serial.println(gps.satellites.value());
+    }
 }
 
 double GPSModule::getFrozenLat() {
