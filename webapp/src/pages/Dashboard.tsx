@@ -23,13 +23,24 @@ export default function Dashboard() {
   const [selectedCrack, setSelectedCrack] = useState<any>(null);
   const [showCrackDetail, setShowCrackDetail] = useState(false);
 
-  // Device 1: Real data from backend
-  const device1 = useTelemetry("esp-001", "IR_Bottom");
+  // Real ESP32 device "esp-001" has 3 sensor positions: LEFT, RIGHT, CENTER.
+  // Each is a separate DynamoDB partition key, so we need 3 queries.
+  const sensorLeft   = useTelemetry("esp-001", "LEFT");
+  const sensorRight  = useTelemetry("esp-001", "RIGHT");
+  const sensorCenter = useTelemetry("esp-001", "CENTER");
 
-  // Device 2: Mock data
+  // Merge all three sensor streams into one "device1" object
+  const device1 = {
+    liveCracks: [
+      ...sensorLeft.liveCracks,
+      ...sensorRight.liveCracks,
+      ...sensorCenter.liveCracks,
+    ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()),
+    isConnected: sensorLeft.isConnected || sensorRight.isConnected || sensorCenter.isConnected,
+  };
+
+  // Device 2 & 3: Mock data (for load balancing demo — keep as-is)
   const device2 = useMockTelemetry("esp-002-mock", "IR_Bottom");
-
-  // Device 3: Mock data
   const device3 = useMockTelemetry("esp-003-mock", "IR_Bottom");
 
   // Total number of detected events across all devices
@@ -127,7 +138,7 @@ export default function Dashboard() {
             <div className="flex items-center gap-4 mt-2">
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                <span className="text-sm text-emerald-200">esp-001: Live</span>
+                <span className="text-sm text-emerald-200">raid-robot-01: Live</span>
               </div>
               <div className="flex items-center gap-2">
                 <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
@@ -369,6 +380,7 @@ function DetailedDeviceView({
         <table className="w-full text-left text-sm">
           <thead className="bg-slate-50 border-b border-slate-200">
             <tr>
+              <th className="p-4 font-semibold text-slate-600">Sensor</th>
               <th className="p-4 font-semibold text-slate-600">Time</th>
               <th className="p-4 font-semibold text-slate-600">Location</th>
               <th className="p-4 font-semibold text-slate-600">Status</th>
@@ -378,31 +390,46 @@ function DetailedDeviceView({
           <tbody className="divide-y divide-slate-100">
             {liveCracks.length === 0 ? (
               <tr>
-                <td colSpan={4} className="p-8 text-center text-slate-400 italic">
+                <td colSpan={5} className="p-8 text-center text-slate-400 italic">
                   No detections yet. Awaiting telemetry data.
                 </td>
               </tr>
             ) : (
               liveCracks.map((crack, index) => (
                 <tr key={index} className="hover:bg-slate-50 transition-colors">
+                  <td className="p-4">
+                    {crack.sensorId && (
+                      <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                        crack.sensorId === 'LEFT'   ? 'bg-blue-100 text-blue-700' :
+                        crack.sensorId === 'RIGHT'  ? 'bg-purple-100 text-purple-700' :
+                        crack.sensorId === 'CENTER' ? 'bg-orange-100 text-orange-700' :
+                        'bg-slate-100 text-slate-600'
+                      }`}>
+                        {crack.sensorId}
+                      </span>
+                    )}
+                  </td>
                   <td className="p-4 font-medium text-slate-900">
                     {crack.timestamp ? new Date(crack.timestamp).toLocaleTimeString() : 'N/A'}
                   </td>
                   <td className="p-4">
-                    <div className="text-slate-900 font-medium">{crack.km?.toFixed(1)} km</div>
+                    <div className="text-slate-900 font-medium text-xs">
+                      {crack.latitude ? `${Number(crack.latitude).toFixed(4)}° N` : 'No GPS'}
+                    </div>
                     <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
                       <MapPin size={12} />
-                      {crack.gps?.lat?.toFixed(4)} N, {crack.gps?.lng?.toFixed(4)} E
+                      {crack.longitude ? `${Number(crack.longitude).toFixed(4)}° E` : ''}
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${crack.status === 'confirmed'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : crack.status === 'pending'
-                          ? 'bg-amber-100 text-amber-700'
-                          : 'bg-slate-100 text-slate-600'
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${
+                        crack.status === 'CRACK' || crack.status === 'CRITICAL_DEFECT'
+                          ? 'bg-rose-100 text-rose-700'
+                          : crack.crack_detected
+                            ? 'bg-amber-100 text-amber-700'
+                            : 'bg-slate-100 text-slate-600'
                       }`}>
-                      {crack.status}
+                      {crack.status || (crack.crack_detected ? 'CRACK' : 'CLEAR')}
                     </span>
                   </td>
                   <td className="p-4 text-right">

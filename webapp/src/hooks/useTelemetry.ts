@@ -101,9 +101,17 @@ export function useTelemetry(deviceId: string, sensorId: string) {
 
   useEffect(() => {
     // 1. Fetch Historical Data (Cold Path)
+    // NOTE: The URL is /api/cracks/{deviceId}/{sensorId}
+    // The controller passes these to getCracksByDeviceAndSensor(deviceId, sensorId)
+    // The repository queries DynamoDB WHERE SensorID = sensorId AND deviceId = deviceId
+    // So sensorId here MUST match the DynamoDB Partition Key value (e.g. "LEFT", "RIGHT", "CENTER")
     fetch(`http://localhost:8080/api/cracks/${deviceId}/${sensorId}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then(data => {
+        console.log(`[useTelemetry] Fetched ${Array.isArray(data) ? data.length : 0} records for ${deviceId}/${sensorId}`);
         const normalized = (Array.isArray(data) ? data : [])
           .map(normalizeCrackEvent)
           .reverse();
