@@ -4,8 +4,18 @@
 #include <Arduino.h>
 
 // --- 1. CREDENTIALS ---
-const char* ssid = "Redmi Note 10";
-const char* password = "200170201635";
+struct WiFiCredential {
+    const char* ssid;
+    const char* password;
+};
+
+const WiFiCredential wifiNetworks[] = {
+    {"Redmi Note 10", "200170201635"}, // WiFi Network 1 (default)
+    {"Suvini", "suvini12345678"},        // WiFi Network 2
+    {"Tharu02", "magene12"},  // WiFi Network 3
+    {"V2027", "Abcd1234"}   // WiFi Network 4
+};
+const int wifiNetworkCount = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
 const char* botToken = "8453673141:AAHxgehOW__-7LuVvlmm7xqpEcW9zXRj3QA";
 const char* chatId = "1681826822";
 const char* aws_endpoint = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";

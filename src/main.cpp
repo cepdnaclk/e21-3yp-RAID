@@ -1,4 +1,5 @@
 #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <HTTPClient.h>       // For pre-signed URL fetch
 #include <PubSubClient.h>
@@ -18,8 +19,22 @@ const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
 const int BUZZER_PIN = 4; // Used for YXDZ Buzzer
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
-const char *ssid = "Redmi Note 10";
-const char *password = "200170201635";
+
+// WiFi Multi Configuration (define up to 4 fallback WiFi networks)
+struct WiFiCredential {
+    const char* ssid;
+    const char* password;
+};
+
+const WiFiCredential wifiNetworks[] = {
+    {"Redmi Note 10", "200170201635"}, // WiFi Network 1 (default)
+    {"Suvini", "suvini12345678"},        // WiFi Network 2
+    {"Tharu02", "magene12"},  // WiFi Network 3
+    {"V2027", "Abcd1234"}   // WiFi Network 4
+};
+const int wifiNetworkCount = sizeof(wifiNetworks) / sizeof(wifiNetworks[0]);
+
+WiFiMulti wifiMulti;
 const char *mqtt_server = "a141eqbs4ue48l-ats.iot.eu-north-1.amazonaws.com";
 const char *CLIENT_ID   = "esp32";
 const String DEVICE_ID  = "esp-001";
@@ -173,42 +188,30 @@ String mqttStateToString(int state)
 void connectWiFi()
 {
   Serial.println("\n========== WiFi ==========");
-  Serial.print("Target SSID  : ");
-  Serial.println(ssid);
   Serial.print("Chip MAC     : ");
   Serial.println(WiFi.macAddress());
-  Serial.println("Starting WiFi connection...");
+  Serial.println("Starting WiFi Multi connection...");
 
   WiFi.mode(WIFI_STA);
-  WiFi.disconnect(true);
-  delay(100);
-  WiFi.begin(ssid, password);
+  
+  // Register all configured access points to WiFiMulti (only do this once)
+  static bool APsRegistered = false;
+  if (!APsRegistered) {
+    for (int i = 0; i < wifiNetworkCount; i++) {
+      wifiMulti.addAP(wifiNetworks[i].ssid, wifiNetworks[i].password);
+      Serial.printf("  Registered WiFi AP: %s\n", wifiNetworks[i].ssid);
+    }
+    APsRegistered = true;
+  }
 
   int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED)
+  // wifiMulti.run() will scan, compare signal strengths of visible known networks,
+  // and connect to the strongest available AP automatically.
+  while (wifiMulti.run() != WL_CONNECTED)
   {
     delay(1000);
     attempts++;
-    Serial.printf("  [%2ds] Status: %d", attempts, WiFi.status());
-    // Status codes: 0=IDLE, 1=NO_SSID, 3=CONNECTED, 4=CONNECT_FAILED, 6=DISCONNECTED
-    switch (WiFi.status())
-    {
-    case WL_NO_SSID_AVAIL:
-      Serial.print(" -> SSID NOT FOUND");
-      break;
-    case WL_CONNECT_FAILED:
-      Serial.print(" -> WRONG PASSWORD / AUTH FAILED");
-      break;
-    case WL_CONNECTION_LOST:
-      Serial.print(" -> CONNECTION LOST");
-      break;
-    case WL_DISCONNECTED:
-      Serial.print(" -> DISCONNECTED (trying...)");
-      break;
-    default:
-      break;
-    }
-    Serial.println();
+    Serial.printf("  [%2ds] Status: %d (Connecting to available WiFi...)\n", attempts, WiFi.status());
 
     if (attempts >= 30)
     {
@@ -217,6 +220,8 @@ void connectWiFi()
     }
   }
   Serial.println("  >> WiFi CONNECTED!");
+  Serial.print("  Connected SSID: ");
+  Serial.println(WiFi.SSID());
   Serial.print("  IP Address  : ");
   Serial.println(WiFi.localIP());
   Serial.print("  Gateway     : ");

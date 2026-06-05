@@ -1,4 +1,5 @@
  #include <WiFi.h>
+#include <WiFiMulti.h>
 #include <WiFiClientSecure.h>
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
@@ -49,6 +50,7 @@ void IRAM_ATTR onHardwareTrigger() {
 
 WiFiClientSecure net;
 PubSubClient mqttClient(net);
+WiFiMulti wifiMulti;
 
 // --- TELEGRAM UPLOAD ---
 String sendPhotoToTelegram(camera_fb_t *fb) {
@@ -291,9 +293,13 @@ void setup() {
     Serial.println(WiFi.SSID(i));
     }
     // 3. WIFI & TIME SYNC
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) { delay(500); Serial.print("."); }
-    Serial.println("\nWiFi Connected");
+    for (int i = 0; i < wifiNetworkCount; i++) {
+        wifiMulti.addAP(wifiNetworks[i].ssid, wifiNetworks[i].password);
+        Serial.printf("  Registered WiFi AP: %s\n", wifiNetworks[i].ssid);
+    }
+    Serial.println("Connecting to WiFi using WiFiMulti...");
+    while (wifiMulti.run() != WL_CONNECTED) { delay(500); Serial.print("."); }
+    Serial.println("\nWiFi Connected! SSID: " + WiFi.SSID());
 
     configTime(0, 0, "pool.ntp.org", "time.nist.gov");
     Serial.print("Syncing Time");
