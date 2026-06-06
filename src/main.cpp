@@ -8,6 +8,7 @@
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_module.h"
+#include "sensor configuration/encoder/encoder_odometry.h"
 #include <LiquidCrystal_I2C.h>
 
 // Initialize the 20x4 LCD Screen. 
@@ -326,6 +327,20 @@ String fetchPresignedUrl(const String &objectKey)
     return result;
 }
 
+
+// ================= Dead Reckoning Position Calculator =================
+// Projects forward from last GPS anchor using encoder distance + bearing
+void getDeadReckonedCoords(double &lat, double &lng)
+{
+    float  deltaM  = encoder_getDeltaM();        // metres since last GPS anchor
+    double bearRad = enc_lastBearing * DEG_TO_RAD;
+    const double R = 6371000.0;
+
+    // Project forward from the ANCHOR position, not the origin
+    lat = enc_anchorLat + (deltaM * cos(bearRad)) / R * RAD_TO_DEG;
+    lng = enc_anchorLng + (deltaM * sin(bearRad)) /
+          (R * cos(enc_anchorLat * DEG_TO_RAD)) * RAD_TO_DEG;
+}
 // ================= Unified AWS Publisher =================
 void publishUnifiedAlert(String imageUrl, String sensorId,
                          const IRScanResult &irData,
@@ -356,13 +371,31 @@ void publishUnifiedAlert(String imageUrl, String sensorId,
       ? severity
       : constrain(map(irData.minValue, 0, 4095, 100, 0), 0, 100);
 
-  // ── GPS — frozen at crack detection moment ────────────────────────────────
-  bool useFrozen = gps.isFrozenValid();
-  double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
-  double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  doc["latitude"]      = useFrozen ? lat : 0.0;
-  doc["longitude"]     = useFrozen ? lng : 0.0;
-  doc["locationValid"] = useFrozen;
+  // ── Location — GPS first, encoder dead reckoning as fallback ─────────────
+  double lat = 0.0, lng = 0.0;
+  bool   locationValid  = false;
+  String locationSource = "NONE";
+
+  if (gps.isFrozenValid()) {
+      // Best case — real GPS fix captured at crack detection moment
+      lat            = gps.getFrozenLat();
+      lng            = gps.getFrozenLng();
+      locationValid  = true;
+      locationSource = "GPS";
+
+  } else if (enc_originSet) {
+      // GPS not fixed — dead reckon from last known GPS anchor + encoder travel
+      getDeadReckonedCoords(lat, lng);
+      locationValid  = true;
+      locationSource = "DEAD_RECKONING";
+      doc["dist_from_origin_m"] = encoder_getBestDistM();
+      doc["delta_since_gps_m"]  = encoder_getDeltaM();
+  }
+
+  doc["latitude"]        = lat;
+  doc["longitude"]       = lng;
+  doc["locationValid"]   = locationValid;
+  doc["location_source"] = locationSource;
 
   // ── Raw IR array ──────────────────────────────────────────────────────────
   JsonArray irArray = doc.createNestedArray("irArray");
@@ -484,8 +517,18 @@ void setup()
   digitalWrite(BUZZER_PIN, LOW);
 
   Serial.begin(115200);
-   Wire.begin(8, 9, 100000); 
+  Wire.begin(8, 9, 100000); 
   Serial.println("[I2C] Bus Active.");
+  encoder_init(); 
+
+  Serial.println("[I2C] Scanning bus...");
+for (byte addr = 1; addr < 127; addr++) {
+    Wire.beginTransmission(addr);
+    if (Wire.endTransmission() == 0) {
+        Serial.print("  Found device at 0x");
+        Serial.println(addr, HEX);
+    }
+}
 
 
 lcd.init();
@@ -550,6 +593,65 @@ void loop()
 {
     static bool irScanReady = false;
     gps.update();
+    encoder_update();
+
+    // ── GPS Anchor Update for Dead Reckoning ──────────────────────────────
+if (gps.isLiveLocationValid()) {
+    double currentLat = gps.getLiveLat();
+    double currentLng = gps.getLiveLng();
+    static double lastAnchorLat = 0.0;
+    static double lastAnchorLng = 0.0;
+
+    // Set origin and first anchor on very first GPS fix
+    if (!enc_originSet) {
+        enc_originLat  = currentLat;
+        enc_originLng  = currentLng;
+        enc_anchorLat  = currentLat;   // ← initialise anchor too
+        enc_anchorLng  = currentLng;
+        enc_originSet  = true;
+        lastAnchorLat  = currentLat;
+        lastAnchorLng  = currentLng;
+        Serial.println("🌍 Encoder origin + anchor set at first GPS fix");
+    }
+
+    // Haversine distance from last anchor
+    double dLat = (currentLat - lastAnchorLat) * DEG_TO_RAD;
+    double dLng = (currentLng - lastAnchorLng) * DEG_TO_RAD;
+    double a    = sin(dLat/2)*sin(dLat/2) +
+                  cos(lastAnchorLat * DEG_TO_RAD) *
+                  cos(currentLat   * DEG_TO_RAD) *
+                  sin(dLng/2)*sin(dLng/2);
+    float movedM = 6371000.0f * 2.0f * atan2(sqrt(a), sqrt(1.0-a));
+
+    // Only re-anchor when the robot has genuinely moved > 2 m
+    // This prevents GPS jitter from thrashing the anchor every tick
+    if (movedM > 2.0f) {
+
+        // Update bearing from GPS course
+        if (gps.getSatellites() >= 3) {
+            enc_lastBearing = TinyGPSPlus::courseTo(
+                lastAnchorLat, lastAnchorLng,
+                currentLat,   currentLng);
+        }
+
+        // Snap encoder anchor to this GPS position
+        enc_anchorTicks = enc_totalTicks;   // delta resets to 0 from here
+        enc_anchorLat   = currentLat;       // ← store anchor coordinates
+        enc_anchorLng   = currentLng;
+        lastAnchorLat   = currentLat;
+        lastAnchorLng   = currentLng;
+
+        // enc_anchorDistM not needed for DR, kept for getBestDistM()
+        double dLat2 = (currentLat - enc_originLat) * DEG_TO_RAD;
+        double dLng2 = (currentLng - enc_originLng) * DEG_TO_RAD;
+        double a2    = sin(dLat2/2)*sin(dLat2/2) +
+                       cos(enc_originLat * DEG_TO_RAD) *
+                       cos(currentLat   * DEG_TO_RAD) *
+                       sin(dLng2/2)*sin(dLng2/2);
+        enc_anchorDistM = 6371000.0f * 2.0f * atan2(sqrt(a2), sqrt(1.0-a2));
+    }
+} 
+
 
     if (!client.connected())
     {
