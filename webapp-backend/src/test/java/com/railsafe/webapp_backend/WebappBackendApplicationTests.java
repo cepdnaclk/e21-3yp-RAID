@@ -8,7 +8,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 		"spring.autoconfigure.exclude="
 				+ "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
 				+ "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,"
-				+ "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration"
+				+ "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration",
+		"aws.iot.auto-startup=false"
 })
 class WebappBackendApplicationTests {
 

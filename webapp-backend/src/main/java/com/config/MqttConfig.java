@@ -29,6 +29,9 @@ public class MqttConfig {
     @Value("${aws.iot.topic.filter}")
     private String topicFilter;
 
+    @Value("${aws.iot.auto-startup:true}")
+    private boolean autoStartup;
+
     // 1. Configure the Connection Details This creates the connection configuration
     // to AWS IoT
     @Bean
@@ -101,6 +104,7 @@ public class MqttConfig {
         adapter.setConverter(new DefaultPahoMessageConverter());
         adapter.setQos(1); // Match the QoS 1 you use on the hardware
         adapter.setOutputChannel(mqttInputChannel());
+        adapter.setAutoStartup(autoStartup);
         return adapter;
     }
 }
