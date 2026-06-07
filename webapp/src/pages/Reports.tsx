@@ -171,7 +171,7 @@ const Reports = () => {
                     )}
                     <div className="mt-2 text-[10px] text-muted-foreground flex justify-between">
                       <span>Uptime: {crack.uptime ?? 0}s</span>
-                      <span>Time: {new Date(crack.timestamp).toLocaleString()}</span>
+                      <span>Time: {new Date(crack.timestamp ?? 0).toLocaleString()}</span>
                     </div>
                   </div>
                 ))}

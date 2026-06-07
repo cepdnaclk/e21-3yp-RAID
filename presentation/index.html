@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAID – Autonomous Railway Track Crack Detection Robot | Presentation</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --accent: #22d3ee;
+      --accent2: #f59e0b;
+      --accent3: #10b981;
+      --danger: #ef4444;
+      --bg-dark: #0a0e1a;
+      --bg-card: #131929;
+      --bg-card2: #1a2236;
+      --border: rgba(99,102,241,0.25);
+      --text-muted: #94a3b8;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg-dark);
+      color: #e2e8f0;
+      overflow: hidden;
+      height: 100vh;
+    }
+
+    /* ============ NAVIGATION ============ */
+    #nav {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 52px;
+      background: rgba(10,14,26,0.95);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+    #nav .logo {
+      display: flex; align-items: center; gap: 10px;
+      font-weight: 800; font-size: 1rem; color: #fff;
+    }
+    #nav .logo span { color: var(--accent); }
+    #nav .controls { display: flex; align-items: center; gap: 12px; }
+    #nav button {
+      background: none; border: 1px solid var(--border);
+      color: #e2e8f0; padding: 5px 14px; border-radius: 6px;
+      cursor: pointer; font-size: 0.82rem; font-family: inherit;
+      transition: all 0.2s;
+    }
+    #nav button:hover { background: var(--primary); border-color: var(--primary); }
+    #slide-counter {
+      font-size: 0.78rem; color: var(--text-muted);
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ============ SLIDES CONTAINER ============ */
+    #slides-wrap {
+      position: fixed;
+      top: 52px; left: 0; right: 0; bottom: 0;
+      overflow: hidden;
+    }
+    .slide {
+      display: none;
+      width: 100%; height: 100%;
+      overflow-y: auto;
+      padding: 36px 48px 40px;
+      animation: fadeSlide 0.35s ease;
+    }
+    .slide.active { display: flex; flex-direction: column; }
+    @keyframes fadeSlide {
+      from { opacity: 0; transform: translateY(14px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ============ COMMON ELEMENTS ============ */
+    .slide-tag {
+      display: inline-block; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--accent); background: rgba(34,211,238,0.1);
+      border: 1px solid rgba(34,211,238,0.3);
+      padding: 4px 12px; border-radius: 100px; margin-bottom: 12px;
+    }
+    h1.slide-title {
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      font-weight: 900; line-height: 1.05;
+      background: linear-gradient(135deg, #fff 0%, #c7d2fe 60%, var(--accent) 100%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 12px;
+    }
+    h2.section-head {
+      font-size: clamp(1.5rem, 3vw, 2.1rem);
+      font-weight: 800; line-height: 1.15;
+      background: linear-gradient(135deg, #fff 0%, #c7d2fe 80%);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 20px;
+    }
+    .subtitle {
+      color: var(--text-muted); font-size: 1.05rem;
+      font-weight: 400; line-height: 1.65; max-width: 680px;
+    }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 16px; }
+    .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+
+    /* cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 20px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: var(--primary); }
+    .card-title {
+      font-size: 0.78rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--accent); margin-bottom: 8px;
+    }
+    .card-value {
+      font-size: 1.85rem; font-weight: 800; color: #fff; line-height: 1;
+    }
+    .card-desc { font-size: 0.83rem; color: var(--text-muted); margin-top: 6px; line-height: 1.5; }
+
+    /* stat pill */
+    .stat-pill {
+      display: flex; align-items: center; gap: 10px;
+      background: var(--bg-card2);
+      border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px;
+    }
+    .stat-pill-icon {
+      width: 38px; height: 38px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.2rem; flex-shrink: 0;
+    }
+    .stat-pill-text { flex: 1; }
+    .stat-pill-label { font-size: 0.72rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; }
+    .stat-pill-value { font-size: 0.95rem; color: #fff; font-weight: 700; margin-top: 2px; }
+
+    /* tech badge */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--bg-card2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 6px 14px;
+      font-size: 0.8rem; font-weight: 600; color: #cbd5e1;
+    }
+    .badge .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* section divider */
+    .divider {
+      width: 64px; height: 3px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 4px; margin: 14px 0 22px;
+    }
+
+    /* flow arrow */
+    .flow-row {
+      display: flex; align-items: center; gap: 0; flex-wrap: wrap;
+    }
+    .flow-node {
+      background: var(--bg-card2); border: 1px solid var(--border);
+      border-radius: 10px; padding: 10px 16px;
+      font-size: 0.82rem; font-weight: 600; color: #e2e8f0;
+      text-align: center; white-space: nowrap;
+    }
+    .flow-arrow {
+      color: var(--accent); font-size: 1.3rem; padding: 0 6px;
+      flex-shrink: 0;
+    }
+
+    /* highlight box */
+    .highlight-box {
+      background: linear-gradient(135deg, rgba(99,102,241,0.15), rgba(34,211,238,0.08));
+      border: 1px solid rgba(99,102,241,0.4);
+      border-radius: 12px; padding: 16px 20px;
+    }
+
+    /* req item */
+    .req-item {
+      display: flex; gap: 12px; align-items: flex-start;
+      padding: 11px 0; border-bottom: 1px solid rgba(99,102,241,0.12);
+    }
+    .req-item:last-child { border-bottom: none; }
+    .req-icon { font-size: 1.1rem; flex-shrink: 0; margin-top: 1px; }
+    .req-title { font-size: 0.88rem; font-weight: 700; color: #fff; margin-bottom: 2px; }
+    .req-desc { font-size: 0.78rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* code mono */
+    .mono { font-family: 'JetBrains Mono', monospace; }
+
+    /* ============ COVER SLIDE SPECIFIC ============ */
+    #slide-cover {
+      background:
+        radial-gradient(ellipse 80% 60% at 60% -10%, rgba(99,102,241,0.35) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 10% 90%, rgba(34,211,238,0.2) 0%, transparent 60%),
+        var(--bg-dark);
+      justify-content: center;
+    }
+    #slide-cover .cover-inner { max-width: 900px; }
+    #slide-cover .cover-badges {
+      display: flex; flex-wrap: wrap; gap: 10px; margin-top: 28px;
+    }
+    #slide-cover .hero-line {
+      width: 120px; height: 4px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      border-radius: 4px; margin: 20px 0 24px;
+    }
+    #slide-cover .team-row {
+      margin-top: 32px; display: flex; gap: 16px; flex-wrap: wrap;
+    }
+    #slide-cover .team-chip {
+      background: var(--bg-card2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 16px;
+      font-size: 0.82rem; color: #cbd5e1;
+    }
+
+    /* ============ ARCHITECTURE SLIDE ============ */
+    .arch-layer {
+      border: 1px solid var(--border);
+      border-radius: 14px; padding: 16px 18px;
+      position: relative;
+    }
+    .arch-layer-label {
+      position: absolute; top: -11px; left: 16px;
+      background: var(--bg-dark);
+      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.12em; padding: 0 8px;
+      color: var(--accent);
+    }
+    .arch-nodes { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+    .arch-node {
+      background: var(--bg-card2); border: 1px solid var(--border);
+      border-radius: 8px; padding: 8px 14px;
+      font-size: 0.78rem; font-weight: 600; color: #e2e8f0;
+      text-align: center;
+    }
+    .arch-conn {
+      display: flex; justify-content: center; padding: 6px 0;
+      color: var(--text-muted); font-size: 0.75rem; gap: 16px;
+    }
+    .arch-conn-line {
+      display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ============ NFR SLIDE ============ */
+    .nfr-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px; padding: 16px;
+    }
+    .nfr-card-head {
+      display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+    }
+    .nfr-icon {
+      width: 34px; height: 34px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center; font-size: 1rem;
+      flex-shrink: 0;
+    }
+    .nfr-card-title { font-size: 0.9rem; font-weight: 700; color: #fff; }
+    .nfr-item { font-size: 0.76rem; color: var(--text-muted); padding: 5px 0; border-bottom: 1px solid rgba(99,102,241,0.08); line-height: 1.5; }
+    .nfr-item:last-child { border-bottom: none; }
+    .nfr-item strong { color: #e2e8f0; }
+
+    /* ============ RESPONSIVE ============ */
+    @media (max-width: 900px) {
+      .slide { padding: 28px 20px 32px; }
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr 1fr; }
+    }
+    @media (max-width: 640px) {
+      .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    }
+
+    /* scrollbar */
+    .slide::-webkit-scrollbar { width: 5px; }
+    .slide::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* progress bar */
+    #progress {
+      position: fixed; top: 52px; left: 0; height: 2px;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      transition: width 0.3s ease; z-index: 99;
+    }
+
+    /* topic color overrides */
+    .c-primary { color: var(--primary); }
+    .c-accent  { color: var(--accent); }
+    .c-amber   { color: var(--accent2); }
+    .c-green   { color: var(--accent3); }
+    .c-red     { color: var(--danger); }
+
+    .bg-primary { background: rgba(99,102,241,0.15); border-color: rgba(99,102,241,0.4); }
+    .bg-amber   { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.4); }
+    .bg-green   { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.4); }
+    .bg-red     { background: rgba(239,68,68,0.15);  border-color: rgba(239,68,68,0.4); }
+    .bg-cyan    { background: rgba(34,211,238,0.12); border-color: rgba(34,211,238,0.35); }
+
+    /* sensor zone diagram */
+    .sensor-zone-wrap { display: flex; gap: 8px; align-items: stretch; }
+    .sensor-zone {
+      flex: 1; border-radius: 10px; padding: 12px 10px;
+      border: 1px solid; text-align: center;
+    }
+    .sensor-zone-title { font-size: 0.75rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+    .sensor-zone-detail { font-size: 0.7rem; color: var(--text-muted); line-height: 1.5; }
+
+    /* data table */
+    .dtable { width: 100%; border-collapse: collapse; font-size: 0.8rem; }
+    .dtable th {
+      background: rgba(99,102,241,0.15); color: var(--accent);
+      font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+      padding: 9px 12px; text-align: left; font-size: 0.71rem;
+    }
+    .dtable td { padding: 8px 12px; border-bottom: 1px solid rgba(99,102,241,0.1); color: #cbd5e1; }
+    .dtable tr:last-child td { border-bottom: none; }
+    .dtable tr:hover td { background: rgba(99,102,241,0.06); }
+
+    /* ============ ARROWS for bottom ============ */
+    #bottom-hints {
+      position: fixed; bottom: 16px; right: 24px;
+      display: flex; gap: 8px; z-index: 100;
+    }
+    #bottom-hints button {
+      width: 38px; height: 38px; border-radius: 8px;
+      border: 1px solid var(--border);
+      background: var(--bg-card); color: #fff;
+      font-size: 1.1rem; cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      transition: all 0.2s;
+    }
+    #bottom-hints button:hover { background: var(--primary); border-color: var(--primary); }
+  </style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="nav">
+  <div class="logo">🚂 <span>RAID</span> Presentation</div>
+  <div class="controls">
+    <span id="slide-counter">1 / 12</span>
+    <button onclick="prevSlide()">← Prev</button>
+    <button onclick="nextSlide()">Next →</button>
+  </div>
+</nav>
+<div id="progress"></div>
+
+<!-- SLIDES -->
+<div id="slides-wrap">
+
+<!-- ===================== SLIDE 1: COVER ===================== -->
+<div class="slide active" id="slide-cover">
+  <div class="cover-inner">
+    <div class="slide-tag">3YP Final Presentation · 2026</div>
+    <h1 class="slide-title">Autonomous IoT-Based<br/>Railway Track<br/>Crack Detection Robot</h1>
+    <div class="hero-line"></div>
+    <p class="subtitle">
+      A real-time autonomous inspection system that deploys an ESP32-S3 powered robot to scan railway tracks for structural defects using IR sensors, geo-tag detections with GPS, capture photographic evidence with three onboard cameras, and instantly relay alerts to a cloud-connected operator dashboard.
+    </p>
+    <div class="cover-badges">
+      <span class="badge"><span class="dot" style="background:#6366f1"></span>ESP32-S3 + ESP32-CAM</span>
+      <span class="badge"><span class="dot" style="background:#22d3ee"></span>AWS IoT Core</span>
+      <span class="badge"><span class="dot" style="background:#f59e0b"></span>MQTT over TLS 1.2</span>
+      <span class="badge"><span class="dot" style="background:#10b981"></span>DynamoDB + S3</span>
+      <span class="badge"><span class="dot" style="background:#ec4899"></span>Spring Boot Backend</span>
+      <span class="badge"><span class="dot" style="background:#8b5cf6"></span>React + TypeScript</span>
+      <span class="badge"><span class="dot" style="background:#ef4444"></span>Real-Time WebSocket</span>
+    </div>
+    <div class="team-row">
+      <div class="team-chip">🏫 University of Peradeniya — E/21 Batch</div>
+      <div class="team-chip">📁 cepdnaclk/e21-3yp-RAID</div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 2: SYSTEM OVERVIEW ===================== -->
+<div class="slide" id="slide-overview">
+  <div class="slide-tag">System Overview</div>
+  <h2 class="section-head">What RAID Does</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:24px;margin-bottom:20px">
+    <div>
+      <p class="subtitle" style="font-size:0.92rem;margin-bottom:20px;">
+        RAID replaces hazardous manual railway inspections with an autonomous IoT robot that continuously scans tracks, detects cracks with IR sensors, captures geo-tagged photographs, and streams real-time alerts to a cloud dashboard — enabling proactive, data-driven maintenance.
+      </p>
+      <div class="highlight-box" style="margin-bottom:14px">
+        <div style="font-size:0.8rem;font-weight:700;color:#fff;margin-bottom:10px;">🎯 Core Mission</div>
+        <div class="req-item">
+          <span class="req-icon">🤖</span>
+          <div><div class="req-title">Autonomous Patrolling</div><div class="req-desc">Robot traverses railway line continuously without human intervention</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🔍</span>
+          <div><div class="req-title">Crack Detection</div><div class="req-desc">3 IR sensor arrays (LEFT / CENTER / RIGHT) scan each rail for structural anomalies</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📸</span>
+          <div><div class="req-title">Photo Evidence</div><div class="req-desc">3 ESP32-CAM modules capture JPEG images uploaded directly to AWS S3 via pre-signed URLs</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📡</span>
+          <div><div class="req-title">Real-Time Telemetry</div><div class="req-desc">MQTT → AWS IoT → Spring Boot → WebSocket → React dashboard in &lt; 2 seconds</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div style="margin-bottom:14px">
+        <div class="card-title" style="margin-bottom:12px">Key Statistics</div>
+        <div class="grid-2" style="gap:10px">
+          <div class="card bg-primary"><div class="card-title">Sensor Arrays</div><div class="card-value">3</div><div class="card-desc">LEFT / CENTER / RIGHT zones</div></div>
+          <div class="card bg-cyan"><div class="card-title">Camera Units</div><div class="card-value">3</div><div class="card-desc">ESP32-CAM per zone</div></div>
+          <div class="card bg-amber"><div class="card-title">Heartbeat</div><div class="card-value">30s</div><div class="card-desc">MQTT keep-alive interval</div></div>
+          <div class="card bg-green"><div class="card-title">Alert Latency</div><div class="card-value">&lt;2s</div><div class="card-desc">Detection to dashboard</div></div>
+        </div>
+      </div>
+      <div class="highlight-box">
+        <div style="font-size:0.8rem;font-weight:700;color:#fff;margin-bottom:10px;">🔄 Event Pipeline</div>
+        <div class="flow-row" style="flex-direction:column;gap:6px">
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="flow-node" style="min-width:130px">IR detects crack</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node" style="min-width:130px">GPS coordinates frozen</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="flow-node" style="min-width:130px">500ms offset delay</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node" style="min-width:130px">Pre-signed S3 URL fetched</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="flow-node" style="min-width:130px">Camera triggered (MQTT + GPIO)</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node" style="min-width:130px">JPEG uploaded to S3</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="flow-node" style="min-width:130px">Alert published to IoT Core</div>
+            <span class="flow-arrow">→</span>
+            <div class="flow-node" style="min-width:130px">Dashboard notified</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 3: SOLUTION ARCHITECTURE ===================== -->
+<div class="slide" id="slide-arch">
+  <div class="slide-tag">Solution Architecture</div>
+  <h2 class="section-head">System Architecture Overview</h2>
+  <div class="divider"></div>
+
+  <!-- Layer 1: Physical -->
+  <div class="arch-layer bg-red" style="margin-bottom:10px">
+    <span class="arch-layer-label" style="color:#ef4444">⚙️ Physical / Embedded Layer</span>
+    <div class="arch-nodes">
+      <div class="arch-node">ESP32-S3<br/><span style="font-size:0.68rem;color:var(--text-muted)">Master Controller</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">IR Sensor Arrays (×9)<br/><span style="font-size:0.68rem;color:var(--text-muted)">LEFT / CENTER / RIGHT</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">GPS Module<br/><span style="font-size:0.68rem;color:var(--text-muted)">TinyGPS++ / NEO-6M</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">ESP32-CAM (×3)<br/><span style="font-size:0.68rem;color:var(--text-muted)">LEFT / CENTER / RIGHT</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">Buzzer<br/><span style="font-size:0.68rem;color:var(--text-muted)">YXDZ Alarm</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">LCD 20×4<br/><span style="font-size:0.68rem;color:var(--text-muted)">I²C Display</span></div>
+    </div>
+  </div>
+
+  <!-- Conn 1 -->
+  <div class="arch-conn">
+    <div class="arch-conn-line">↕ WiFi (WPA2) · MQTT/TLS 1.2 Port 8883 · HTTP/HTTPS (Pre-sign Lambda)</div>
+  </div>
+
+  <!-- Layer 2: Cloud -->
+  <div class="arch-layer bg-amber" style="margin-bottom:10px">
+    <span class="arch-layer-label" style="color:var(--accent2)">☁️ Cloud Layer — AWS (eu-north-1)</span>
+    <div class="arch-nodes">
+      <div class="arch-node">AWS IoT Core<br/><span style="font-size:0.68rem;color:var(--text-muted)">MQTT Broker</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">→</div>
+      <div class="arch-node">IoT Rule Engine<br/><span style="font-size:0.68rem;color:var(--text-muted)">Topic Routing</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">→</div>
+      <div class="arch-node">DynamoDB<br/><span style="font-size:0.68rem;color:var(--text-muted)">Crack Records</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">S3 Bucket<br/><span style="font-size:0.68rem;color:var(--text-muted)">JPEG Images</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">Lambda<br/><span style="font-size:0.68rem;color:var(--text-muted)">Pre-signed URL Generator</span></div>
+    </div>
+  </div>
+
+  <!-- Conn 2 -->
+  <div class="arch-conn">
+    <div class="arch-conn-line">↕ MQTT/TLS (Eclipse Paho) · AWS SDK v2 · mTLS Certificates (PKCS12)</div>
+  </div>
+
+  <!-- Layer 3: Backend -->
+  <div class="arch-layer bg-primary" style="margin-bottom:10px">
+    <span class="arch-layer-label" style="color:var(--primary)">🖥️ Backend Layer — Spring Boot 3.5 / Java 17</span>
+    <div class="arch-nodes">
+      <div class="arch-node">MQTT Receiver<br/><span style="font-size:0.68rem;color:var(--text-muted)">Spring Integration</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">→</div>
+      <div class="arch-node">MqttInputChannel<br/><span style="font-size:0.68rem;color:var(--text-muted)">DirectChannel</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">→</div>
+      <div class="arch-node">IRSensorService<br/><span style="font-size:0.68rem;color:var(--text-muted)">Business Logic</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">→</div>
+      <div class="arch-node">DynamoDB Repository<br/><span style="font-size:0.68rem;color:var(--text-muted)">AWS SDK Enhanced</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">WebSocket Broker<br/><span style="font-size:0.68rem;color:var(--text-muted)">STOMP / SockJS</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">REST API<br/><span style="font-size:0.68rem;color:var(--text-muted)">/api/cracks/**</span></div>
+    </div>
+  </div>
+
+  <!-- Conn 3 -->
+  <div class="arch-conn">
+    <div class="arch-conn-line">↕ WebSocket (STOMP + SockJS) · REST HTTP · CORS secured</div>
+  </div>
+
+  <!-- Layer 4: Frontend -->
+  <div class="arch-layer bg-green">
+    <span class="arch-layer-label" style="color:var(--accent3)">🌐 Frontend Layer — React 19 + Vite + TypeScript</span>
+    <div class="arch-nodes">
+      <div class="arch-node">Dashboard<br/><span style="font-size:0.68rem;color:var(--text-muted)">Mission Control</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">Live Map<br/><span style="font-size:0.68rem;color:var(--text-muted)">Leaflet.js</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">Reports<br/><span style="font-size:0.68rem;color:var(--text-muted)">PDF Export</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">useTelemetry Hook<br/><span style="font-size:0.68rem;color:var(--text-muted)">Hot + Cold Path</span></div>
+      <div style="color:var(--text-muted);font-size:1rem;">+</div>
+      <div class="arch-node">Auth (Supabase)<br/><span style="font-size:0.68rem;color:var(--text-muted)">Protected Routes</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 4: FUNCTIONAL REQUIREMENTS ===================== -->
+<div class="slide" id="slide-func">
+  <div class="slide-tag">Functional Requirements</div>
+  <h2 class="section-head">What the System Must Do</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">🤖 Robot / Embedded</div>
+      <div class="card" style="margin-bottom:0;padding:14px">
+        <div class="req-item">
+          <span class="req-icon">📡</span>
+          <div><div class="req-title">FR-01 · Autonomous Navigation</div><div class="req-desc">Robot traverses the rail line continuously on its own motor drive system</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🔍</span>
+          <div><div class="req-title">FR-02 · Multi-Zone IR Scanning</div><div class="req-desc">Scans LEFT, CENTER, RIGHT rail zones at 50 ms intervals; requires 6 consecutive positive reads (~300 ms) to confirm a crack</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📍</span>
+          <div><div class="req-title">FR-03 · GPS Geo-Tagging</div><div class="req-desc">GPS coordinates are "frozen" at crack detection moment for accuracy; published with every alert</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📸</span>
+          <div><div class="req-title">FR-04 · Camera Triggering</div><div class="req-desc">Master ESP32 triggers the correct zone camera via MQTT command + GPIO pulse (500 ms physics offset for alignment)</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🖥️</span>
+          <div><div class="req-title">FR-05 · Local LCD Display</div><div class="req-desc">20×4 I²C LCD shows system status, crack zone, and channel number in real time</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">💓</span>
+          <div><div class="req-title">FR-06 · Heartbeat Publishing</div><div class="req-desc">Device sends NOMINAL_HEARTBEAT every 30 s with GPS + IR telemetry when no crack is detected</div></div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">☁️ Cloud & Application</div>
+      <div class="card" style="margin-bottom:0;padding:14px">
+        <div class="req-item">
+          <span class="req-icon">⬆️</span>
+          <div><div class="req-title">FR-07 · Secure Image Upload</div><div class="req-desc">Lambda generates pre-signed S3 PUT URLs; camera uploads JPEG directly to S3 without exposing credentials</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🗄️</span>
+          <div><div class="req-title">FR-08 · Persistent Storage</div><div class="req-desc">All crack events stored in DynamoDB with SensorID (PK) + timestamp (SK), plus S3 image URL linkage</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📊</span>
+          <div><div class="req-title">FR-09 · Real-Time Dashboard</div><div class="req-desc">Spring Boot re-broadcasts MQTT data over WebSocket (STOMP); React dashboard updates live without refresh</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🗺️</span>
+          <div><div class="req-title">FR-10 · Live Geo-Map</div><div class="req-desc">Leaflet.js renders real-time crack markers on a map coloured by severity (RED / AMBER / BLUE)</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">📄</span>
+          <div><div class="req-title">FR-11 · PDF Report Export</div><div class="req-desc">Operators can export Daily/Weekly/Monthly inspection reports as PDF using jsPDF + html2canvas</div></div>
+        </div>
+        <div class="req-item">
+          <span class="req-icon">🔐</span>
+          <div><div class="req-title">FR-12 · Authenticated Access</div><div class="req-desc">Supabase auth gates the dashboard; protected routes redirect unauthenticated users to login</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 5: NON-FUNCTIONAL REQUIREMENTS ===================== -->
+<div class="slide" id="slide-nfr">
+  <div class="slide-tag">Non-Functional Requirements</div>
+  <h2 class="section-head">Dependability, Efficiency, Scalability, Security & UX</h2>
+  <div class="divider"></div>
+  <div class="grid-3" style="gap:14px">
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(239,68,68,0.15)">🛡️</div>
+        <div class="nfr-card-title">Dependability</div>
+      </div>
+      <div class="nfr-item"><strong>Auto-reconnect:</strong> WiFiMulti rotates across 4 APs; MQTT reconnects on disconnect; ESP restarts after 5 failures</div>
+      <div class="nfr-item"><strong>Debounce:</strong> 6 consecutive IR readings required — eliminates vibration false positives</div>
+      <div class="nfr-item"><strong>Camera timeout:</strong> 60 s watchdog — publishes alert without image if camera fails</div>
+      <div class="nfr-item"><strong>Time sync:</strong> NTP (pool.ntp.org) at boot ensures accurate timestamps</div>
+      <div class="nfr-item"><strong>STOMP reconnect:</strong> 5 s auto-reconnect in frontend keeps dashboard live</div>
+    </div>
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(245,158,11,0.15)">⚡</div>
+        <div class="nfr-card-title">Efficiency</div>
+      </div>
+      <div class="nfr-item"><strong>Scan interval:</strong> 50 ms sensor polling with interrupt-free main loop</div>
+      <div class="nfr-item"><strong>LCD refresh:</strong> 250 ms — minimum CPU overhead</div>
+      <div class="nfr-item"><strong>MQTT buffer:</strong> 1024 bytes — tuned for JSON payload size</div>
+      <div class="nfr-item"><strong>Frontend cache:</strong> Max 100 live events in memory per sensor stream</div>
+      <div class="nfr-item"><strong>Lazy fetch:</strong> Historical data loaded once on mount; incremental real-time updates thereafter</div>
+    </div>
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(99,102,241,0.15)">📈</div>
+        <div class="nfr-card-title">Scalability</div>
+      </div>
+      <div class="nfr-item"><strong>Fleet support:</strong> Dashboard supports N devices (esp-001…N) — DynamoDB partition key per sensor zone</div>
+      <div class="nfr-item"><strong>Load balancing:</strong> Mission Control shows load distribution across all active robots</div>
+      <div class="nfr-item"><strong>S3 storage:</strong> Effectively unlimited image storage with no capacity planning</div>
+      <div class="nfr-item"><strong>DynamoDB:</strong> Auto-scaling; no manual shard management</div>
+      <div class="nfr-item"><strong>Mock devices:</strong> esp-002 and esp-003 simulate additional robots for testing</div>
+    </div>
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(34,211,238,0.12)">🔒</div>
+        <div class="nfr-card-title">Security</div>
+      </div>
+      <div class="nfr-item"><strong>mTLS (device↔cloud):</strong> X.509 certificates embedded in firmware; TLS 1.2 on port 8883</div>
+      <div class="nfr-item"><strong>mTLS (backend↔cloud):</strong> PKCS12 keystore (backend-keystore.p12) loaded at runtime</div>
+      <div class="nfr-item"><strong>S3 pre-signed URLs:</strong> Camera never holds AWS credentials; URL is the secret</div>
+      <div class="nfr-item"><strong>Supabase JWT:</strong> Dashboard access protected; JWT verified on every API call</div>
+      <div class="nfr-item"><strong>CORS policy:</strong> Explicit allowlist in Spring Boot — no wildcard origins</div>
+    </div>
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(16,185,129,0.15)">🎨</div>
+        <div class="nfr-card-title">User Experience</div>
+      </div>
+      <div class="nfr-item"><strong>Live status:</strong> Animated pulse badges show real-time connectivity of each robot</div>
+      <div class="nfr-item"><strong>Severity colour:</strong> Map markers RED (≥70%) / AMBER (40-70%) / BLUE (&lt;40%) for quick triage</div>
+      <div class="nfr-item"><strong>PDF export:</strong> One-click report download — no backend call needed</div>
+      <div class="nfr-item"><strong>Responsive:</strong> Mobile-first layout with bottom navigation bar</div>
+      <div class="nfr-item"><strong>Error graceful:</strong> "No GPS" / "No Image (Timeout)" shown instead of blank fields</div>
+    </div>
+
+    <div class="nfr-card">
+      <div class="nfr-card-head">
+        <div class="nfr-icon" style="background:rgba(139,92,246,0.15)">📊</div>
+        <div class="nfr-card-title">Maintainability</div>
+      </div>
+      <div class="nfr-item"><strong>Layered arch:</strong> Clear separation — Firmware / Cloud / Backend / Frontend</div>
+      <div class="nfr-item"><strong>DTO pattern:</strong> IRSensorDataDTO + EspCamDetectionDTO decouple MQTT from persistence</div>
+      <div class="nfr-item"><strong>PlatformIO envs:</strong> Separate build targets for each ESP32 module type</div>
+      <div class="nfr-item"><strong>Mock simulator:</strong> robot_simulator.py enables backend testing without hardware</div>
+      <div class="nfr-item"><strong>Open source stack:</strong> Arduino, Spring Boot, React — wide community support</div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SLIDE 6: SENSORS & ACTUATORS ===================== -->
+<div class="slide" id="slide-sensors">
+  <div class="slide-tag">Implementation · Hardware</div>
+  <h2 class="section-head">Sensors & Actuators</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px;margin-bottom:18px">
+    <div>
+      <div class="card-title" style="margin-bottom:10px">🔴 IR Sensor Arrays — Crack Detection</div>
+      <div class="sensor-zone-wrap" style="margin-bottom:12px">
+        <div class="sensor-zone" style="background:rgba(59,130,246,0.1);border-color:rgba(59,130,246,0.4)">
+          <div class="sensor-zone-title" style="color:#60a5fa">LEFT</div>
+          <div class="sensor-zone-detail">3 IR cells<br/>monitors left rail</div>
+        </div>
+        <div class="sensor-zone" style="background:rgba(245,158,11,0.1);border-color:rgba(245,158,11,0.4)">
+          <div class="sensor-zone-title" style="color:#fbbf24">CENTER</div>
+          <div class="sensor-zone-detail">3 IR cells<br/>monitors center</div>
+        </div>
+        <div class="sensor-zone" style="background:rgba(168,85,247,0.1);border-color:rgba(168,85,247,0.4)">
+          <div class="sensor-zone-title" style="color:#c084fc">RIGHT</div>
+          <div class="sensor-zone-detail">3 IR cells<br/>monitors right rail</div>
+        </div>
+      </div>
+      <table class="dtable">
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>ADC Range</td><td>0 – 4095 (12-bit)</td></tr>
+        <tr><td>Scan Interval</td><td>50 ms (20 Hz polling)</td></tr>
+        <tr><td>Confirmation</td><td>6 consecutive positives (~300 ms)</td></tr>
+        <tr><td>Severity Formula</td><td>map(minValue, 0, 4095, 100, 0)</td></tr>
+        <tr><td>Interface</td><td>Analog GPIO (ESP32-S3)</td></tr>
+        <tr><td>Power</td><td>3.3 V / 5 V (onboard LDO)</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:10px">📷 ESP32-CAM — Photo Evidence</div>
+      <div class="highlight-box" style="margin-bottom:12px">
+        <div style="font-size:0.8rem;color:#e2e8f0;line-height:1.7">
+          3 ESP32-CAM modules positioned at LEFT, CENTER, RIGHT zones.<br/>
+          Triggered by MQTT command <code class="mono" style="font-size:0.75rem;background:rgba(0,0,0,0.3);padding:2px 6px;border-radius:4px">device/esp-001/cam_cmd/ZONE</code> + GPIO rising-edge pulse.<br/>
+          Uploads JPEG directly to S3 via pre-signed PUT URL (no credentials on device).
+        </div>
+      </div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>Image Format</td><td>JPEG (PSRAM assisted)</td></tr>
+        <tr><td>Upload Method</td><td>HTTP PUT → S3 Pre-signed URL</td></tr>
+        <tr><td>Trigger</td><td>MQTT + GPIO hardware pulse (20 ms)</td></tr>
+        <tr><td>Timeout</td><td>60 s (master watchdog)</td></tr>
+        <tr><td>PSRAM</td><td>4 MB (board flag: BOARD_HAS_PSRAM)</td></tr>
+      </table>
+      <div class="card-title" style="margin-bottom:10px">📍 GPS Module</div>
+      <table class="dtable">
+        <tr><th>Parameter</th><th>Value</th></tr>
+        <tr><td>Library</td><td>TinyGPS++ v1.0.3</td></tr>
+        <tr><td>Strategy</td><td>Freeze at detection → publish frozen coordinates</td></tr>
+        <tr><td>Fallback</td><td>Live location if frozen invalid</td></tr>
+        <tr><td>Satellites</td><td>Published in every alert payload</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid-3" style="gap:12px">
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(239,68,68,0.15)">🔔</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">Buzzer (YXDZ)</div>
+        <div class="stat-pill-value">GPIO Pin 4 · 1 s alert pulse</div>
+      </div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(34,211,238,0.12)">🖥️</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">LCD Display</div>
+        <div class="stat-pill-value">20×4 · I²C (0x27) · 250 ms refresh</div>
+      </div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(99,102,241,0.15)">⚙️</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">Camera Triggers</div>
+        <div class="stat-pill-value">GPIO 15 / 16 / 17 (L/C/R)</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 7: CONTROLLER PLATFORMS ===================== -->
+<div class="slide" id="slide-controllers">
+  <div class="slide-tag">Implementation · Hardware</div>
+  <h2 class="section-head">Controller Platforms</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">🧠 ESP32-S3-DevKitC-1 — Master Controller</div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Attribute</th><th>Spec</th></tr>
+        <tr><td>MCU</td><td>Xtensa LX7 Dual-Core @ 240 MHz</td></tr>
+        <tr><td>Flash</td><td>8 MB (OTA capable)</td></tr>
+        <tr><td>SRAM</td><td>512 KB + external PSRAM support</td></tr>
+        <tr><td>Connectivity</td><td>WiFi 802.11 b/g/n + BLE 5.0</td></tr>
+        <tr><td>GPIO</td><td>45 programmable I/O pins</td></tr>
+        <tr><td>ADC</td><td>2× 12-bit SAR ADC (20 channels)</td></tr>
+        <tr><td>Serial</td><td>3× UART (GPS, debug, spare)</td></tr>
+        <tr><td>I²C</td><td>2× (LCD on SDA=8, SCL=9)</td></tr>
+        <tr><td>Security</td><td>Secure Boot, Flash Encrypt, eFuse</td></tr>
+        <tr><td>Framework</td><td>Arduino (PlatformIO)</td></tr>
+        <tr><td>Approx. Cost</td><td>~$10–$15 USD</td></tr>
+      </table>
+      <div class="highlight-box">
+        <div style="font-size:0.78rem;color:#e2e8f0;line-height:1.7">
+          <strong>Key Libraries:</strong> PubSubClient 2.8 (MQTT), ArduinoJson 6.21.5, TinyGPSPlus 1.0.3, LiquidCrystal_I2C, UniversalTelegramBot, WiFiMulti
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">📷 ESP32-CAM — Camera Sub-Modules (×3)</div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Attribute</th><th>Spec</th></tr>
+        <tr><td>MCU</td><td>Xtensa LX6 Dual-Core @ 240 MHz</td></tr>
+        <tr><td>Flash</td><td>4 MB</td></tr>
+        <tr><td>PSRAM</td><td>4 MB (BOARD_HAS_PSRAM flag)</td></tr>
+        <tr><td>Camera</td><td>OV2640 2MP (UXGA)</td></tr>
+        <tr><td>Connectivity</td><td>WiFi 802.11 b/g/n</td></tr>
+        <tr><td>Trigger</td><td>GPIO ISR (RISING edge) + MQTT</td></tr>
+        <tr><td>Upload</td><td>HTTPS PUT → S3 Pre-signed URL</td></tr>
+        <tr><td>Positions</td><td>LEFT (cam_left), CENTER, RIGHT</td></tr>
+        <tr><td>Approx. Cost</td><td>~$7–$12 USD × 3</td></tr>
+      </table>
+      <div class="card-title" style="margin-bottom:10px">🔧 PlatformIO Build Environments</div>
+      <div class="highlight-box">
+        <div style="font-size:0.75rem;font-family:'JetBrains Mono',monospace;color:#e2e8f0;line-height:1.8">
+          <span style="color:#22d3ee">[env:esp32-s3-devkitc-1]</span> — Master (IR + GPS)<br/>
+          <span style="color:#f59e0b">[env:camera_left]</span> — ESP32-CAM LEFT<br/>
+          <span style="color:#a78bfa">[env:camera_center]</span> — ESP32-CAM CENTER<br/>
+          <span style="color:#34d399">[env:camera_right]</span> — ESP32-CAM RIGHT<br/>
+          <span style="color:#94a3b8">[env:esp32dev_testing]</span> — Dev / Test build
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 8: NETWORK TECHNOLOGIES ===================== -->
+<div class="slide" id="slide-network">
+  <div class="slide-tag">Implementation · Networking</div>
+  <h2 class="section-head">Network Technologies & Protocols</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px;margin-bottom:18px">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">📶 Physical & Transport</div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Layer</th><th>Technology</th><th>Details</th></tr>
+        <tr><td>Physical</td><td>WiFi 802.11 b/g/n</td><td>WPA2 enterprise; 2.4 GHz</td></tr>
+        <tr><td>Resilience</td><td>WiFiMulti</td><td>4 registered APs, auto-roaming</td></tr>
+        <tr><td>Device→Cloud</td><td>MQTT over TLS 1.2</td><td>Port 8883 · QoS 1 · mTLS</td></tr>
+        <tr><td>Camera→S3</td><td>HTTPS PUT</td><td>Pre-signed URL · no credentials</td></tr>
+        <tr><td>Backend→Cloud</td><td>MQTT (Eclipse Paho)</td><td>PKCS12 mTLS · TLS 1.2</td></tr>
+        <tr><td>Backend↔Front</td><td>WebSocket (STOMP/SockJS)</td><td>Port 8080 · /raid-websocket</td></tr>
+        <tr><td>REST</td><td>HTTP/1.1</td><td>/api/cracks/** · CORS secured</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">📨 MQTT Topic Architecture</div>
+      <table class="dtable">
+        <tr><th>Topic</th><th>Direction</th><th>Purpose</th></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/IR_Bottom</td><td>↑ Pub</td><td>Crack alerts + heartbeats</td></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/command</td><td>↓ Sub</td><td>Control commands</td></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/cam_cmd/LEFT</td><td>↓ Sub</td><td>Camera trigger (left)</td></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/cam_cmd/CENTER</td><td>↓ Sub</td><td>Camera trigger (center)</td></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/cam_cmd/RIGHT</td><td>↓ Sub</td><td>Camera trigger (right)</td></tr>
+        <tr><td class="mono" style="font-size:0.72rem">device/esp-001/camera_url</td><td>↑ Pub</td><td>S3 URL confirmation back</td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="grid-3" style="gap:12px">
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(239,68,68,0.15)">🔒</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">Security</div>
+        <div class="stat-pill-value">mTLS X.509 on all MQTT paths</div>
+      </div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(245,158,11,0.15)">📏</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">MQTT Buffer</div>
+        <div class="stat-pill-value">1024 bytes · QoS 1 · Keep-alive 60s</div>
+      </div>
+    </div>
+    <div class="stat-pill">
+      <div class="stat-pill-icon" style="background:rgba(34,211,238,0.12)">🔄</div>
+      <div class="stat-pill-text">
+        <div class="stat-pill-label">WebSocket</div>
+        <div class="stat-pill-value">STOMP + SockJS · 5s reconnect</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 9: BACKEND TECHNOLOGIES ===================== -->
+<div class="slide" id="slide-backend">
+  <div class="slide-tag">Implementation · Back-End</div>
+  <h2 class="section-head">Back-End Technologies</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px;margin-bottom:18px">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">🖥️ Spring Boot Application (Java 17)</div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Component</th><th>Technology</th></tr>
+        <tr><td>Framework</td><td>Spring Boot 3.5.13</td></tr>
+        <tr><td>MQTT Client</td><td>Eclipse Paho MQTT v3 1.2.5</td></tr>
+        <tr><td>MQTT Integration</td><td>Spring Integration MQTT</td></tr>
+        <tr><td>WebSocket</td><td>Spring WebSocket + STOMP</td></tr>
+        <tr><td>Database Client</td><td>AWS SDK v2 DynamoDB Enhanced 2.25.28</td></tr>
+        <tr><td>REST</td><td>Spring Web (MVC)</td></tr>
+        <tr><td>Build</td><td>Maven 3 (mvnw wrapper)</td></tr>
+        <tr><td>Language</td><td>Java 17 + Lombok</td></tr>
+        <tr><td>Auth (TLS)</td><td>PKCS12 keystore (backend-keystore.p12)</td></tr>
+      </table>
+      <div class="card-title" style="margin-bottom:10px">🔑 Key Packages</div>
+      <div class="highlight-box">
+        <div class="flow-row" style="flex-direction:column;gap:5px">
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.messaging</code> — MqttReceiver (bridge MQTT→WebSocket)</div>
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.config</code> — MqttConfig, DynamoDbConfig, WebSocketConfig, CorsConfig</div>
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.service</code> — IRSensorService, CrackEventHandler, CrackLocationQueryService</div>
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.controller</code> — REST endpoints (cracks, camera, locations)</div>
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.model</code> — irsensorData (DynamoDB entity)</div>
+          <div style="font-size:0.77rem;color:#e2e8f0"><code class="mono">com.dto</code> — IRSensorDataDTO, EspCamDetectionDTO</div>
+        </div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">☁️ AWS Services</div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">🌐</span>
+        <div><div class="req-title">AWS IoT Core (eu-north-1)</div><div class="req-desc">MQTT broker at <code class="mono" style="font-size:0.72rem">*.iot.eu-north-1.amazonaws.com:8883</code>; device policies control pub/sub permissions</div></div>
+      </div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">🗄️</span>
+        <div><div class="req-title">DynamoDB</div><div class="req-desc">Table: irsensorData · PK: SensorID (LEFT/CENTER/RIGHT) · SK: timestamp (ISO-8601) · Serverless, auto-scaled</div></div>
+      </div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">📦</span>
+        <div><div class="req-title">S3 Bucket</div><div class="req-desc">JPEG images stored under <code class="mono" style="font-size:0.72rem">cracks/crack_esp-001_ZONE_millis.jpg</code>; accessed via pre-signed URLs (no public ACL)</div></div>
+      </div>
+      <div class="req-item" style="padding:10px 0">
+        <span class="req-icon">λ</span>
+        <div><div class="req-title">Lambda (Pre-sign URL Generator)</div><div class="req-desc">Python function at Function URL; generates pre-signed S3 PUT URLs on demand; 8 s timeout allows cold start</div></div>
+      </div>
+
+      <div class="card-title" style="margin-bottom:10px;margin-top:14px">🔐 Security</div>
+      <div class="highlight-box">
+        <div style="font-size:0.78rem;color:#e2e8f0;line-height:1.7">
+          • Device ↔ AWS: X.509 client cert + private key embedded in firmware<br/>
+          • Backend ↔ AWS: PKCS12 keystore + TLS 1.2<br/>
+          • No AWS root credentials on any device<br/>
+          • S3 access only via short-lived pre-signed PUT URLs<br/>
+          • IoT Policies restrict each device's allowed topics
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 10: FRONTEND TECHNOLOGIES ===================== -->
+<div class="slide" id="slide-frontend">
+  <div class="slide-tag">Implementation · Front-End</div>
+  <h2 class="section-head">Front-End Technologies</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px;margin-bottom:18px">
+    <div>
+      <div class="card-title" style="margin-bottom:12px">⚛️ React Application (Vite + TypeScript)</div>
+      <table class="dtable" style="margin-bottom:14px">
+        <tr><th>Category</th><th>Library</th><th>Purpose</th></tr>
+        <tr><td>Framework</td><td>React 19 + TypeScript 5.9</td><td>SPA core</td></tr>
+        <tr><td>Build</td><td>Vite 7.3</td><td>Fast HMR bundler</td></tr>
+        <tr><td>Routing</td><td>React Router DOM v7</td><td>SPA navigation</td></tr>
+        <tr><td>WebSocket</td><td>@stomp/stompjs + SockJS</td><td>Real-time feed</td></tr>
+        <tr><td>REST</td><td>fetch() + TanStack Query</td><td>HTTP + caching</td></tr>
+        <tr><td>Auth</td><td>Supabase JS v2</td><td>JWT auth</td></tr>
+        <tr><td>Map</td><td>Leaflet.js + react-map-gl</td><td>Geo visualization</td></tr>
+        <tr><td>Charts</td><td>Recharts 3.8</td><td>Analytics</td></tr>
+        <tr><td>UI</td><td>Radix UI + Tailwind CSS 3.4</td><td>Component system</td></tr>
+        <tr><td>Icons</td><td>Lucide React</td><td>Icon set</td></tr>
+        <tr><td>PDF</td><td>jsPDF + html2canvas</td><td>Report export</td></tr>
+      </table>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:12px">📄 Application Pages</div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">🎛️</span>
+        <div><div class="req-title">Dashboard (Mission Control)</div><div class="req-desc">Fleet overview with 3 device cards; load distribution bars; live crack feed per device zone; detail modal with crack images</div></div>
+      </div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">🗺️</span>
+        <div><div class="req-title">Live Map (Leaflet.js)</div><div class="req-desc">Real-time severity-coloured circle markers on OpenStreetMap; pans to first detection; STOMP subscription for live updates</div></div>
+      </div>
+      <div class="req-item" style="border-bottom:1px solid rgba(99,102,241,0.12);padding:10px 0">
+        <span class="req-icon">📄</span>
+        <div><div class="req-title">Reports</div><div class="req-desc">Daily/Weekly/Monthly tabs; crack detail list with sensor badges; embedded evidence images; one-click PDF export</div></div>
+      </div>
+      <div class="req-item" style="padding:10px 0">
+        <span class="req-icon">🔐</span>
+        <div><div class="req-title">Login + Protected Routes</div><div class="req-desc">Supabase email/password auth; ProtectedRoute wrapper redirects unauthenticated users</div></div>
+      </div>
+
+      <div class="card-title" style="margin-bottom:10px;margin-top:14px">🪝 Data Architecture</div>
+      <div class="highlight-box">
+        <div style="font-size:0.78rem;color:#e2e8f0;line-height:1.8">
+          <strong>useTelemetry hook</strong> (Cold + Hot path):<br/>
+          1. <span style="color:#22d3ee">Cold:</span> REST <code class="mono">/api/cracks/deviceId/sensorId</code> on mount<br/>
+          2. <span style="color:#f59e0b">Hot:</span> STOMP <code class="mono">/topic/alerts</code> + <code class="mono">/topic/camera-detections</code><br/>
+          3. DynamoDB value types auto-unwrapped (<code class="mono">S</code>, <code class="mono">N</code>, <code class="mono">BOOL</code>, <code class="mono">M</code>, <code class="mono">L</code>)<br/>
+          4. Max 100 events kept in memory per sensor stream
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== SLIDE 11: DATA FLOW DIAGRAM ===================== -->
+<div class="slide" id="slide-dataflow">
+  <div class="slide-tag">Data & Control Flow</div>
+  <h2 class="section-head">Full Data Flow Diagram</h2>
+  <div class="divider"></div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;max-width:960px;margin:0 auto">
+
+    <!-- Row 1: Device -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="arch-layer bg-red" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:#ef4444;top:-10px">🔴 Sensor Layer</span>
+        <div style="font-size:0.78rem;text-align:center;margin-top:4px">
+          <div style="font-weight:700;color:#fff;margin-bottom:6px">IR Arrays (×9)</div>
+          <div style="color:var(--text-muted);font-size:0.72rem">ADC 12-bit @ 50ms<br/>6 consecutive = crack<br/>Severity: 0–100%</div>
+        </div>
+      </div>
+      <div class="arch-layer bg-amber" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent2);top:-10px">📍 GPS Layer</span>
+        <div style="font-size:0.78rem;text-align:center;margin-top:4px">
+          <div style="font-weight:700;color:#fff;margin-bottom:6px">NEO-6M GPS</div>
+          <div style="color:var(--text-muted);font-size:0.72rem">TinyGPS++ parser<br/>UART feed<br/>Freeze on crack</div>
+        </div>
+      </div>
+      <div class="arch-layer bg-primary" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--primary);top:-10px">📷 Camera Layer</span>
+        <div style="font-size:0.78rem;text-align:center;margin-top:4px">
+          <div style="font-weight:700;color:#fff;margin-bottom:6px">ESP32-CAM × 3</div>
+          <div style="color:var(--text-muted);font-size:0.72rem">OV2640 JPEG<br/>GPIO + MQTT trigger<br/>HTTPS PUT → S3</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow 1 -->
+    <div style="text-align:center;color:var(--accent);font-size:0.8rem;font-weight:600">↓ All data flows into ESP32-S3 Master Controller ↓</div>
+
+    <!-- Row 2: Master -->
+    <div class="arch-layer bg-red" style="padding:14px;text-align:center">
+      <span class="arch-layer-label" style="color:#ef4444;top:-10px">🧠 ESP32-S3 Master Controller</span>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px">
+        <div class="arch-node">Scan IR Zones (50ms)</div>
+        <div class="arch-node">Debounce (×6 reads)</div>
+        <div class="arch-node">Freeze GPS</div>
+        <div class="arch-node">Generate crack_id</div>
+        <div class="arch-node">Fetch Pre-signed URL (Lambda)</div>
+        <div class="arch-node">Trigger Camera (MQTT + GPIO)</div>
+        <div class="arch-node">Publish Alert (MQTT)</div>
+        <div class="arch-node">Heartbeat (30s)</div>
+      </div>
+    </div>
+
+    <!-- Arrow 2 -->
+    <div style="text-align:center;color:var(--accent);font-size:0.8rem;font-weight:600">↓ MQTT/TLS 1.2 · Port 8883 · QoS 1 ↓ | ↑ Pre-signed URL response ↑</div>
+
+    <!-- Row 3: AWS -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="arch-layer bg-amber" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent2);top:-10px">🌐 AWS IoT Core</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">MQTT Broker<br/>Topic routing & filtering<br/>X.509 cert validation</div>
+      </div>
+      <div class="arch-layer bg-amber" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent2);top:-10px">🗄️ DynamoDB</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">PK: SensorID<br/>SK: timestamp<br/>+ image_url, lat, lng</div>
+      </div>
+      <div class="arch-layer bg-amber" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent2);top:-10px">📦 S3 + λ Lambda</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">JPEG image store<br/>Pre-signed URL gen<br/>Direct camera upload</div>
+      </div>
+    </div>
+
+    <!-- Arrow 3 -->
+    <div style="text-align:center;color:var(--accent);font-size:0.8rem;font-weight:600">↓ MQTT/TLS (Eclipse Paho) · AWS SDK v2 ↓</div>
+
+    <!-- Row 4: Backend -->
+    <div class="arch-layer bg-primary" style="padding:14px;text-align:center">
+      <span class="arch-layer-label" style="color:var(--primary);top:-10px">🖥️ Spring Boot Backend</span>
+      <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px">
+        <div class="arch-node">MqttInputChannel</div>
+        <div class="arch-node">MqttReceiver</div>
+        <div class="arch-node">IRSensorService</div>
+        <div class="arch-node">DynamoDB Repository</div>
+        <div class="arch-node">SimpMessagingTemplate</div>
+        <div class="arch-node">REST Controllers</div>
+      </div>
+    </div>
+
+    <!-- Arrow 4 -->
+    <div style="text-align:center;color:var(--accent);font-size:0.8rem;font-weight:600">↑ REST /api/cracks/** (cold) | ↑ STOMP /topic/alerts (hot) ↑</div>
+
+    <!-- Row 5: Frontend -->
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px">
+      <div class="arch-layer bg-green" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent3);top:-10px">📊 Dashboard</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">useTelemetry hook<br/>3 robot cards<br/>Load balancing view</div>
+      </div>
+      <div class="arch-layer bg-green" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent3);top:-10px">🗺️ Live Map</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">Leaflet.js markers<br/>Severity colours<br/>Click popups</div>
+      </div>
+      <div class="arch-layer bg-green" style="padding:12px 14px">
+        <span class="arch-layer-label" style="color:var(--accent3);top:-10px">📄 Reports</span>
+        <div style="font-size:0.72rem;color:var(--text-muted);text-align:center;margin-top:4px">Daily/Weekly/Monthly<br/>Image evidence<br/>jsPDF export</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===================== SLIDE 12: SUMMARY ===================== -->
+<div class="slide" id="slide-summary">
+  <div class="slide-tag">Summary</div>
+  <h2 class="section-head">Key Takeaways</h2>
+  <div class="divider"></div>
+  <div class="grid-2" style="gap:20px;margin-bottom:20px">
+    <div>
+      <div class="card-title" style="margin-bottom:14px">✅ What We Built</div>
+      <div class="req-item">
+        <span class="req-icon">🤖</span>
+        <div><div class="req-title">Autonomous Detection Pipeline</div><div class="req-desc">End-to-end pipeline: IR crack detection → GPS tagging → S3 image → cloud alert → dashboard — fully automated</div></div>
+      </div>
+      <div class="req-item">
+        <span class="req-icon">⚡</span>
+        <div><div class="req-title">Sub-2-Second Alert Latency</div><div class="req-desc">MQTT → IoT Core → Spring Boot → WebSocket → React in under 2 seconds</div></div>
+      </div>
+      <div class="req-item">
+        <span class="req-icon">🔒</span>
+        <div><div class="req-title">Zero-Trust Security</div><div class="req-desc">mTLS on every hop; no plain-text credentials; pre-signed URLs for camera uploads</div></div>
+      </div>
+      <div class="req-item">
+        <span class="req-icon">📈</span>
+        <div><div class="req-title">Cloud-Native Scalability</div><div class="req-desc">DynamoDB + S3 scale automatically; multi-device fleet architecture built-in</div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card-title" style="margin-bottom:14px">🛠️ Technology Stack Summary</div>
+      <div class="grid-2" style="gap:8px">
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(239,68,68,0.15)">🔴</div><div class="stat-pill-text"><div class="stat-pill-label">Embedded</div><div class="stat-pill-value">ESP32-S3 + PlatformIO</div></div></div>
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(245,158,11,0.15)">☁️</div><div class="stat-pill-text"><div class="stat-pill-label">Cloud</div><div class="stat-pill-value">AWS IoT + DynamoDB + S3</div></div></div>
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(99,102,241,0.15)">🌐</div><div class="stat-pill-text"><div class="stat-pill-label">Backend</div><div class="stat-pill-value">Spring Boot 3.5 / Java 17</div></div></div>
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(16,185,129,0.15)">⚛️</div><div class="stat-pill-text"><div class="stat-pill-label">Frontend</div><div class="stat-pill-value">React 19 + TypeScript + Vite</div></div></div>
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(34,211,238,0.12)">📨</div><div class="stat-pill-text"><div class="stat-pill-label">Protocol</div><div class="stat-pill-value">MQTT / TLS 1.2 / STOMP</div></div></div>
+        <div class="stat-pill"><div class="stat-pill-icon" style="background:rgba(168,85,247,0.15)">🗺️</div><div class="stat-pill-text"><div class="stat-pill-label">Mapping</div><div class="stat-pill-value">Leaflet.js + OpenStreetMap</div></div></div>
+      </div>
+
+      <div class="highlight-box" style="margin-top:16px">
+        <div style="font-size:0.82rem;font-weight:700;color:#fff;margin-bottom:10px">📌 GitHub Repository</div>
+        <div style="font-family:'JetBrains Mono',monospace;font-size:0.78rem;color:var(--accent)">cepdnaclk/e21-3yp-RAID</div>
+        <div style="font-size:0.76rem;color:var(--text-muted);margin-top:6px">University of Peradeniya — Department of Computer Engineering — E/21 Batch</div>
+      </div>
+    </div>
+  </div>
+  <div class="highlight-box" style="text-align:center;padding:20px">
+    <div style="font-size:1.5rem;font-weight:900;background:linear-gradient(135deg,#fff,#c7d2fe,#22d3ee);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;margin-bottom:8px">
+      Thank You — Questions Welcome
+    </div>
+    <div style="font-size:0.88rem;color:var(--text-muted)">
+      Autonomous IoT-Based Railway Track Crack Detection Robot · RAID · 2026
+    </div>
+  </div>
+</div>
+
+</div><!-- /slides-wrap -->
+
+<!-- BOTTOM HINTS -->
+<div id="bottom-hints">
+  <button onclick="prevSlide()" title="Previous">←</button>
+  <button onclick="nextSlide()" title="Next">→</button>
+</div>
+
+<script>
+  const SLIDES = [
+    'slide-cover','slide-overview','slide-arch','slide-func','slide-nfr',
+    'slide-sensors','slide-controllers','slide-network','slide-backend',
+    'slide-frontend','slide-dataflow','slide-summary'
+  ];
+  const TITLES = [
+    'Cover','System Overview','Solution Architecture','Functional Requirements',
+    'Non-Functional Requirements','Sensors & Actuators','Controller Platforms',
+    'Network Technologies','Back-End Technologies','Front-End Technologies',
+    'Data Flow Diagram','Summary'
+  ];
+  let current = 0;
+
+  function showSlide(n) {
+    document.querySelectorAll('.slide').forEach(s => s.classList.remove('active'));
+    document.getElementById(SLIDES[n]).classList.add('active');
+    // scroll to top
+    document.getElementById(SLIDES[n]).scrollTop = 0;
+    document.getElementById('slide-counter').textContent = `${n+1} / ${SLIDES.length} — ${TITLES[n]}`;
+    document.getElementById('progress').style.width = `${((n+1)/SLIDES.length)*100}%`;
+  }
+
+  function nextSlide() {
+    if (current < SLIDES.length - 1) { current++; showSlide(current); }
+  }
+  function prevSlide() {
+    if (current > 0) { current--; showSlide(current); }
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowDown') nextSlide();
+    if (e.key === 'ArrowLeft'  || e.key === 'ArrowUp')   prevSlide();
+  });
+
+  showSlide(0);
+</script>
+</body>
+</html>
