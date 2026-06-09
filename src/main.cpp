@@ -16,7 +16,7 @@ LiquidCrystal_I2C lcd(0x27, 20, 4);
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
-const int BUZZER_PIN = 4; // Used for YXDZ Buzzer
+const int BUZZER_PIN = 13; // Used for YXDZ Buzzer
 const String ZONE_NAMES[3] = {"LEFT", "CENTER", "RIGHT"};
 const unsigned long OFFSET_DELAY_MS = 500; // 0.5s delay for camera alignment
 
@@ -478,6 +478,9 @@ constexpr int REQUIRED_CONSECUTIVE_CRACKS = 6; // ~300ms stable crack indication
 // ================= Setup =================
 void setup()
 {
+  Serial.begin(115200);
+  delay(500); // Let Serial stabilize
+  
   for(int i = 0; i < 3; i++) {
         pinMode(CAM_TRIGGERS[i], OUTPUT);
         digitalWrite(CAM_TRIGGERS[i], LOW);
@@ -486,7 +489,6 @@ void setup()
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-  Serial.begin(115200);
    Wire.begin(8, 9, 100000); 
   Serial.println("[I2C] Bus Active.");
 
