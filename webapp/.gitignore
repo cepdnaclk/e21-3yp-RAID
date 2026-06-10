@@ -30,3 +30,9 @@ dist-ssr
 .env.development.local
 .env.test.local
 .env.production.local
+
+# Generated test artifacts
+coverage/
+playwright-report/
+tests/screenshots/
+tests/test-results/
