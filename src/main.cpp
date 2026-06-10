@@ -334,7 +334,7 @@ void publishUnifiedAlert(String imageUrl, String sensorId,
   StaticJsonDocument<768> doc;
 
   // ── Identity ──────────────────────────────────────────────────────────────
-  doc["SensorId"]      = sensorId;
+  doc["SensorID"]      = sensorId;
   doc["deviceId"]      = DEVICE_ID;
   doc["timestamp"]     = getIsoTimestamp();
 
