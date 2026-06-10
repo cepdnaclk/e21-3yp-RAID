@@ -355,6 +355,14 @@ crack_detected → 500ms delay → fetchPresignedUrl(objectKey)
 | LCD 20×4 | I²C (SDA=8, SCL=9, addr=0x27) | 250 ms refresh; fault → "!! CRACK DETECTED !!" |
 | Camera GPIO Triggers | GPIO 15 (L) / 16 (C) / 17 (R) | 20 ms pulse; fallback if MQTT slow |
 
+### Component Interfacing Summary
+
+- **Main Hub:** ESP32-S3 orchestrates all hardware and network communications.
+- **IR Arrays (Analog & Digital):** 3 analog inputs (Pins 4, 5, 6) multiplexed via 3 digital pins (10, 11, 12).
+- **ESP32-CAMs (Hybrid):** Fast hardware GPIO trigger (Pins 15-17) combined with an MQTT JSON command containing the S3 URL.
+- **Feedback (I²C & GPIO):** LCD connects via I²C (SDA=8, SCL=9 at 100kHz). Buzzer directly driven by digital Pin 13.
+- **Cloud Link (WiFi & MQTT):** Encrypted MQTT (Port 8883) over WiFi, authenticated with embedded X.509 certificates.
+
 ---
 
 ## 7. Controller Platforms

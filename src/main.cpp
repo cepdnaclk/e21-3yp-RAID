@@ -9,10 +9,15 @@
 #include "sensor configuration/ir sensors/ir_sensor.h"
 // #include "sensor configuration/gps sensors/gps_module.h"
 #include <LiquidCrystal_I2C.h>
+#include <Adafruit_MLX90614.h>
 
 // Initialize the 20x4 LCD Screen. 
 // Most PCF8574 backpacks default to address 0x27. If yours is blank, change to 0x3F.
 LiquidCrystal_I2C lcd(0x27, 20, 4);
+
+// Initialize MLX90614 Temperature Sensor
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
@@ -492,6 +497,12 @@ void setup()
    Wire.begin(8, 9, 100000); 
   Serial.println("[I2C] Bus Active.");
 
+  if (!mlx.begin()) {
+    Serial.println("[I2C] Error connecting to MLX sensor. Check wiring.");
+  } else {
+    Serial.println("[I2C] MLX90614 initialized.");
+  }
+
 
 lcd.init();
 lcd.backlight();
@@ -577,7 +588,14 @@ void loop()
     if (!irScanReady || (now - lastSensorScan >= SENSOR_SCAN_INTERVAL_MS))
     {
         lastSensorScan = now;
-        currentZones = scanAllZones(); // Read all 3 arrays
+        
+        // Read the temperature from MLX90614. If reading fails, fallback to 32.0
+        float currentTemp = mlx.readAmbientTempC();
+        if (isnan(currentTemp) || currentTemp < -40.0 || currentTemp > 125.0) {
+            currentTemp = 32.0; // Safe fallback
+        }
+        
+        currentZones = scanAllZones(currentTemp); // Read all 3 arrays with dynamic thresholds
         irScanReady = true;
 
         anyFaultActive = false;

@@ -15,8 +15,11 @@ namespace
     // Define 3 hardware trigger pins to command the cameras
 const int CAM_TRIGGER_PINS[3] = {15, 16, 17}; // Left, Center, Right
 
-    // CALIBRATED THRESHOLDS 
-    const int THRESHOLDS[IR_SENSOR_COUNT] = {303, 292, 0, 0, 295, 318, 380, 361}; 
+    // CALIBRATION PROFILES for Dynamic Linear Interpolation
+    const float T_mild = 32.0;
+    const float T_hot  = 34.2;
+    const float Th_mild[IR_SENSOR_COUNT] = {111, 124, 90, 92, 57, 64, 62, 69};
+    const float Th_hot[IR_SENSOR_COUNT]  = {185, 190, 205, 205, 165, 167, 160, 160};
 
     // MASKING: Set to false if a sensor is physically dead
     const bool SENSOR_ACTIVE[IR_SENSOR_COUNT] = {true, true, false, false, true, true, true, true};
@@ -48,7 +51,7 @@ void initIRSensors()
     analogSetAttenuation(ADC_11db);
 }
 
-MultiZoneScanResult scanAllZones()
+MultiZoneScanResult scanAllZones(float currentTemp)
 {
     MultiZoneScanResult results{};
 
@@ -88,6 +91,13 @@ MultiZoneScanResult scanAllZones()
                 results.zone[z].minValueIndex = i;
             }
         }
+    }
+
+    // --- STEP 1.5: CALCULATE DYNAMIC THRESHOLDS USING LINEAR INTERPOLATION ---
+    float THRESHOLDS[IR_SENSOR_COUNT];
+    for (int i = 0; i < IR_SENSOR_COUNT; i++) {
+        // Point-slope linear interpolation formula
+        THRESHOLDS[i] = Th_mild[i] + ((Th_hot[i] - Th_mild[i]) / (T_hot - T_mild)) * (currentTemp - T_mild);
     }
 
     // --- STEP 2: ZONE-SPECIFIC PAIR-BASED CRACK DETECTION ---
