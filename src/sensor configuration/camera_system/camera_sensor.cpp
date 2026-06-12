@@ -16,6 +16,7 @@
 const String CAMERA_ID = CAMERA_POSITION;
 
 // --- CAMERA PINS (AI-THINKER) ---
+#define FLASH_LED_PIN  4
 #define PWDN_GPIO_NUM  32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM  0
@@ -117,7 +118,17 @@ String sendPhotoToS3(camera_fb_t *fb, const String &s3PutUrl) {
 // ── CAPTURE & REPORT ────────────────────────────────────────────────────────────────
 // Called when captureRequested is set (by GPIO ISR or MQTT cam_cmd).
 void captureAndSend() {
+    // Turn on the flasher
+    digitalWrite(FLASH_LED_PIN, HIGH);
+    
+    // Allow auto-exposure to adapt to the new lighting
+    delay(500); 
+    
     camera_fb_t *fb = esp_camera_fb_get();
+    
+    // Turn off the flasher
+    digitalWrite(FLASH_LED_PIN, LOW);
+
     if (!fb) {
         Serial.println("[CAM] ❌ Frame buffer capture failed");
         return;
@@ -259,6 +270,9 @@ void setup() {
     pinMode(HARDWARE_TRIGGER_PIN, INPUT_PULLDOWN);
     attachInterrupt(digitalPinToInterrupt(HARDWARE_TRIGGER_PIN), onHardwareTrigger, RISING);
 
+    // Initialize Flash LED
+    pinMode(FLASH_LED_PIN, OUTPUT);
+    digitalWrite(FLASH_LED_PIN, LOW);
 
     Serial.begin(115200);
 
