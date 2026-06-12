@@ -11,7 +11,7 @@ const BottomNav = () => {
   const navItems = [
     { icon: Home, label: "Home", path: "/dashboard" },
     { icon: Map, label: "Map", path: "/map" },
-    { icon: FileText, label: "Reports", path: "/reports", badge: pendingCount },
+    { icon: FileText, label: "Reports", path: "/reports" },
   ];
 
   return (

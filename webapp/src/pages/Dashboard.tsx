@@ -22,6 +22,24 @@ export default function Dashboard() {
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [selectedCrack, setSelectedCrack] = useState<any>(null);
   const [showCrackDetail, setShowCrackDetail] = useState(false);
+  const [statusOverrides, setStatusOverrides] = useState<Record<string, string>>(() => {
+    const saved = localStorage.getItem('crackStatusOverrides');
+    return saved ? JSON.parse(saved) : {};
+  });
+
+  React.useEffect(() => {
+    localStorage.setItem('crackStatusOverrides', JSON.stringify(statusOverrides));
+  }, [statusOverrides]);
+
+  const getCrackKey = (c: any) => c.id?.toString() || c.timestamp?.toString();
+
+  const applyOverrides = (cracks: any[]) => cracks.map(c => {
+    const key = getCrackKey(c);
+    return {
+      ...c,
+      status: (key && statusOverrides[key]) ? statusOverrides[key] : c.status
+    };
+  });
 
   // Real ESP32 device "esp-001" has 3 sensor positions: LEFT, RIGHT, CENTER.
   // Each is a separate DynamoDB partition key, so we need 3 queries.
@@ -31,23 +49,33 @@ export default function Dashboard() {
 
   // Merge all three sensor streams into one "device1" object
   const device1 = {
-    liveCracks: [
+    liveCracks: applyOverrides([
       ...sensorLeft.liveCracks,
       ...sensorRight.liveCracks,
       ...sensorCenter.liveCracks,
-    ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()),
+    ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())),
     isConnected: sensorLeft.isConnected || sensorRight.isConnected || sensorCenter.isConnected,
   };
 
   // Device 2 & 3: Mock data (for load balancing demo — keep as-is)
-  const device2 = useMockTelemetry("esp-002-mock", "IR_Bottom");
-  const device3 = useMockTelemetry("esp-003-mock", "IR_Bottom");
+  const device2Mock = useMockTelemetry("esp-002-mock", "IR_Bottom");
+  const device3Mock = useMockTelemetry("esp-003-mock", "IR_Bottom");
+
+  const device2 = {
+    ...device2Mock,
+    liveCracks: applyOverrides(device2Mock.liveCracks)
+  };
+
+  const device3 = {
+    ...device3Mock,
+    liveCracks: applyOverrides(device3Mock.liveCracks)
+  };
 
   // Total number of detected events across all devices
   const totalCracks = device1.liveCracks.length + device2.liveCracks.length + device3.liveCracks.length;
   const totalCritical = [device1, device2, device3]
     .flatMap(d => d.liveCracks)
-    .filter(c => c.severity === 'HIGH').length;
+    .filter(c => c.status === 'approved' || c.status === 'confirmed').length;
 
   // Load Balancing Metrics
   const device1Load = device1.liveCracks.length;
@@ -82,22 +110,11 @@ export default function Dashboard() {
 
   // Handle crack status update
   const handleCrackStatusUpdate = (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => {
-    // Update the crack status in the appropriate device's liveCracks array
-    const updateCrackInDevice = (cracks: any[]) => {
-      return cracks.map(c =>
-        (c.id === crackId || c.id?.toString() === crackId?.toString())
-          ? { ...c, status: newStatus }
-          : c
-      );
-    };
-
-    // Find which device has this crack and update it
-    const device1Updated = updateCrackInDevice(device1.liveCracks);
-    const device2Updated = updateCrackInDevice(device2.liveCracks);
-    const device3Updated = updateCrackInDevice(device3.liveCracks);
+    setStatusOverrides(prev => ({ ...prev, [crackId]: newStatus }));
 
     // Update selected crack if it's the one being updated
-    if (selectedCrack?.id === crackId || selectedCrack?.id?.toString() === crackId?.toString()) {
+    const selectedKey = getCrackKey(selectedCrack || {});
+    if (selectedKey === crackId?.toString()) {
       setSelectedCrack({ ...selectedCrack, status: newStatus });
     }
   };
@@ -298,6 +315,7 @@ export default function Dashboard() {
                 isReal={true}
                 liveCracks={device1.liveCracks}
                 onCrackClick={handleCrackClick}
+                onCrackStatusUpdate={handleCrackStatusUpdate}
               />
             )}
             {selectedDevice === 'esp-002-mock' && (
@@ -307,6 +325,7 @@ export default function Dashboard() {
                 isReal={false}
                 liveCracks={device2.liveCracks}
                 onCrackClick={handleCrackClick}
+                onCrackStatusUpdate={handleCrackStatusUpdate}
               />
             )}
             {selectedDevice === 'esp-003-mock' && (
@@ -316,6 +335,7 @@ export default function Dashboard() {
                 isReal={false}
                 liveCracks={device3.liveCracks}
                 onCrackClick={handleCrackClick}
+                onCrackStatusUpdate={handleCrackStatusUpdate}
               />
             )}
           </>
@@ -344,13 +364,15 @@ function DetailedDeviceView({
   deviceName, 
   isReal, 
   liveCracks,
-  onCrackClick
+  onCrackClick,
+  onCrackStatusUpdate
 }: {
   deviceId: string;
   deviceName: string;
   isReal: boolean;
   liveCracks: any[];
   onCrackClick: (crack: any) => void;
+  onCrackStatusUpdate?: (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => void;
 }) {
   const total = liveCracks.length;
   const pending = liveCracks.filter(c => c.status === 'pending' || c.status !== 'ignored').length;
@@ -422,15 +444,26 @@ function DetailedDeviceView({
                     </div>
                   </td>
                   <td className="p-4">
-                    <span className={`px-2 py-1 rounded text-xs font-bold ${
-                        crack.status === 'CRACK' || crack.status === 'CRITICAL_DEFECT'
+                    <button 
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        const key = crack.id?.toString() || crack.timestamp?.toString();
+                        if (onCrackStatusUpdate && key) {
+                          const isPending = !(crack.status === 'approved' || crack.status === 'confirmed' || crack.status === 'ignored');
+                          if (isPending) {
+                            onCrackStatusUpdate(key, 'approved');
+                          }
+                        }
+                      }}
+                      className={`px-2 py-1 rounded text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity ${
+                        crack.status === 'approved' || crack.status === 'confirmed'
                           ? 'bg-rose-100 text-rose-700'
-                          : crack.crack_detected
-                            ? 'bg-amber-100 text-amber-700'
-                            : 'bg-slate-100 text-slate-600'
+                          : crack.status === 'ignored'
+                            ? 'bg-slate-100 text-slate-600'
+                            : 'bg-emerald-100 text-emerald-700'
                       }`}>
-                      {crack.status || (crack.crack_detected ? 'CRACK' : 'CLEAR')}
-                    </span>
+                      {crack.status === 'approved' || crack.status === 'confirmed' ? 'confirmed' : crack.status === 'ignored' ? 'ignored' : 'pending'}
+                    </button>
                   </td>
                   <td className="p-4 text-right">
                     <Button

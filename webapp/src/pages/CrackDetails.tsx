@@ -67,11 +67,7 @@ const CrackDetails = () => {
               View on Map
             </button>
           </div>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="bg-secondary/50 rounded-xl p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Track Marker</p>
-              <p className="font-bold text-foreground mt-0.5">KM {alert.km}</p>
-            </div>
+          <div className="grid grid-cols-1 gap-3">
             <div className="bg-secondary/50 rounded-xl p-3">
               <p className="text-[10px] text-muted-foreground uppercase tracking-wider">GPS Coordinates</p>
               <p className="font-bold text-foreground text-sm mt-0.5">{alert.lat.toFixed(4)}°N</p>
@@ -106,17 +102,17 @@ const CrackDetails = () => {
 
         {/* Status & Description */}
         <div className={`bg-card rounded-2xl p-4 shadow-sm border border-border border-l-4 ${
-          alert.status === "pending" ? "border-l-warning" :
-          alert.status === "confirmed" ? "border-l-success" : "border-l-muted-foreground"
+          alert.status === "pending" ? "border-l-success" :
+          alert.status === "confirmed" ? "border-l-destructive" : "border-l-muted-foreground"
         }`}>
           <div className="flex items-center gap-3 mb-3">
             <div className={`w-3.5 h-3.5 rounded-full ${
-              alert.status === "pending" ? "bg-warning animate-pulse" :
-              alert.status === "confirmed" ? "bg-success" : "bg-muted-foreground"
+              alert.status === "pending" ? "bg-success animate-pulse" :
+              alert.status === "confirmed" ? "bg-destructive" : "bg-muted-foreground"
             }`} />
             <span className={`text-sm font-bold ${
-              alert.status === "pending" ? "text-warning" :
-              alert.status === "confirmed" ? "text-success" : "text-muted-foreground"
+              alert.status === "pending" ? "text-success" :
+              alert.status === "confirmed" ? "text-destructive" : "text-muted-foreground"
             }`}>
               {alert.status === "pending" ? "Action Pending" :
                alert.status === "confirmed" ? "Crack Confirmed" : "Alert Ignored"}
@@ -131,8 +127,8 @@ const CrackDetails = () => {
             Take Action
           </Button>
         ) : (
-          <div className={`text-center py-3 rounded-xl ${alert.status === "confirmed" ? "bg-success/10" : "bg-muted"}`}>
-            <p className={`font-semibold text-sm ${alert.status === "confirmed" ? "text-success" : "text-muted-foreground"}`}>
+          <div className={`text-center py-3 rounded-xl ${alert.status === "confirmed" ? "bg-destructive/10" : "bg-muted"}`}>
+            <p className={`font-semibold text-sm ${alert.status === "confirmed" ? "text-destructive" : "text-muted-foreground"}`}>
               {alert.status === "confirmed" ? "✓ Crack Confirmed" : "✗ Alert Ignored"}
             </p>
           </div>

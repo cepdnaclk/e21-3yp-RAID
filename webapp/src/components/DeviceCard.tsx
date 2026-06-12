@@ -13,6 +13,7 @@ interface DeviceCardProps {
   liveCracks: CrackEvent[];
   onViewDetails: () => void;
   onCrackClick?: (crack: CrackEvent) => void; // New: click on individual crack
+  onCrackStatusUpdate?: (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => void;
 }
 
 export default function DeviceCard({
@@ -22,11 +23,12 @@ export default function DeviceCard({
   isConnected,
   liveCracks,
   onViewDetails,
-  onCrackClick
+  onCrackClick,
+  onCrackStatusUpdate
 }: DeviceCardProps) {
   
   const total = liveCracks.length;
-  const highSeverity = liveCracks.filter(c => c.severity === 'HIGH').length;
+  const highSeverity = liveCracks.filter(c => c.status === 'approved' || c.status === 'confirmed').length;
 
   return (
     <div className={`rounded-2xl shadow-md overflow-hidden border-2 transition-all hover:shadow-lg ${
@@ -116,18 +118,30 @@ export default function DeviceCard({
                 className="w-full flex items-center justify-between bg-slate-50 hover:bg-blue-50 rounded p-2 text-xs transition-colors cursor-pointer border border-transparent hover:border-blue-200"
               >
                 <div className="text-left">
-                  <p className="font-semibold text-slate-900">{crack.km?.toFixed(1)} km</p>
+                  <p className="font-semibold text-slate-900">Detection</p>
                   <p className="text-slate-500">{new Date(crack.timestamp || '').toLocaleTimeString()}</p>
                 </div>
-                <div className={`px-2 py-1 rounded font-bold whitespace-nowrap ml-2 ${
-                  crack.status === 'approved' 
-                    ? 'bg-emerald-100 text-emerald-700'
-                    : crack.status === 'pending'
-                    ? 'bg-amber-100 text-amber-700'
-                    : 'bg-slate-100 text-slate-600'
-                }`}>
-                  {crack.status || 'pending'}
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    const key = crack.id?.toString() || crack.timestamp?.toString();
+                    if (onCrackStatusUpdate && key) {
+                      const isPending = !(crack.status === 'approved' || crack.status === 'confirmed' || crack.status === 'ignored');
+                      if (isPending) {
+                        onCrackStatusUpdate(key, 'approved');
+                      }
+                    }
+                  }}
+                  className={`px-2 py-1 rounded font-bold whitespace-nowrap ml-2 cursor-pointer hover:opacity-80 transition-opacity ${
+                    crack.status === 'approved' || crack.status === 'confirmed'
+                      ? 'bg-rose-100 text-rose-700'
+                      : crack.status === 'ignored'
+                      ? 'bg-slate-100 text-slate-600'
+                      : 'bg-emerald-100 text-emerald-700'
+                  }`}
+                >
+                  {crack.status === 'approved' || crack.status === 'confirmed' ? 'confirmed' : crack.status === 'ignored' ? 'ignored' : 'pending'}
+                </button>
               </button>
             ))}
           </div>

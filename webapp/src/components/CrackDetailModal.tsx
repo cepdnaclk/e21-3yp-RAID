@@ -49,7 +49,8 @@ export default function CrackDetailModal({
 
   const handleApprove = async () => {
     setIsUpdating(true);
-    onStatusUpdate(crack.id || '', 'approved');
+    const key = crack.id?.toString() || crack.timestamp?.toString() || '';
+    onStatusUpdate(key, 'approved');
     setTimeout(() => {
       setIsUpdating(false);
       onClose();
@@ -58,7 +59,8 @@ export default function CrackDetailModal({
 
   const handleIgnore = async () => {
     setIsUpdating(true);
-    onStatusUpdate(crack.id || '', 'ignored');
+    const key = crack.id?.toString() || crack.timestamp?.toString() || '';
+    onStatusUpdate(key, 'ignored');
     setTimeout(() => {
       setIsUpdating(false);
       onClose();
@@ -88,13 +90,13 @@ export default function CrackDetailModal({
           </div>
           <div className="flex items-center gap-3">
             <span className={`px-3 py-1 rounded-full text-xs font-bold ${
-              crack.status === 'approved'
-                ? 'bg-emerald-200 text-emerald-700'
+              crack.status === 'approved' || crack.status === 'confirmed'
+                ? 'bg-rose-200 text-rose-700'
                 : crack.status === 'ignored'
                 ? 'bg-slate-200 text-slate-600'
-                : 'bg-amber-200 text-amber-700'
+                : 'bg-emerald-200 text-emerald-700'
             }`}>
-              {crack.status?.toUpperCase() || 'PENDING'}
+              {crack.status === 'approved' || crack.status === 'confirmed' ? 'CONFIRMED' : crack.status === 'ignored' ? 'IGNORED' : 'PENDING'}
             </span>
             <button
               onClick={onClose}
@@ -155,13 +157,7 @@ export default function CrackDetailModal({
                 View on Map
               </button>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-              
-              {/* Track Marker */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
-                <p className="text-xs text-blue-600 font-bold uppercase mb-1">Track Marker</p>
-                <p className="text-3xl font-bold text-blue-900">KM {crack.km?.toFixed(1)}</p>
-              </div>
+            <div className="grid grid-cols-1 gap-4">
 
               {/* GPS Coordinates */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
@@ -221,7 +217,7 @@ export default function CrackDetailModal({
               disabled={isUpdating || crack.status === 'approved'}
               className={`flex-1 font-bold py-3 flex items-center justify-center gap-2 text-lg ${
                 crack.status === 'approved'
-                  ? 'bg-emerald-200 text-emerald-700 cursor-not-allowed'
+                  ? 'bg-rose-200 text-rose-700 cursor-not-allowed'
                   : 'bg-emerald-500 hover:bg-emerald-600 text-white'
               }`}
             >
