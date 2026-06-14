@@ -36,18 +36,5 @@ int GPSModule::getSatellites() {
 // This is critical for your "Stop-and-Shoot" architecture
 
 bool GPSModule::waitForFixWithTimeout(unsigned long timeout_ms) {
-    unsigned long start = millis();
-    Serial.print("🛰️ Waiting for GPS fix");
-    while (millis() - start < timeout_ms) {
-        update();
-        if (gps.location.isValid()) {
-            Serial.printf("\n✅ GPS fix: %.6f, %.6f (%d sats)\n",
-                          getLiveLat(), getLiveLng(), getSatellites());
-            return true;
-        }
-        delay(500);
-        Serial.print(".");
-    }
-    Serial.println("\n⚠️ GPS fix timed out.");
-    return false;
+    return false;  // Non-blocking — GPS updates happen in loop() via gps.update()
 }

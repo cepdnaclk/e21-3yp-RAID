@@ -588,7 +588,7 @@ lcd.print("RAILWAY BOT V1.0");
   initIRSensors();
   encoder_init();              // ← ADD
   gps.begin();                 
-  gps.waitForFixWithTimeout(90000);
+  gps.waitForFixWithTimeout(10000);
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
