@@ -481,7 +481,7 @@ String getIsoTimestamp()
   strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
   return String(buffer);
 }
-static constexpr float GPS_ANCHOR_GATE_M = 2.0f;
+static constexpr float GPS_ANCHOR_GATE_M = 10.0f;
 
 static float haversineM(double lat1, double lng1, double lat2, double lng2) {
     const float R = 6371000.0f;
@@ -624,7 +624,7 @@ void loop()
     static bool irScanReady = false;
     encoder_update();           // ← ADD (must be first, called every iteration)
     gps.update();               
-    maybeUpdateGpsAnchor();
+    
 
     if (!client.connected())
     {
@@ -676,6 +676,7 @@ void loop()
                 pendingTrigger[z]    = true;
                 crackDetectedTime[z] = now;
                 lastIrScanResult[z]  = currentZones.zone[z]; // Snapshot IR state
+                maybeUpdateGpsAnchor();
 
                 // Generate a unique, traceable Crack ID for this event.
                 // Format: crack_<deviceId>_<zone>_<millis>
@@ -787,10 +788,10 @@ void loop()
         }
         doc["irSensor"] = minHeartbeatIr;
 
-        // bool liveValid = gps.isLiveLocationValid();
-        // doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
-        // doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
-        // doc["gps_valid"] = liveValid;
+        bool liveValid = gps.isLiveLocationValid();
+        doc["latitude"] = liveValid ? gps.getLiveLat() : 0.0;
+        doc["longitude"] = liveValid ? gps.getLiveLng() : 0.0;
+        doc["gps_valid"] = liveValid;
 
         String payload;
         serializeJson(doc, payload);
