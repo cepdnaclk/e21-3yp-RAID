@@ -59,7 +59,8 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
     });
 
     markers.forEach((crack) => {
-      const color = crack.severity >= 0.7 ? "#dc2626" : crack.severity >= 0.4 ? "#f59e0b" : "#2563eb";
+      const severityNum = typeof crack.severity === 'number' ? crack.severity : 0;
+const color = severityNum >= 0.7 ? "#dc2626" : severityNum >= 0.4 ? "#f59e0b" : "#2563eb";
 
       if (markersRef.current[crack.id]) {
         markersRef.current[crack.id].setLngLat([crack.lng, crack.lat]);
@@ -73,7 +74,7 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
         .setLngLat([crack.lng, crack.lat])
         .setPopup(
           new mapboxgl.Popup({ offset: 12 }).setHTML(
-            `<div style="font-size:12px"><b>Severity:</b> ${crack.severity.toFixed(2)}<br/><b>Lat/Lng:</b> ${crack.lat.toFixed(5)}, ${crack.lng.toFixed(5)}</div>`
+            `<div style="font-size:12px"><b>Severity:</b> ${typeof crack.severity === 'number' ? crack.severity.toFixed(2) : crack.severity}<br/><b>Lat/Lng:</b> ${crack.lat.toFixed(5)}, ${crack.lng.toFixed(5)}</div>`
           )
         )
         .addTo(mapRef.current!);
