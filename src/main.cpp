@@ -7,12 +7,14 @@
 #include <ArduinoJson.h>
 #include <time.h>
 #include "sensor configuration/ir sensors/ir_sensor.h"
-// #include "sensor configuration/gps sensors/gps_module.h"
+#include "sensor configuration/gps sensors/gps_module.h"
 #include <LiquidCrystal_I2C.h>
+#include "encoder_odometry.h"
 
 // Initialize the 20x4 LCD Screen. 
 // Most PCF8574 backpacks default to address 0x27. If yours is blank, change to 0x3F.
 LiquidCrystal_I2C lcd(0x27, 20, 4);
+GPSModule gps;
 
 // ================= Configuration =================
 const int CAM_TRIGGERS[3] = {15, 16, 17}; // LEFT, CENTER, RIGHT Pins
@@ -46,9 +48,9 @@ const char *SENSOR_ID   = "IR_Bottom";
 const char *PRESIGN_LAMBDA_URL = "https://kmtogp7ysh7fbhoj6yrb5hlu7q0ubbhb.lambda-url.eu-north-1.on.aws/";
 
 String getIsoTimestamp();
-
-void updateLocalDisplay(bool faultActive, String activeZone, int activeCh); 
-
+void updateLocalDisplay(bool faultActive, String activeZone, int activeCh);
+static void drProject(double ancLat, double ancLng, float distM, double bearingDeg,
+                      double &outLat, double &outLng);  // ← ADD THIS
 int consecutiveCracks[3] = {0, 0, 0};
 bool pendingTrigger[3] = {false, false, false};
 unsigned long crackDetectedTime[3] = {0, 0, 0};
@@ -356,16 +358,29 @@ void publishUnifiedAlert(String imageUrl, String sensorId,
       ? severity
       : constrain(map(irData.minValue, 0, 4095, 100, 0), 0, 100);
 
-  // ── GPS (stub: left at 0.0 until GPS module is re-enabled) ───────────────
-  // bool useFrozen = gps.isFrozenValid();
-  // double lat = useFrozen ? gps.getFrozenLat() : gps.getLiveLat();
-  // double lng = useFrozen ? gps.getFrozenLng() : gps.getLiveLng();
-  // doc["latitude"]     = useFrozen ? lat : 0.0;
-  // doc["longitude"]    = useFrozen ? lng : 0.0;
-  // doc["locationValid"] = useFrozen;
-  doc["latitude"]      = 0.0;
-  doc["longitude"]     = 0.0;
-  doc["locationValid"] = false;
+  // ── Location: GPS first, dead reckoning as fallback ──────────────────
+  if (gps.isLiveLocationValid()) {
+      doc["latitude"]        = gps.getLiveLat();
+      doc["longitude"]       = gps.getLiveLng();
+      doc["locationValid"]   = true;
+      doc["location_source"] = "GPS";
+  } else if (enc_originSet) {
+      double drLat, drLng;
+      float deltaDist = encoder_getDeltaM();
+      drProject(enc_anchorLat, enc_anchorLng,
+                deltaDist, enc_lastBearing,
+                drLat, drLng);
+      doc["latitude"]        = drLat;
+      doc["longitude"]       = drLng;
+      doc["locationValid"]   = true;
+      doc["location_source"] = "DEAD_RECKONING";
+      Serial.printf("🧭 DR: %.6f, %.6f (%.1fm from anchor)\n", drLat, drLng, deltaDist);
+  } else {
+      doc["latitude"]        = 0.0;
+      doc["longitude"]       = 0.0;
+      doc["locationValid"]   = false;
+      doc["location_source"] = "NONE";
+  }
 
   // ── Raw IR array ──────────────────────────────────────────────────────────
   JsonArray irArray = doc.createNestedArray("irArray");
@@ -466,6 +481,58 @@ String getIsoTimestamp()
   strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &timeinfo);
   return String(buffer);
 }
+static constexpr float GPS_ANCHOR_GATE_M = 2.0f;
+
+static float haversineM(double lat1, double lng1, double lat2, double lng2) {
+    const float R = 6371000.0f;
+    float dLat = radians(lat2 - lat1);
+    float dLng = radians(lng2 - lng1);
+    float a = sin(dLat/2)*sin(dLat/2)
+            + cos(radians(lat1))*cos(radians(lat2))
+            * sin(dLng/2)*sin(dLng/2);
+    return R * 2.0f * atan2(sqrt(a), sqrt(1-a));
+}
+
+static void drProject(double ancLat, double ancLng,
+                      float distM, double bearingDeg,
+                      double &outLat, double &outLng) {
+    const float R = 6371000.0f;
+    float d = distM / R;
+    float b = radians(bearingDeg);
+    double latRad = asin(sin(radians(ancLat))*cos(d)
+                   + cos(radians(ancLat))*sin(d)*cos(b));
+    double lngRad = radians(ancLng)
+                  + atan2(sin(b)*sin(d)*cos(radians(ancLat)),
+                          cos(d) - sin(radians(ancLat))*sin(latRad));
+    outLat = degrees(latRad);
+    outLng = degrees(lngRad);
+}
+
+void maybeUpdateGpsAnchor() {
+    if (!gps.isLiveLocationValid()) return;
+
+    double lat = gps.getLiveLat();
+    double lng = gps.getLiveLng();
+
+    if (!enc_originSet) {
+        enc_originLat   = lat;  enc_originLng   = lng;
+        enc_anchorLat   = lat;  enc_anchorLng   = lng;
+        enc_anchorTicks = enc_totalTicks;
+        enc_anchorDistM = 0.0f;
+        enc_originSet   = true;
+        Serial.printf("📍 GPS origin set: %.6f, %.6f\n", lat, lng);
+        return;
+    }
+
+    float dist = haversineM(enc_anchorLat, enc_anchorLng, lat, lng);
+    if (dist >= GPS_ANCHOR_GATE_M) {
+        enc_anchorLat   = lat;
+        enc_anchorLng   = lng;
+        enc_anchorTicks = enc_totalTicks;
+        enc_anchorDistM = encoder_getBestDistM();
+        Serial.printf("📍 Anchor updated: %.6f, %.6f (moved %.1fm)\n", lat, lng, dist);
+    }
+}
 
 unsigned long lastHeartbeat = 0;
 
@@ -519,7 +586,9 @@ lcd.print("RAILWAY BOT V1.0");
   syncTime();
   connectAWS();
   initIRSensors();
-  // gps.begin();
+  encoder_init();              // ← ADD
+  gps.begin();                 
+  gps.waitForFixWithTimeout(90000);
 
   client.setCallback(mqttCallback);
   // Prepare MQTT Topic
@@ -553,7 +622,9 @@ lcd.print("RAILWAY BOT V1.0");
 void loop()
 {
     static bool irScanReady = false;
-    // gps.update();
+    encoder_update();           // ← ADD (must be first, called every iteration)
+    gps.update();               
+    maybeUpdateGpsAnchor();
 
     if (!client.connected())
     {
