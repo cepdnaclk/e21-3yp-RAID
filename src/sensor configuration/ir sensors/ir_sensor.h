@@ -20,6 +20,6 @@ struct MultiZoneScanResult {
 void initIRSensors();
 
 // Scans all 8 sensors and applies pair-based crack detection.
-MultiZoneScanResult scanAllZones();
+MultiZoneScanResult scanAllZones(float currentTemp);
 
 #endif
