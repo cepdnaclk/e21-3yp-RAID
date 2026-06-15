@@ -9,7 +9,13 @@
 #include "sensor configuration/ir sensors/ir_sensor.h"
 #include "sensor configuration/gps sensors/gps_module.h"
 #include <LiquidCrystal_I2C.h>
+
+#include <Adafruit_MLX90614.h>
+
+Adafruit_MLX90614 mlx = Adafruit_MLX90614();
+
 #include "encoder_odometry.h"
+
 
 // Initialize the 20x4 LCD Screen. 
 // Most PCF8574 backpacks default to address 0x27. If yours is blank, change to 0x3F.
@@ -556,9 +562,16 @@ void setup()
   pinMode(BUZZER_PIN, OUTPUT);
   digitalWrite(BUZZER_PIN, LOW);
 
-   Wire.begin(8, 9, 100000); 
-  Serial.println("[I2C] Bus Active.");
+   Wire.setPins(8, 9);
+   Wire.begin(); 
+   Wire.setClock(100000);
+   Serial.println("[I2C] Bus Active.");
 
+   if (!mlx.begin()) {
+       Serial.println("[I2C] Error connecting to MLX sensor. Check wiring.");
+   } else {
+       Serial.println("[I2C] MLX90614 initialized.");
+   }
 
 lcd.init();
 lcd.backlight();
@@ -648,7 +661,14 @@ void loop()
     if (!irScanReady || (now - lastSensorScan >= SENSOR_SCAN_INTERVAL_MS))
     {
         lastSensorScan = now;
-        currentZones = scanAllZones(); // Read all 3 arrays
+
+        // Read the temperature from MLX90614. If reading fails, fallback to 31.4 (Mild Anchor)
+        float currentTemp = mlx.readAmbientTempC();
+        if (isnan(currentTemp) || currentTemp < -40.0 || currentTemp > 125.0) {
+            currentTemp = 31.4; // Safe fallback
+        }
+
+        currentZones = scanAllZones(currentTemp); // Pass the live temperature to calculate thresholds dynamically
         irScanReady = true;
 
         anyFaultActive = false;

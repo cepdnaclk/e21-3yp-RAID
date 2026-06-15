@@ -13,10 +13,27 @@ namespace
     // LEFT = 0, CENTER = 1, RIGHT = 2
     const int IR_OUT_PINS[3] = {4, 5, 6}; 
     // Define 3 hardware trigger pins to command the cameras
-const int CAM_TRIGGER_PINS[3] = {15, 16, 17}; // Left, Center, Right
+    const int CAM_TRIGGER_PINS[3] = {15, 16, 17}; // Left, Center, Right
 
-    // CALIBRATED THRESHOLDS 
-    const int THRESHOLDS[IR_SENSOR_COUNT] = {303, 292, 0, 0, 295, 318, 380, 361}; 
+    // 2D Arrays: [0]=Left, [1]=Center, [2]=Right
+    // -------------------------------------------------------------
+    // Anchor 1: MILD PROFILE 
+    const float T_mild[3] = {31.6, 31.4, 31.6}; // Measured temperatures
+    const float Th_mild[3][IR_SENSOR_COUNT] = {
+        {370, 551, 565, 647, 0, 0, 0, 0},   // LEFT Array
+        {0, 0, 0, 376, 158, 175, 255, 221}, // CENTER Array
+        {370, 551, 565, 647, 0, 0, 0, 0}    // RIGHT Array (Mirrors Left)
+    };
+
+    // Anchor 2: HOT PROFILE 
+    // Note: Left/Right hot arrays are extrapolated 4.0x until real hot data is provided
+    const float T_hot[3] = {33.0, 33.0, 33.0}; // Measured temperatures
+    const float Th_hot[3][IR_SENSOR_COUNT] = {
+        {1480, 2204, 2260, 2588, 0, 0, 0, 0}, // LEFT Array (Extrapolated)
+        {0, 0, 0, 883, 632, 779, 1106, 1144}, // CENTER Array
+        {1480, 2204, 2260, 2588, 0, 0, 0, 0}  // RIGHT Array (Extrapolated)
+    };
+    // ------------------------------------------------------------- 
 
     // MASKING: Set to false if a sensor is physically dead
     const bool SENSOR_ACTIVE[IR_SENSOR_COUNT] = {true, true, false, false, true, true, true, true};
@@ -48,9 +65,18 @@ void initIRSensors()
     analogSetAttenuation(ADC_11db);
 }
 
-MultiZoneScanResult scanAllZones()
+MultiZoneScanResult scanAllZones(float currentTemp)
 {
     MultiZoneScanResult results{};
+
+    // Dynamically calculate the 2D thresholds for the exact current temperature
+    float THRESHOLDS[3][IR_SENSOR_COUNT];
+    for (int z = 0; z < 3; z++) {
+        for (int i = 0; i < IR_SENSOR_COUNT; i++) {
+            // Point-Slope Linear Interpolation Formula
+            THRESHOLDS[z][i] = Th_mild[z][i] + ((Th_hot[z][i] - Th_mild[z][i]) / (T_hot[z] - T_mild[z])) * (currentTemp - T_mild[z]);
+        }
+    }
 
     // Initialize baselines for all 3 zones
     for(int z = 0; z < 3; z++) {
@@ -100,8 +126,8 @@ MultiZoneScanResult scanAllZones()
                 int sB = i + 4;
                 bool crackInPair = false;
 
-                if (SENSOR_ACTIVE[sA] && results.zone[z].values[sA] < THRESHOLDS[sA]) crackInPair = true;
-                if (SENSOR_ACTIVE[sB] && results.zone[z].values[sB] < THRESHOLDS[sB]) crackInPair = true;
+                if (SENSOR_ACTIVE[sA] && results.zone[z].values[sA] < THRESHOLDS[z][sA]) crackInPair = true;
+                if (SENSOR_ACTIVE[sB] && results.zone[z].values[sB] < THRESHOLDS[z][sB]) crackInPair = true;
 
                 if (crackInPair) {
                     results.zone[z].crackDetected = true;
@@ -116,8 +142,8 @@ MultiZoneScanResult scanAllZones()
                 int sB = i + 2;
                 bool crackInPair = false;
 
-                if (SENSOR_ACTIVE[sA] && results.zone[z].values[sA] < THRESHOLDS[sA]) crackInPair = true;
-                if (SENSOR_ACTIVE[sB] && results.zone[z].values[sB] < THRESHOLDS[sB]) crackInPair = true;
+                if (SENSOR_ACTIVE[sA] && results.zone[z].values[sA] < THRESHOLDS[z][sA]) crackInPair = true;
+                if (SENSOR_ACTIVE[sB] && results.zone[z].values[sB] < THRESHOLDS[z][sB]) crackInPair = true;
 
                 if (crackInPair) {
                     results.zone[z].crackDetected = true;
