@@ -54,7 +54,7 @@ const char *SENSOR_ID   = "IR_Bottom";
 const char *PRESIGN_LAMBDA_URL = "https://kmtogp7ysh7fbhoj6yrb5hlu7q0ubbhb.lambda-url.eu-north-1.on.aws/";
 
 String getIsoTimestamp();
-void updateLocalDisplay(bool faultActive, String activeZone, int activeCh);
+void updateLocalDisplay(bool faultActive, String activeZone, int activeCh, float currentTemp);
 static void drProject(double ancLat, double ancLng, float distM, double bearingDeg,
                       double &outLat, double &outLng);  // ← ADD THIS
 int consecutiveCracks[3] = {0, 0, 0};
@@ -782,7 +782,9 @@ void loop()
     // =========================================================
     if (now - lastDisplayRefresh >= DISPLAY_REFRESH_MS) {
         lastDisplayRefresh = now;
-        updateLocalDisplay(anyFaultActive, activeFaultZone, activeFaultCh);
+        float currentTemp = mlx.readAmbientTempC();
+        if (isnan(currentTemp)) currentTemp = 0.0;
+        updateLocalDisplay(anyFaultActive, activeFaultZone, activeFaultCh, currentTemp);
     }
 
     // =========================================================
@@ -832,7 +834,7 @@ void loop()
     }
 }
 
-void updateLocalDisplay(bool faultActive, String activeZone, int activeCh) {
+void updateLocalDisplay(bool faultActive, String activeZone, int activeCh, float currentTemp) {
     static bool lastFaultState = false;
     
     // --- ANTI-CORRUPTION ENGINE ---
@@ -852,19 +854,32 @@ void updateLocalDisplay(bool faultActive, String activeZone, int activeCh) {
         
         // Line 2
         lcd.setCursor(0, 1); 
-        lcd.print("ZONE: [" + activeZone + "]");
+        lcd.print("ZONE: " + activeZone + " CH: " + String(activeCh));
         
         // Line 3
         lcd.setCursor(0, 2); 
-        lcd.print("CHANNEL TRIP: " + String(activeCh));
+        if (gps.isLiveLocationValid()) {
+            lcd.print("Lat:" + String(gps.getLiveLat(), 4) + " T:" + String(currentTemp, 1) + "C");
+        } else {
+            lcd.print("TEMP: " + String(currentTemp, 1) + "C");
+        }
         
         // Line 4
         lcd.setCursor(0, 3); 
-        lcd.print("BUZZER ACTIVE (1S)  ");
+        if (gps.isLiveLocationValid()) {
+            lcd.print("Lng:" + String(gps.getLiveLng(), 4));
+        } else {
+            lcd.print("GPS NOT FIXED");
+        }
     } else {
         lcd.setCursor(0, 0); lcd.print("SYSTEM: NOMINAL RUN ");
-        lcd.setCursor(0, 1); lcd.print("SCANNING ALL RAILS  ");
-        lcd.setCursor(0, 2); lcd.print("WIFI CONNECTION: OK ");
+        lcd.setCursor(0, 1); lcd.print("T:" + String(currentTemp, 1) + "C");
+        lcd.setCursor(0, 2); 
+        if (gps.isLiveLocationValid()) {
+            lcd.print("GPS:" + String(gps.getLiveLat(), 4) + "," + String(gps.getLiveLng(), 4));
+        } else {
+            lcd.print("GPS: WAITING...     ");
+        }
         lcd.setCursor(0, 3); lcd.print("AWS CLOUD LINKED    ");
     }
 }
