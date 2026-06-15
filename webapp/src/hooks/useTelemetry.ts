@@ -86,12 +86,20 @@ function normalizeCrackEvent(raw: any): CrackEvent {
     media?.url,
   ]);
 
+  // Flatten location coords to top level so all components can read them directly
+  const lat = location?.lat ?? location?.latitude ?? gps?.lat ?? gps?.latitude ?? base.latitude ?? base.lat;
+  const lng = location?.lng ?? location?.longitude ?? gps?.lng ?? gps?.longitude ?? base.longitude ?? base.lng;
+  const locationValid = location?.valid ?? base.locationValid ?? (lat != null && lat !== 0);
+
   return {
     ...base,
     media,
     location,
     gps,
     imageUrl,
+    latitude: lat,
+    longitude: lng,
+    locationValid,
   };
 }
 

@@ -1,3 +1,4 @@
+// gps_module.h  (replace existing file)
 #ifndef GPS_MODULE_H
 #define GPS_MODULE_H
 
@@ -5,44 +6,30 @@
 #include <TinyGPS++.h>
 #include <HardwareSerial.h>
 
-// Define the ESP32 Hardware UART pins for the NEO-6M
-#define GPS_RX_PIN 16
-#define GPS_TX_PIN 17
+#define GPS_RX_PIN    1
+#define GPS_TX_PIN    2
 #define GPS_BAUD_RATE 9600
 
 class GPSModule {
 private:
-    TinyGPSPlus gps;
+    TinyGPSPlus    gps;
     HardwareSerial gpsSerial;
-    
-    // Variables to store the "frozen" coordinates
-    double frozenLat;
-    double frozenLng;
-    bool frozenValid;
 
 public:
-    // Constructor initializes Hardware UART 2
-    GPSModule();
+    GPSModule();          // uses HardwareSerial(2)
 
-    // Setup function to call inside your main setup()
     void begin();
+    void update();        // call every loop() iteration
 
-    // Continuous update function to call inside your main loop()
-    void update();
-
-    // Get live coordinates
+    // Live data — read these at the exact moment of crack detection
     double getLiveLat();
     double getLiveLng();
-    bool isLiveLocationValid();
-    int getSatellites();
+    bool   isLiveLocationValid();
+    int    getSatellites();
 
-    // Call this exact moment the camera detects a crack
-    void freezeCoordinates();
-
-    // Retrieve the frozen coordinates for your MQTT JSON payload
-    double getFrozenLat();
-    double getFrozenLng();
-    bool isFrozenValid();
+    // Blocks until a valid fix arrives or timeout_ms elapses.
+    // Returns true if a valid fix was obtained.
+    bool waitForFixWithTimeout(unsigned long timeout_ms = 60000);
 };
 
 #endif

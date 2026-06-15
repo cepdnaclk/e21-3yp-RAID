@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import L from "leaflet";
-import "leaflet/dist/leaflet.css";
+import { useSearchParams } from "react-router-dom";
+import MapComponent, { CrackMarker } from "../components/Map";
 import { Client } from "@stomp/stompjs";
 import SockJS from "sockjs-client";
 
+
+
 type CrackLocation = {
+    id: string;
     sensorId: string;
     timestamp: string;
     deviceId: string;
@@ -13,42 +16,6 @@ type CrackLocation = {
     lat: number;
     lng: number;
     severity: number;
-};
-
-const toSeverityBucket = (severity: number): "HIGH" | "MEDIUM" | "LOW" => {
-    if (severity >= 0.7) return "HIGH";
-    if (severity >= 0.4) return "MEDIUM";
-    return "LOW";
-};
-
-const markerColor = (severity: number): string => {
-    const bucket = toSeverityBucket(severity);
-    if (bucket === "HIGH") return "#dc2626";
-    if (bucket === "MEDIUM") return "#f59e0b";
-    return "#2563eb";
-};
-
-const popupContent = (location: CrackLocation): HTMLElement => {
-    const root = document.createElement("div");
-    root.className = "text-sm";
-
-    const addRow = (label: string, value: string) => {
-        const row = document.createElement("div");
-        const strong = document.createElement("strong");
-        strong.textContent = `${label}: `;
-        row.appendChild(strong);
-        row.appendChild(document.createTextNode(value));
-        root.appendChild(row);
-    };
-
-    addRow("Sensor", location.sensorId);
-    addRow("Device", location.deviceId);
-    addRow("Status", location.status);
-    addRow("Severity", location.severity.toFixed(2));
-    addRow("Time", location.timestamp);
-    addRow("Lat/Lng", `${location.lat.toFixed(6)}, ${location.lng.toFixed(6)}`);
-
-    return root;
 };
 
 const parsePayload = (payload: unknown): CrackLocation | null => {
@@ -73,6 +40,7 @@ const parsePayload = (payload: unknown): CrackLocation | null => {
         lat,
         lng,
         severity: Number.isFinite(severity) ? severity : 0,
+        id: `${String(obj.sensorId ?? "unknown")}-${String(obj.timestamp ?? Date.now())}`,
     };
 };
 
@@ -83,23 +51,34 @@ const wsToSockJsUrl = (wsUrl: string): string => {
 const MapPage = () => {
     const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080";
     const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) ?? "ws://localhost:8080/ws";
+const [searchParams] = useSearchParams();
+const focusLat = Number(searchParams.get("lat"));
+const focusLng = Number(searchParams.get("lng"));
+const focusId = searchParams.get("focus");
+    
+    const [locations, setLocations] = useState<CrackMarker[]>([]);
+const [activeFlyToId, setActiveFlyToId] = useState<string | null>(null);
 
-    const mapContainerRef = useRef<HTMLDivElement | null>(null);
-    const mapRef = useRef<L.Map | null>(null);
-    const markerLayerRef = useRef<L.LayerGroup | null>(null);
-    const lastRobotPositionRef = useRef<{ lat: number; lng: number } | null>(null);
-    const hasCenteredRef = useRef(false);
-    const [locations, setLocations] = useState<CrackLocation[]>([]);
-
-    const upsertLocation = useCallback((incoming: CrackLocation) => {
+    const upsertLocation = useCallback((incoming: CrackMarker) => {
         setLocations((prev) => {
-            const key = `${incoming.sensorId}-${incoming.timestamp}`;
-            const filtered = prev.filter((p) => `${p.sensorId}-${p.timestamp}` !== key);
+            const filtered = prev.filter((p) => p.id !== incoming.id);
             return [incoming, ...filtered].slice(0, 2000);
         });
-
-        lastRobotPositionRef.current = { lat: incoming.lat, lng: incoming.lng };
     }, []);
+    useEffect(() => {
+    console.log("focusId:", focusId);
+    console.log("locations ids:", locations.map(l => l.id));
+    console.log("activeFlyToId:", activeFlyToId);
+}, [focusId, locations, activeFlyToId]);
+useEffect(() => {
+    console.log("Current URL:", window.location.href);
+    console.log("Search string:", window.location.search);
+}, []);
+    useEffect(() => {
+    if (focusId && locations.length > 0) {
+        setActiveFlyToId(focusId);
+    }
+}, [focusId, locations]);
 
     useEffect(() => {
         const loadHistory = async () => {
@@ -119,58 +98,9 @@ const MapPage = () => {
         });
     }, [apiBaseUrl]);
 
-    useEffect(() => {
-        if (!mapContainerRef.current || mapRef.current) {
-            return;
-        }
+ 
 
-        const map = L.map(mapContainerRef.current, {
-            center: [7.8731, 80.7718],
-            zoom: 12,
-        });
-
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-            attribution: "&copy; OpenStreetMap contributors",
-        }).addTo(map);
-
-        markerLayerRef.current = L.layerGroup().addTo(map);
-        mapRef.current = map;
-
-        return () => {
-            map.remove();
-            mapRef.current = null;
-            markerLayerRef.current = null;
-        };
-    }, []);
-
-    useEffect(() => {
-        const map = mapRef.current;
-        const layer = markerLayerRef.current;
-        if (!map || !layer) {
-            return;
-        }
-
-        layer.clearLayers();
-
-        locations.forEach((loc) => {
-            const color = markerColor(loc.severity);
-            const marker = L.circleMarker([loc.lat, loc.lng], {
-                radius: 8,
-                color,
-                fillColor: color,
-                fillOpacity: 0.85,
-                weight: 2,
-            });
-
-            marker.bindPopup(popupContent(loc));
-            marker.addTo(layer);
-        });
-
-        if (!hasCenteredRef.current && locations.length > 0) {
-            map.setView([locations[0].lat, locations[0].lng], 12);
-            hasCenteredRef.current = true;
-        }
-    }, [locations]);
+  
 
     useEffect(() => {
         const sockJsUrl = wsToSockJsUrl(wsUrl);
@@ -202,7 +132,15 @@ const MapPage = () => {
         };
     }, [upsertLocation, wsUrl]);
 
-    return <div ref={mapContainerRef} className="w-full h-[calc(100vh-80px)]" />;
+    return (
+  <div className="w-full h-[calc(100vh-80px)]">
+    <MapComponent
+  markers={locations}
+  center={focusLat && focusLng ? [focusLng, focusLat] : undefined}
+  zoom={focusId ? 17 : 12}
+  flyToId={activeFlyToId}
+/>
+  </div>
+);
 };
-
 export default MapPage;

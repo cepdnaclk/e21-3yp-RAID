@@ -89,9 +89,13 @@ public class CrackLocationQueryService {
 
         double lat = firstNumber(item, 0.0d, "lat", "latitude", "Latitude");
         double lng = firstNumber(item, 0.0d, "lng", "longitude", "Longitude");
-        boolean valid = firstBoolean(item, false, "valid", "locationValid");
+        // AFTER
+boolean valid = firstBoolean(item, false, "locationValid", "valid", "location_valid");
         int satellites = firstInt(item, 0, "satellites", "Satellites");
 
+        if (!valid && (lat != 0.0 || lng != 0.0)) {
+    valid = true;  // coordinates exist even if flag is missing
+}
         LocationDTO location = new LocationDTO(lat, lng, valid, satellites);
         dto.setLocation(location);
 

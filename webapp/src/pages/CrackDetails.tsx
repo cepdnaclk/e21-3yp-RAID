@@ -1,4 +1,5 @@
 import { useNavigate, useParams } from "react-router-dom";
+import MapComponent from "@/components/Map";
 import { ArrowLeft, MapPin, Camera, Activity, Clock, Navigation } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAlerts } from "@/context/AlertContext";
@@ -55,26 +56,41 @@ const CrackDetails = () => {
         </div>
 
         {/* Location */}
-        <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">
-          <div className="flex items-center gap-2 mb-3">
-            <MapPin className="text-accent" size={16} />
-            <span className="text-sm font-semibold text-foreground">Location Data</span>
-            <button 
-              onClick={() => navigate(`/map?focus=${alert.id}`)}
-              className="ml-auto flex items-center gap-1 text-xs text-accent font-medium"
-            >
-              <Navigation size={12} />
-              View on Map
-            </button>
-          </div>
-          <div className="grid grid-cols-1 gap-3">
-            <div className="bg-secondary/50 rounded-xl p-3">
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wider">GPS Coordinates</p>
-              <p className="font-bold text-foreground text-sm mt-0.5">{alert.lat.toFixed(4)}°N</p>
-              <p className="text-xs text-muted-foreground">{alert.lng.toFixed(4)}°E</p>
-            </div>
-          </div>
-        </div>
+     <div className="bg-card rounded-2xl overflow-hidden shadow-sm border border-border">
+  <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
+    <MapPin className="text-accent" size={16} />
+    <span className="text-sm font-semibold text-foreground">Location Data</span>
+    <button
+      onClick={() => navigate(`/map?focus=${alert.id}&lat=${alert.lat}&lng=${alert.lng}`)}
+      className="ml-auto flex items-center gap-1 text-xs text-accent font-medium"
+    >
+      <Navigation size={12} />
+      View on Map
+    </button>
+  </div>
+
+  {/* Mini Mapbox map */}
+  <div className="w-full h-48">
+    <MapComponent
+      markers={[{ id: String(alert.id), lat: alert.lat, lng: alert.lng, severity: alert.severity }]}
+      center={[alert.lng, alert.lat]}
+      zoom={16}
+    />
+  </div>
+
+  {/* Coordinates row below the map */}
+  <div className="grid grid-cols-2 gap-3 p-4">
+    <div className="bg-secondary/50 rounded-xl p-3">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">Track Marker</p>
+      <p className="font-bold text-foreground mt-0.5">KM {alert.km}</p>
+    </div>
+    <div className="bg-secondary/50 rounded-xl p-3">
+      <p className="text-[10px] text-muted-foreground uppercase tracking-wider">GPS Coordinates</p>
+      <p className="font-bold text-foreground text-sm mt-0.5">{alert.lat.toFixed(4)}°N</p>
+      <p className="text-xs text-muted-foreground">{alert.lng.toFixed(4)}°E</p>
+    </div>
+  </div>
+</div>
 
         {/* Sensor */}
         <div className="bg-card rounded-2xl p-4 shadow-sm border border-border">

@@ -435,14 +435,18 @@ function DetailedDeviceView({
                     {crack.timestamp ? new Date(crack.timestamp).toLocaleTimeString() : 'N/A'}
                   </td>
                   <td className="p-4">
-                    <div className="text-slate-900 font-medium text-xs">
-                      {crack.latitude ? `${Number(crack.latitude).toFixed(4)}° N` : 'No GPS'}
-                    </div>
-                    <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-                      <MapPin size={12} />
-                      {crack.longitude ? `${Number(crack.longitude).toFixed(4)}° E` : ''}
-                    </div>
-                  </td>
+  <div className="text-slate-900 font-medium text-xs">
+    {crack.location?.lat || crack.latitude
+      ? `${Number(crack.location?.lat ?? crack.latitude).toFixed(4)}° N`
+      : 'No GPS'}
+  </div>
+  <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
+    <MapPin size={12} />
+    {crack.location?.lng || crack.longitude
+      ? `${Number(crack.location?.lng ?? crack.longitude).toFixed(4)}° E`
+      : ''}
+  </div>
+</td>
                   <td className="p-4">
                     <button 
                       onClick={(e) => {

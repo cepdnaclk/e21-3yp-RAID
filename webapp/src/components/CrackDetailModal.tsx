@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { X, MapPin, Clock, CheckCircle, XCircle, Map } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrackEvent } from "@/hooks/useTelemetry";
+import { useNavigate } from "react-router-dom";
+import MapComponent from "@/components/Map";
 
 interface CrackDetailModalProps {
   crack: CrackEvent | null;
@@ -17,9 +19,10 @@ export default function CrackDetailModal({
   onStatusUpdate
 }: CrackDetailModalProps) {
   const [isUpdating, setIsUpdating] = useState(false);
-  const [showMap, setShowMap] = useState(false);
+const [showMap, setShowMap] = useState(false);
+const navigate = useNavigate();
 
-  if (!isOpen || !crack) return null;
+if (!isOpen || !crack) return null;
 
   const locationLabel = (() => {
     const location = crack.location;
@@ -67,14 +70,14 @@ export default function CrackDetailModal({
     }, 500);
   };
 
-  const openMapInNewTab = () => {
-    const lat = crack.gps?.lat || 28.6155;
-    const lng = crack.gps?.lng || 77.2100;
-    window.open(
-      `https://www.google.com/maps/?q=${lat},${lng}`,
-      '_blank'
-    );
-  };
+  
+
+const openMapInInternalApp = () => {
+  const lat = crack.gps?.lat || 7.8731;
+  const lng = crack.gps?.lng || 80.7718;
+  navigate(`/map?lat=${lat}&lng=${lng}&focus=${crack.id}`);
+  onClose();
+};
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
@@ -150,14 +153,34 @@ export default function CrackDetailModal({
                 Location Data
               </h3>
               <button
-                onClick={openMapInNewTab}
-                className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
-              >
-                <Map size={16} />
-                View on Map
-              </button>
+  onClick={openMapInInternalApp}
+  className="flex items-center gap-1 text-xs font-semibold text-blue-600 hover:text-blue-700 transition"
+>
+  <Map size={16} />
+  View on Map
+</button>
             </div>
-            <div className="grid grid-cols-1 gap-4">
+            <div className="grid grid-cols-2 gap-4">
+              
+              {/* Track Marker */}
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg p-4 border border-blue-200">
+                <p className="text-xs text-blue-600 font-bold uppercase mb-1">Track Marker</p>
+                <p className="text-3xl font-bold text-blue-900">KM {crack.km?.toFixed(1)}</p>
+              </div>
+              {crack.gps?.lat && crack.gps?.lng && (
+  <div className="w-full h-48 rounded-xl overflow-hidden border border-slate-200 mt-4">
+    <MapComponent
+      markers={[{
+        id: String(crack.id),
+        lat: crack.gps.lat,
+        lng: crack.gps.lng,
+        severity: crack.severity ?? 0.5,
+      }]}
+      center={[crack.gps.lng, crack.gps.lat]}
+      zoom={16}
+    />
+  </div>
+)}
 
               {/* GPS Coordinates */}
               <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-lg p-4 border border-green-200">
