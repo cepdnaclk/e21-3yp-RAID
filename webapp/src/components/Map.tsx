@@ -2,7 +2,10 @@ import { useEffect, useRef } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 
-mapboxgl.accessToken = import.meta.env.VITE_MAPBOX_TOKEN;
+const mapboxToken = import.meta.env.VITE_MAPBOX_TOKEN;
+if (mapboxToken) {
+  mapboxgl.accessToken = mapboxToken;
+}
 
 export type CrackMarker = {
   id: string;
@@ -27,6 +30,20 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
   // Initialize map
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
+
+    if (!mapboxToken) {
+      console.warn("Mapbox token is missing! Please provide VITE_MAPBOX_TOKEN in .env");
+      if (containerRef.current) {
+        containerRef.current.innerHTML = `
+          <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;background:#f8fafc;border:2px dashed #cbd5e1;border-radius:0.5rem;padding:2rem;text-align:center;">
+            <p style="color:#64748b;font-weight:600;margin-bottom:0.5rem;font-size:1.1rem;">Map Cannot Load</p>
+            <p style="color:#94a3b8;font-size:0.875rem;">Please provide a valid VITE_MAPBOX_TOKEN in your .env file.</p>
+          </div>
+        `;
+      }
+      return;
+    }
+
     const map = new mapboxgl.Map({
       container: containerRef.current,
       style: "mapbox://styles/mapbox/satellite-streets-v12",

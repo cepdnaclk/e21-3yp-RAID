@@ -59,6 +59,9 @@ static void drProject(double ancLat, double ancLng, float distM, double bearingD
                       double &outLat, double &outLng);  // ← ADD THIS
 int consecutiveCracks[3] = {0, 0, 0};
 bool pendingTrigger[3] = {false, false, false};
+bool pullingBack[3] = {false, false, false};
+long crackDetectedTicks[3] = {0, 0, 0};
+unsigned long pullBackStartTime[3] = {0, 0, 0};
 unsigned long crackDetectedTime[3] = {0, 0, 0};
 bool waitingForCamera[3]           = {false, false, false};
 unsigned long cameraWaitStart[3]   = {0, 0, 0};
@@ -690,39 +693,58 @@ void loop()
             activeFaultCh = currentZones.zone[z].minValueIndex; 
           }
 
-            // PHASE 1: Detect Crack → Start Offset Delay Timer
-            if (crack_detected && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
+            // PHASE 1: Detect Crack → Start Reverse Alignment Sequence
+            if (crack_detected && !pullingBack[z] && !pendingTrigger[z] && !waitingForCamera[z] && (now - lastCriticalAlert[z] > 3000))
             {
-                pendingTrigger[z]    = true;
-                crackDetectedTime[z] = now;
+                pullingBack[z]       = true;
+                crackDetectedTicks[z] = enc_totalTicks;
+                pullBackStartTime[z] = now;
                 lastIrScanResult[z]  = currentZones.zone[z]; // Snapshot IR state
                 maybeUpdateGpsAnchor();
 
                 // Generate a unique, traceable Crack ID for this event.
-                // Format: crack_<deviceId>_<zone>_<millis>
                 crackId[z] = "crack_" + DEVICE_ID + "_" + ZONE_NAMES[z] + "_" + String(now);
-
-                // gps.freezeCoordinates(); // Lock GPS at exact detection point
-
-                // Sound the buzzer
-                digitalWrite(BUZZER_PIN, HIGH);
-                buzzerTurnOffTime = now + 1000;
-                buzzerActive = true;
 
                 Serial.println("🚨 CRACK DETECTED [" + ZONE_NAMES[z] + "]!");
                 Serial.println("   CrackID: " + crackId[z]);
-                Serial.println("   Waiting " + String(OFFSET_DELAY_MS) + "ms for camera alignment...");
+                Serial.println("   --> PLEASE PULL CART BACKWARD BY 3cm <--");
             }
         }
     }
 
     // =========================================================
-    // 2. PROCESS PENDING TRIGGERS (The Physics Offset Delay)
+    // 2. PROCESS PULL-BACK ALIGNMENT & PENDING TRIGGERS
     // =========================================================
     for (int z = 0; z < 3; z++)
     {
-        // PHASE 2: d/v delay elapsed → fetch pre-signed URL, command camera, fire GPIO
-        if (pendingTrigger[z] && (now - crackDetectedTime[z] >= OFFSET_DELAY_MS))
+        // PHASE 2: User pulls back the cart 3cm
+        if (pullingBack[z]) {
+            // Calculate absolute distance moved since detection
+            float deltaRevM = ((enc_totalTicks - crackDetectedTicks[z]) / TICKS_PER_REV) * WHEEL_CIRC_M;
+            
+            if (abs(deltaRevM) >= 0.03) { // Reached 3cm!
+                pullingBack[z] = false;
+                pendingTrigger[z] = true;
+                crackDetectedTime[z] = now; // Mark time for immediate trigger
+                
+                // Sound Buzzer 2 (Solid 1s beep indicating perfect alignment)
+                digitalWrite(BUZZER_PIN, HIGH);
+                buzzerTurnOffTime = now + 1000;
+                buzzerActive = true;
+                
+                Serial.println("🎯 ALIGNMENT REACHED! (3cm reverse). Firing Camera...");
+            } 
+            // 15-second timeout if the user ignores it or pushes forward indefinitely
+            else if (now - pullBackStartTime[z] > 15000) {
+                pullingBack[z] = false;
+                Serial.println("⚠️ ALIGNMENT TIMEOUT for [" + ZONE_NAMES[z] + "]. Crack skipped.");
+                digitalWrite(BUZZER_PIN, LOW);
+            }
+        }
+
+        // PHASE 3: 3cm reached → fetch pre-signed URL, command camera, fire GPIO
+        // (Wait 100ms after alignment to let cart settle physically)
+        if (pendingTrigger[z] && (now - crackDetectedTime[z] >= 100))
         {
             pendingTrigger[z]    = false;
             waitingForCamera[z]  = true;
@@ -825,11 +847,25 @@ void loop()
     }
 
     // =========================================================
-    // 5. BUZZER MANAGEMENT
+    // 5. BUZZER MANAGEMENT (Dual Phase)
     // =========================================================
-    if (buzzerActive && (now >= buzzerTurnOffTime))
+    bool isPullingBack = false;
+    for (int z = 0; z < 3; z++) {
+        if (pullingBack[z]) isPullingBack = true;
+    }
+    
+    if (isPullingBack) {
+        // Buzzer 1: Rapid Beep (100ms ON / 100ms OFF) to indicate "Pull Back"
+        if ((now / 100) % 2 == 0) {
+            digitalWrite(BUZZER_PIN, HIGH);
+        } else {
+            digitalWrite(BUZZER_PIN, LOW);
+        }
+    } 
+    else if (buzzerActive && (now >= buzzerTurnOffTime))
     {
-        digitalWrite(BUZZER_PIN, LOW); // Turn off the buzzer
+        // Buzzer 2: Turn off the solid 1s alignment beep
+        digitalWrite(BUZZER_PIN, LOW); 
         buzzerActive = false;
     }
 }

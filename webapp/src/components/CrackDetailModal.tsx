@@ -129,7 +129,7 @@ const openMapInInternalApp = () => {
                 <img
                   src={resolvedImageUrl}
                   alt="Track Defect"
-                  className="w-full h-full object-cover"
+                  className="w-auto h-auto max-w-full max-h-full object-contain"
                   onError={(e) => {
                     console.error("Image failed to load:", resolvedImageUrl);
                     (e.target as HTMLImageElement).src = '';

@@ -72,9 +72,13 @@ MultiZoneScanResult scanAllZones(float currentTemp)
     // Dynamically calculate the 2D thresholds for the exact current temperature
     float THRESHOLDS[3][IR_SENSOR_COUNT];
     for (int z = 0; z < 3; z++) {
+        float effectiveTemp = currentTemp;
+        if (effectiveTemp < T_mild[z]) effectiveTemp = T_mild[z];
+        if (effectiveTemp > T_hot[z])  effectiveTemp = T_hot[z];
+
         for (int i = 0; i < IR_SENSOR_COUNT; i++) {
             // Point-Slope Linear Interpolation Formula
-            THRESHOLDS[z][i] = Th_mild[z][i] + ((Th_hot[z][i] - Th_mild[z][i]) / (T_hot[z] - T_mild[z])) * (currentTemp - T_mild[z]);
+            THRESHOLDS[z][i] = Th_mild[z][i] + ((Th_hot[z][i] - Th_mild[z][i]) / (T_hot[z] - T_mild[z])) * (effectiveTemp - T_mild[z]);
         }
     }
 

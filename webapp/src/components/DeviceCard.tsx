@@ -112,7 +112,7 @@ export default function DeviceCard({
         ) : (
           <div className="space-y-2 max-h-48 overflow-y-auto">
             {liveCracks.slice(0, 4).map((crack, idx) => (
-              <button
+              <div
                 key={idx}
                 onClick={() => onCrackClick?.(crack)}
                 className="w-full flex items-center justify-between bg-slate-50 hover:bg-blue-50 rounded p-2 text-xs transition-colors cursor-pointer border border-transparent hover:border-blue-200"
@@ -142,7 +142,7 @@ export default function DeviceCard({
                 >
                   {crack.status === 'approved' || crack.status === 'confirmed' ? 'confirmed' : crack.status === 'ignored' ? 'ignored' : 'pending'}
                 </button>
-              </button>
+              </div>
             ))}
           </div>
         )}
