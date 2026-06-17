@@ -6,6 +6,7 @@ import { useTelemetry } from "@/hooks/useTelemetry";
 import { Button } from "@/components/ui/button";
 import html2canvas from "html2canvas";
 import jsPDF from "jspdf";
+import { toast } from "sonner";
 
 const tabs = ["Daily", "Weekly", "Monthly"] as const;
 
@@ -68,7 +69,10 @@ const Reports = () => {
   const downloadPDF = async () => {
     if (!reportRef.current) return;
 
+    toast("Generating PDF report...");
+
     try {
+      // First attempt: capture everything, including images
       const canvas = await html2canvas(reportRef.current, {
         scale: 2,
         logging: false,
@@ -100,8 +104,51 @@ const Reports = () => {
       }
 
       pdf.save(`rail-sight-guard-report-${new Date().toISOString().split('T')[0]}.pdf`);
+      toast.success("PDF report downloaded successfully!");
     } catch (error) {
-      console.error("Error generating PDF", error);
+      console.warn("First PDF generation attempt failed (likely due to cross-origin images). Retrying without images...", error);
+      
+      try {
+        // Second attempt: ignore all images to avoid taint/CORS issues
+        const canvas = await html2canvas(reportRef.current, {
+          scale: 2,
+          logging: false,
+          useCORS: false,
+          backgroundColor: "#ffffff",
+          ignoreElements: (element) => {
+            return element.tagName.toLowerCase() === 'img';
+          }
+        });
+
+        const pdf = new jsPDF({
+          orientation: "portrait",
+          unit: "mm",
+          format: "a4",
+        });
+
+        const imgWidth = 210;
+        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const pdf_height = pdf.internal.pageSize.getHeight();
+        let heightLeft = imgHeight;
+        let position = 0;
+
+        const imgData = canvas.toDataURL("image/png");
+        pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+        heightLeft -= pdf_height;
+
+        while (heightLeft >= 0) {
+          position = heightLeft - imgHeight;
+          pdf.addPage();
+          pdf.addImage(imgData, "PNG", 0, position, imgWidth, imgHeight);
+          heightLeft -= pdf_height;
+        }
+
+        pdf.save(`rail-sight-guard-report-${new Date().toISOString().split('T')[0]}.pdf`);
+        toast.success("PDF report downloaded successfully (without images)!");
+      } catch (retryError) {
+        console.error("Failed to generate PDF on second attempt", retryError);
+        toast.error("Failed to generate PDF. Try printing the page instead.");
+      }
     }
   };
 
@@ -111,7 +158,7 @@ const Reports = () => {
 
       <div className="px-5 mt-5 space-y-5" ref={reportRef}>
         {/* Tabs and Download Button */}
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-3" data-html2canvas-ignore="true">
           <div className="flex gap-2">
             {tabs.map((tab) => (
               <button
