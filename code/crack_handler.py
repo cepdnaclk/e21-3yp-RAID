@@ -72,31 +72,44 @@ def lambda_handler(event, context):
     try:
         print("[INFO] Incoming event:", json.dumps(event))
 
-        # ── 1. SensorID (Partition Key) ───────────────────────────────────────
-        # Accept multiple key spellings the ESP32 firmware might send.
-        sensor_id = (
-            event.get("SensorID")
-            or event.get("sensorId")
-            or event.get("sensor_id")
-            or event.get("CrackID")
-            or event.get("crack_id")
-            or f"unknown_sensor_{int(time.time())}"
+        # ── 1. Detect if this is a heartbeat ─────────────────────────────────
+        raw_status = str(event.get("status", ""))
+        raw_crack_detected = event.get("crackDetected", event.get("crack_detected", None))
+        is_heartbeat = (
+            raw_status == "NOMINAL_HEARTBEAT"
+            or raw_crack_detected is False
+            or raw_crack_detected == "false"
         )
 
-        # ── 2. timestamp (Sort Key) ───────────────────────────────────────────
+        # ── 2. SensorID (Partition Key) ───────────────────────────────────────
+        # Heartbeats get a fixed, meaningful SensorID instead of unknown_sensor_...
+        # Crack events use the zone name sent by the ESP32 (LEFT / CENTER / RIGHT).
+        if is_heartbeat:
+            sensor_id = "HEARTBEAT"
+        else:
+            sensor_id = (
+                event.get("SensorID")
+                or event.get("sensorId")
+                or event.get("sensor_id")
+                or event.get("CrackID")
+                or event.get("crack_id")
+                or f"unknown_sensor_{int(time.time())}"
+            )
+
+        # ── 3. timestamp (Sort Key) ───────────────────────────────────────────
         raw_ts = event.get("timestamp") or event.get("Timestamp") or ""
         timestamp = raw_ts if raw_ts else datetime.now(timezone.utc).isoformat()
 
-        # ── 3. deviceId ───────────────────────────────────────────────────────
+        # ── 4. deviceId ───────────────────────────────────────────────────────
         device_id = event.get("deviceId") or event.get("device_id") or "unknown_device"
 
-        # ── 4. crack_detected (boolean) ───────────────────────────────────────
+        # ── 5. crack_detected (boolean) ───────────────────────────────────────
         crack_detected = bool(
             event.get("crackDetected", event.get("crack_detected", True))
         )
 
-        # ── 5. status ─────────────────────────────────────────────────────────
-        status = str(event.get("status", "CRACK"))
+        # ── 6. status ─────────────────────────────────────────────────────────
+        status = raw_status if raw_status else "CRACK"
 
         # ── 6. image_url ──────────────────────────────────────────────────────
         image_url = str(event.get("image_url") or event.get("imageUrl") or "")
@@ -153,17 +166,27 @@ def lambda_handler(event, context):
         table.put_item(Item=item)
         print(f"[SUCCESS] Saved → SensorID={sensor_id} | timestamp={timestamp}")
 
-        # ── 11. Telegram alert ────────────────────────────────────────────────
-        alert = (
-            f"🚨 Crack Detected!\n"
-            f"Sensor:  {sensor_id}\n"
-            f"Device:  {device_id}\n"
-            f"Status:  {status}\n"
-            f"Lat: {latitude}, Lng: {longitude}"
-        )
-        if image_url:
-            alert += f"\nImage: {image_url}"
-        send_telegram(alert)
+        # ── 11. Telegram alert ─────────────────────────────────────────────────
+        if is_heartbeat:
+            alert = (
+                f"💚 System Heartbeat\n"
+                f"Device:  {device_id}\n"
+                f"Status:  Nominal — All Systems Operational\n"
+                f"Uptime:  {uptime}s\n"
+                f"GPS:     Lat {latitude}, Lng {longitude}"
+            )
+            send_telegram(alert)
+        else:
+            alert = (
+                f"🚨 Crack Detected!\n"
+                f"Sensor:  {sensor_id}\n"
+                f"Device:  {device_id}\n"
+                f"Status:  {status}\n"
+                f"Lat: {latitude}, Lng: {longitude}"
+            )
+            if image_url:
+                alert += f"\nImage: {image_url}"
+            send_telegram(alert)
 
         return {"statusCode": 200, "body": json.dumps("Success")}
 

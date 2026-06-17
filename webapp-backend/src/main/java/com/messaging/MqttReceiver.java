@@ -39,7 +39,11 @@ public class MqttReceiver {
             boolean crackTopic = "railway/cracks".equals(mqttTopic);
             boolean cameraTopic = mqttTopic != null && mqttTopic.contains("device/esp32-cam/status");
 
-            if (crackTopic || isCrackPayload(payloadNode)) {
+            if (isHeartbeatPayload(payloadNode)) {
+                // Heartbeats must be checked BEFORE isCrackPayload because they also
+                // contain crack_detected=false which could match the crack check.
+                handleHeartbeatMessage(rawJsonPayload);
+            } else if (crackTopic || isCrackPayload(payloadNode)) {
                 handleIRSensorMessage(rawJsonPayload);
             } else if (cameraTopic || isCameraPayload(payloadNode)) {
                 handleCameraMessage(rawJsonPayload);
@@ -53,8 +57,24 @@ public class MqttReceiver {
         }
     }
 
+    /** Detects ESP32 heartbeat pings (status=NOMINAL_HEARTBEAT or crack_detected=false without a crack alert). */
+    private boolean isHeartbeatPayload(JsonNode node) {
+        JsonNode statusNode = node.get("status");
+        if (statusNode != null && "NOMINAL_HEARTBEAT".equals(statusNode.asText())) {
+            return true;
+        }
+        // Heartbeats set crack_detected=false (snake_case). Crack alerts always set
+        // crackDetected=true (camelCase) as well, so we can safely distinguish them.
+        JsonNode snakeCrack = node.get("crack_detected");
+        JsonNode camelCrack = node.get("crackDetected");
+        boolean hasCrackDetectedFalse = snakeCrack != null && !snakeCrack.asBoolean();
+        boolean hasNoCamelCase       = camelCrack == null || !camelCrack.asBoolean();
+        return hasCrackDetectedFalse && hasNoCamelCase;
+    }
+
     private boolean isCrackPayload(JsonNode node) {
-        return node.has("crackDetected") || node.has("minValue");
+        // Accept both camelCase (crackDetected) and snake_case (crack_detected)
+        return node.has("crackDetected") || node.has("crack_detected") || node.has("minValue");
     }
 
     private boolean isCameraPayload(JsonNode node) {
@@ -62,12 +82,8 @@ public class MqttReceiver {
     }
 
     /*
-     * 
-     * Handles IR
-     * Sensor crack
-     * detection data
+     * Handles IR Sensor crack detection data
      */
-
     private void handleIRSensorMessage(String rawJsonPayload) throws Exception {
         // 1. Convert MQTT JSON to Java DTO
         IRSensorDataDTO liveCrackData = objectMapper.readValue(rawJsonPayload, IRSensorDataDTO.class);
@@ -82,6 +98,33 @@ public class MqttReceiver {
         messagingTemplate.convertAndSend("/topic/cracks", liveCrackData);
 
         System.out.println("Broadcasted live crack data to Web UI: " + liveCrackData.getSensorId());
+    }
+
+    /*
+     * Handles ESP32 heartbeat pings — device alive, no crack detected.
+     * Broadcasts on /topic/cracks so the frontend heartbeat table can display them.
+     */
+    private void handleHeartbeatMessage(String rawJsonPayload) throws Exception {
+        // Re-use IRSensorDataDTO — it already has all the fields we need.
+        // Jackson maps crack_detected → crackDetected via the setter automatically.
+        IRSensorDataDTO heartbeat = objectMapper.readValue(rawJsonPayload, IRSensorDataDTO.class);
+
+        if (heartbeat == null) {
+            System.err.println("Failed to parse heartbeat payload.");
+            return;
+        }
+
+        // Ensure status is set even if Jackson missed it
+        if (heartbeat.getStatus() == null || heartbeat.getStatus().isEmpty()) {
+            heartbeat.setStatus("NOMINAL_HEARTBEAT");
+        }
+
+        // Broadcast on the same /topic/cracks channel — the React frontend
+        // filters by crackDetected=false into the heartbeats table.
+        messagingTemplate.convertAndSend("/topic/cracks", heartbeat);
+
+        System.out.println("[HEARTBEAT] Broadcasted heartbeat to Web UI: device=" + heartbeat.getDeviceId()
+                + " status=" + heartbeat.getStatus());
     }
 
     /*

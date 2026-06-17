@@ -20,7 +20,8 @@ public class CorsConfig implements WebMvcConfigurer {
                 .allowedOrigins(
                         "https://cepdnaclk.github.io", // deployed frontend (GitHub Pages)
                         "http://localhost:3000", // React development server
-                        "http://localhost:5173" // Vite development server
+                        "http://localhost:5173", // Vite development server
+                        "http://localhost:5174"  // Vite development server (alternate port)
                 )
 
                 // Define which HTTP methods are allowed for cross-origin requests

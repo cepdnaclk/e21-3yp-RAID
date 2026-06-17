@@ -10,6 +10,8 @@ export interface CrackEvent {
   image_url?: string; // Alternative field name
   timestamp?: string;
   status?: string;
+  crackDetected?: boolean;
+  crack_detected?: boolean;
   [key: string]: any; // Allow other properties returned by the backend
 }
 
@@ -100,6 +102,7 @@ function normalizeCrackEvent(raw: any): CrackEvent {
     latitude: lat,
     longitude: lng,
     locationValid,
+    crackDetected: base.crackDetected ?? base.crack_detected ?? true,
   };
 }
 
@@ -137,7 +140,7 @@ export function useTelemetry(deviceId: string, sensorId: string) {
         console.log(`Connected to telemetry stream: ${deviceId}/${sensorId}`);
 
         // Subscribe to IR Sensor crack data
-        stompClient.subscribe(`/topic/alerts`, (message) => {
+        stompClient.subscribe(`/topic/cracks`, (message) => {
           const rawData = JSON.parse(message.body);
           const safeCrackEvent = normalizeCrackEvent(rawData);
 

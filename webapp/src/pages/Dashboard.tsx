@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Wifi, MapPin, Bell, Map, FileText,
-  ChevronRight, LogOut, Camera, AlertTriangle, Grid3x3, List
+  ChevronRight, LogOut, Camera, AlertTriangle, Grid3x3, List, Activity
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -47,29 +47,53 @@ export default function Dashboard() {
   const sensorRight  = useTelemetry("esp-001", "RIGHT");
   const sensorCenter = useTelemetry("esp-001", "CENTER");
 
+  // Also fetch historical heartbeats — stored under SensorID="HEARTBEAT" in DynamoDB
+  const sensorHeartbeat = useTelemetry("esp-001", "HEARTBEAT");
+
   // Merge all three sensor streams into one "device1" object
+  const device1Raw = applyOverrides([
+    ...sensorLeft.liveCracks,
+    ...sensorRight.liveCracks,
+    ...sensorCenter.liveCracks,
+  ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()));
+
+  const isHeartbeat = (c: any) => c.crackDetected === false || c.status === 'HEARTBEAT' || c.status === 'NOMINAL_HEARTBEAT';
+
   const device1 = {
-    liveCracks: applyOverrides([
-      ...sensorLeft.liveCracks,
-      ...sensorRight.liveCracks,
-      ...sensorCenter.liveCracks,
-    ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())),
+    liveCracks: device1Raw.filter((c: any) => !isHeartbeat(c)),
+    heartbeats: device1Raw.filter(isHeartbeat),
     isConnected: sensorLeft.isConnected || sensorRight.isConnected || sensorCenter.isConnected,
   };
 
   // Device 2 & 3: Mock data (for load balancing demo — keep as-is)
-  const device2Mock = useMockTelemetry("esp-002-mock", "IR_Bottom");
-  const device3Mock = useMockTelemetry("esp-003-mock", "IR_Bottom");
+  const device2MockHook = useMockTelemetry("esp-002-mock", "IR_Bottom");
+  const device3MockHook = useMockTelemetry("esp-003-mock", "IR_Bottom");
 
+  const device2Raw = applyOverrides(device2MockHook.liveCracks);
   const device2 = {
-    ...device2Mock,
-    liveCracks: applyOverrides(device2Mock.liveCracks)
+    ...device2MockHook,
+    liveCracks: device2Raw.filter((c: any) => !isHeartbeat(c)),
+    heartbeats: device2Raw.filter(isHeartbeat),
   };
 
+  const device3Raw = applyOverrides(device3MockHook.liveCracks);
   const device3 = {
-    ...device3Mock,
-    liveCracks: applyOverrides(device3Mock.liveCracks)
+    ...device3MockHook,
+    liveCracks: device3Raw.filter((c: any) => !isHeartbeat(c)),
+    heartbeats: device3Raw.filter(isHeartbeat),
   };
+
+  // Aggregate all heartbeats — include historical ones from DynamoDB (SensorID="HEARTBEAT")
+  const allHeartbeats = [
+    ...sensorHeartbeat.liveCracks,   // ← historical from DynamoDB
+    ...device1.heartbeats,           // ← real-time via WebSocket
+    ...device2.heartbeats,
+    ...device3.heartbeats
+  ]
+  .filter(isHeartbeat) // make sure no cracks sneak in
+  .sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())
+  // de-duplicate by timestamp+deviceId in case a real-time event overlaps with a historical one
+  .filter((c, idx, arr) => arr.findIndex(x => x.timestamp === c.timestamp && x.deviceId === c.deviceId) === idx);
 
   // Total number of detected events across all devices
   const totalCracks = device1.liveCracks.length + device2.liveCracks.length + device3.liveCracks.length;
@@ -289,6 +313,16 @@ export default function Dashboard() {
                 onCrackClick={handleCrackClick}
               />
             </div>
+
+            {/* ========== HEARTBEATS SECTION ========== */}
+            <div className="mt-12">
+              <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
+                <Activity className="text-blue-500" /> System Heartbeats
+              </h2>
+              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+                <HeartbeatsList heartbeats={allHeartbeats} />
+              </div>
+            </div>
           </>
         ) : (
           /* ========== DETAILED VIEW: Single Device Details ========== */
@@ -486,5 +520,56 @@ function DetailedDeviceView({
         </table>
       </div>
     </>
+  );
+}
+
+function HeartbeatsList({ heartbeats }: { heartbeats: any[] }) {
+  if (heartbeats.length === 0) {
+    return <div className="p-8 text-center text-slate-400 italic">No heartbeats received yet. Waiting for system pings...</div>;
+  }
+  
+  return (
+    <table className="w-full text-left text-sm">
+      <thead className="bg-slate-50 border-b border-slate-200">
+        <tr>
+          <th className="p-4 font-semibold text-slate-600">Device</th>
+          <th className="p-4 font-semibold text-slate-600">Sensor</th>
+          <th className="p-4 font-semibold text-slate-600">Time</th>
+          <th className="p-4 font-semibold text-slate-600">Status</th>
+          <th className="p-4 font-semibold text-slate-600 text-right">Uptime</th>
+        </tr>
+      </thead>
+      <tbody className="divide-y divide-slate-100">
+        {heartbeats.slice(0, 8).map((hb, idx) => (
+          <tr key={idx} className="hover:bg-slate-50 transition-colors">
+            <td className="p-4 font-medium text-slate-900">{hb.deviceId || 'Unknown'}</td>
+            <td className="p-4">
+              {hb.sensorId && (
+                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
+                  hb.sensorId === 'LEFT'   ? 'bg-blue-100 text-blue-700' :
+                  hb.sensorId === 'RIGHT'  ? 'bg-purple-100 text-purple-700' :
+                  hb.sensorId === 'CENTER' ? 'bg-orange-100 text-orange-700' :
+                  'bg-slate-100 text-slate-600'
+                }`}>
+                  {hb.sensorId}
+                </span>
+              )}
+            </td>
+            <td className="p-4 font-medium text-slate-900">
+              {hb.timestamp ? new Date(hb.timestamp).toLocaleTimeString() : 'N/A'}
+            </td>
+            <td className="p-4">
+              <span className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1 w-max">
+                <Activity size={12} />
+                {hb.status === 'NOMINAL_HEARTBEAT' ? 'Nominal Heartbeat' : (hb.status || 'HEARTBEAT')}
+              </span>
+            </td>
+            <td className="p-4 text-right text-slate-500 font-mono text-xs">
+               {hb.uptime ? `${hb.uptime}s` : '-'}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
