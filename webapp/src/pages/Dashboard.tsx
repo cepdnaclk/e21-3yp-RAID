@@ -10,6 +10,7 @@ import { useTelemetry } from "@/hooks/useTelemetry";
 import { useMockTelemetry } from "@/hooks/useMockTelemetry";
 import DeviceCard from "@/components/DeviceCard";
 import CrackDetailModal from "@/components/CrackDetailModal";
+import DeviceCracksModal from "@/components/DeviceCracksModal";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 
@@ -130,6 +131,17 @@ export default function Dashboard() {
   };
 
   const onlineCount = [device1, device2, device3].filter(d => d.isConnected).length;
+
+  const getSelectedDeviceName = () => {
+    if (selectedDevice === 'esp-001') return 'Robot-01';
+    if (selectedDevice === 'esp-002-mock') return 'Robot-02';
+    if (selectedDevice === 'esp-003-mock') return 'Robot-03';
+    return selectedDevice || '';
+  };
+
+  const selectedDeviceCracks = selectedDevice
+    ? [device1Raw, device2Raw, device3Raw].flat().filter((c: any) => c.deviceId === selectedDevice && !isHeartbeat(c))
+    : [];
 
   return (
     <div className="min-h-screen bg-background pb-28 mesh-bg">
@@ -360,6 +372,15 @@ export default function Dashboard() {
         isOpen={showCrackDetail}
         onClose={() => setShowCrackDetail(false)}
         onStatusUpdate={handleCrackStatusUpdate}
+      />
+
+      <DeviceCracksModal
+        deviceId={selectedDevice}
+        deviceName={getSelectedDeviceName()}
+        cracks={selectedDeviceCracks}
+        isOpen={!!selectedDevice}
+        onClose={() => setSelectedDevice(null)}
+        onCrackClick={handleCrackClick}
       />
 
       <BottomNav />
