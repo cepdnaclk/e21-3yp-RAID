@@ -11,7 +11,7 @@ export type CrackMarker = {
   id: string;
   lat: number;
   lng: number;
-  severity: number;
+  severity?: number;
 };
 
 interface Props {

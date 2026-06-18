@@ -1,6 +1,6 @@
 import React from "react";
-import { 
-  Wifi, MapPin, AlertTriangle, Camera, TrendingUp
+import {
+  Wifi, MapPin, AlertTriangle, Camera, TrendingUp, Zap
 } from "lucide-react";
 import { CrackEvent } from "@/hooks/useTelemetry";
 import { Button } from "@/components/ui/button";
@@ -8,11 +8,11 @@ import { Button } from "@/components/ui/button";
 interface DeviceCardProps {
   deviceId: string;
   deviceName: string;
-  isReal: boolean; // true for real device, false for mock
+  isReal: boolean;
   isConnected: boolean;
   liveCracks: CrackEvent[];
   onViewDetails: () => void;
-  onCrackClick?: (crack: CrackEvent) => void; // New: click on individual crack
+  onCrackClick?: (crack: CrackEvent) => void;
   onCrackStatusUpdate?: (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => void;
 }
 
@@ -24,102 +24,139 @@ export default function DeviceCard({
   liveCracks,
   onViewDetails,
   onCrackClick,
-  onCrackStatusUpdate
+  onCrackStatusUpdate,
 }: DeviceCardProps) {
-  
-  const total = liveCracks.length;
+
+  const total        = liveCracks.length;
   const highSeverity = liveCracks.filter(c => c.status === 'approved' || c.status === 'confirmed').length;
 
   return (
-    <div className={`rounded-2xl shadow-md overflow-hidden border-2 transition-all hover:shadow-lg ${
-      isReal 
-        ? 'bg-white border-amber-300' 
-        : 'bg-slate-50 border-slate-200'
-    }`}>
-      
-      {/* ================= HEADER ================= */}
-      <div className={`px-6 py-4 ${
-        isReal 
-          ? 'bg-gradient-to-r from-amber-50 to-orange-50 border-b-2 border-amber-200' 
-          : 'bg-gradient-to-r from-slate-100 to-slate-50 border-b border-slate-200'
-      }`}>
-        <div className="flex items-center justify-between mb-3">
+    <div className={`
+      rounded-2xl overflow-hidden border card-hover card-glow animate-fade-in-up
+      bg-card shadow-md
+      ${isReal
+        ? 'border-amber-200/80 shadow-amber-100/40'
+        : 'border-blue-100/80 shadow-blue-100/30'
+      }
+    `}>
+
+      {/* ─── HEADER ─── */}
+      <div className={`
+        px-5 py-4 border-b relative overflow-hidden
+        ${isReal
+          ? 'bg-gradient-to-br from-amber-50 to-orange-50/50 border-amber-100/70'
+          : 'bg-gradient-to-br from-blue-50/60 to-indigo-50/40 border-blue-100/60'
+        }
+      `}>
+        {/* subtle orb */}
+        <div className={`
+          absolute -top-6 -right-6 w-24 h-24 rounded-full opacity-40
+          ${isReal ? 'bg-amber-200/30' : 'bg-blue-200/25'}
+        `} />
+
+        <div className="flex items-center justify-between mb-2.5 relative z-10">
           <div>
-            <h3 className="text-lg font-bold text-slate-900">
+            <h3 className="text-[15px] font-bold text-foreground leading-tight tracking-tight">
               {deviceName}
             </h3>
-            <p className="text-xs text-slate-500 font-mono">{deviceId}</p>
+            <p className="text-[11px] text-muted-foreground font-mono mt-0.5 tracking-wider">{deviceId}</p>
           </div>
-          
-          {/* Data source badge */}
-          <div className={`px-3 py-1 rounded-full text-xs font-bold ${
-            isReal 
-              ? 'bg-amber-100 text-amber-700 border border-amber-300' 
-              : 'bg-indigo-100 text-indigo-700 border border-indigo-300'
-          }`}>
+
+          {/* Source badge */}
+          <span className={`
+            status-badge font-bold
+            ${isReal
+              ? 'bg-amber-100 text-amber-700 ring-1 ring-amber-300/60'
+              : 'bg-indigo-100 text-indigo-700 ring-1 ring-indigo-300/60'
+            }
+          `}>
             {isReal ? '🔴 REAL DATA' : '📊 MOCK DATA'}
-          </div>
-        </div>
-        
-        {/* Connection status */}
-        <div className="flex items-center gap-2">
-          <span className="flex h-2 w-2 relative">
-            <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${
-              isConnected ? 'bg-emerald-400' : 'bg-red-400'
-            }`}></span>
-            <span className={`relative inline-flex rounded-full h-2 w-2 ${
-              isConnected ? 'bg-emerald-500' : 'bg-red-500'
-            }`}></span>
           </span>
-          <p className="text-xs text-slate-600">
-            {isConnected ? '● Live' : '● Disconnected'}
+        </div>
+
+        {/* Connection status */}
+        <div className="flex items-center gap-2 relative z-10">
+          <span className="relative flex h-2 w-2">
+            <span className={`
+              animate-ping absolute inline-flex h-full w-full rounded-full opacity-60
+              ${isConnected ? 'bg-emerald-400' : 'bg-red-400'}
+            `} />
+            <span className={`
+              relative inline-flex rounded-full h-2 w-2
+              ${isConnected ? 'bg-emerald-500' : 'bg-red-500'}
+            `} />
+          </span>
+          <p className={`text-[12px] font-semibold ${isConnected ? 'text-emerald-600' : 'text-red-500'}`}>
+            {isConnected ? 'Live' : 'Disconnected'}
           </p>
+          {isConnected && (
+            <span className="text-[10px] text-muted-foreground ml-auto font-medium">● Streaming</span>
+          )}
         </div>
       </div>
 
-      {/* ================= STATS GRID ================= */}
-      <div className="px-6 py-4 bg-white">
-        <div className="grid grid-cols-2 gap-3 mb-4">
-          
+      {/* ─── STATS GRID ─── */}
+      <div className="px-5 pt-4 pb-2">
+        <div className="grid grid-cols-2 gap-2.5 mb-4">
+
           {/* Total Detections */}
-          <div className="bg-slate-50 rounded-lg p-3 border border-slate-200">
+          <div className="bg-gradient-to-br from-blue-50 to-blue-50/50 rounded-xl p-3 border border-blue-100/70 group hover:border-blue-200 transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-slate-600 font-semibold">Total Cracks</span>
-              <TrendingUp size={16} className="text-blue-500" />
+              <span className="text-[10px] text-blue-600/80 font-bold uppercase tracking-wider">Total Cracks</span>
+              <div className="p-1 bg-blue-100/80 rounded-lg group-hover:bg-blue-200/60 transition-colors">
+                <TrendingUp size={12} className="text-blue-600" />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-slate-900 mt-1">{total}</p>
+            <p className="text-xl font-extrabold text-blue-900 mt-1.5 tabular-nums tracking-tight">{total}</p>
           </div>
-          
-          {/* High Severity Count */}
-          <div className="bg-rose-50 rounded-lg p-3 border border-rose-200">
+
+          {/* Critical */}
+          <div className="bg-gradient-to-br from-rose-50 to-rose-50/50 rounded-xl p-3 border border-rose-100/70 group hover:border-rose-200 transition-colors">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-rose-700 font-semibold">Critical Alerts</span>
-              <AlertTriangle size={16} className="text-rose-500" />
+              <span className="text-[10px] text-rose-600/80 font-bold uppercase tracking-wider">Critical</span>
+              <div className="p-1 bg-rose-100/80 rounded-lg group-hover:bg-rose-200/60 transition-colors">
+                <AlertTriangle size={12} className="text-rose-500" />
+              </div>
             </div>
-            <p className="text-2xl font-bold text-rose-600 mt-1">{highSeverity}</p>
+            <p className="text-xl font-extrabold text-rose-600 mt-1.5 tabular-nums tracking-tight">{highSeverity}</p>
           </div>
         </div>
       </div>
 
-      {/* ================= RECENT DETECTIONS ================= */}
-      <div className="px-6 py-4 border-t border-slate-200 bg-white">
-        <h4 className="text-sm font-bold text-slate-900 mb-3">Recent Detections</h4>
-        
+      {/* ─── RECENT DETECTIONS ─── */}
+      <div className="px-5 py-3 border-t border-border/50">
+        <h4 className="text-[10px] font-bold text-muted-foreground mb-3 uppercase tracking-widest flex items-center gap-1.5">
+          <Zap size={10} className="text-blue-400" />
+          Recent Detections
+        </h4>
+
         {liveCracks.length === 0 ? (
-          <div className="text-xs text-slate-400 italic text-center py-3">
+          <div className="text-[12px] text-muted-foreground text-center py-5 bg-muted/30 rounded-xl border border-dashed border-border/60">
+            <Camera size={20} className="mx-auto mb-1.5 text-muted-foreground/40" />
             No detections yet
           </div>
         ) : (
-          <div className="space-y-2 max-h-48 overflow-y-auto">
+          <div className="space-y-1.5 max-h-44 overflow-y-auto pr-0.5">
             {liveCracks.slice(0, 4).map((crack, idx) => (
               <div
                 key={idx}
                 onClick={() => onCrackClick?.(crack)}
-                className="w-full flex items-center justify-between bg-slate-50 hover:bg-blue-50 rounded p-2 text-xs transition-colors cursor-pointer border border-transparent hover:border-blue-200"
+                className="
+                  w-full flex items-center justify-between
+                  bg-background hover:bg-blue-50/50
+                  rounded-xl px-3 py-2.5 text-[12px]
+                  transition-all duration-200 cursor-pointer
+                  border border-border/50 hover:border-blue-200/70
+                  hover:shadow-sm-blue group
+                "
               >
                 <div className="text-left">
-                  <p className="font-semibold text-slate-900">Detection</p>
-                  <p className="text-slate-500">{new Date(crack.timestamp || '').toLocaleTimeString()}</p>
+                  <p className="font-semibold text-foreground leading-tight group-hover:text-blue-700 transition-colors">
+                    Detection
+                  </p>
+                  <p className="text-muted-foreground text-[11px] mt-0.5 tabular-nums">
+                    {new Date(crack.timestamp || '').toLocaleTimeString()}
+                  </p>
                 </div>
                 <button
                   onClick={(e) => {
@@ -127,20 +164,24 @@ export default function DeviceCard({
                     const key = crack.id?.toString() || crack.timestamp?.toString();
                     if (onCrackStatusUpdate && key) {
                       const isPending = !(crack.status === 'approved' || crack.status === 'confirmed' || crack.status === 'ignored');
-                      if (isPending) {
-                        onCrackStatusUpdate(key, 'approved');
-                      }
+                      if (isPending) onCrackStatusUpdate(key, 'approved');
                     }
                   }}
-                  className={`px-2 py-1 rounded font-bold whitespace-nowrap ml-2 cursor-pointer hover:opacity-80 transition-opacity ${
-                    crack.status === 'approved' || crack.status === 'confirmed'
-                      ? 'bg-rose-100 text-rose-700'
+                  className={`
+                    status-badge cursor-pointer transition-all hover:scale-105 ml-2
+                    ${crack.status === 'approved' || crack.status === 'confirmed'
+                      ? 'bg-rose-50 text-rose-600 ring-1 ring-rose-200'
                       : crack.status === 'ignored'
-                      ? 'bg-slate-100 text-slate-600'
-                      : 'bg-emerald-100 text-emerald-700'
-                  }`}
+                      ? 'bg-slate-100 text-slate-500 ring-1 ring-slate-200'
+                      : 'bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200'
+                    }
+                  `}
                 >
-                  {crack.status === 'approved' || crack.status === 'confirmed' ? 'confirmed' : crack.status === 'ignored' ? 'ignored' : 'pending'}
+                  {crack.status === 'approved' || crack.status === 'confirmed'
+                    ? 'confirmed'
+                    : crack.status === 'ignored'
+                    ? 'ignored'
+                    : 'pending'}
                 </button>
               </div>
             ))}
@@ -148,15 +189,18 @@ export default function DeviceCard({
         )}
       </div>
 
-      {/* ================= ACTION BUTTON ================= */}
-      <div className="px-6 py-4 bg-slate-50 border-t border-slate-200">
-        <Button 
+      {/* ─── ACTION BUTTON ─── */}
+      <div className="px-5 py-4 border-t border-border/50 bg-gradient-to-r from-transparent via-blue-50/20 to-transparent">
+        <Button
           onClick={onViewDetails}
-          className={`w-full font-semibold ${
-            isReal
-              ? 'bg-amber-500 hover:bg-amber-600 text-white'
-              : 'bg-indigo-500 hover:bg-indigo-600 text-white'
-          }`}
+          className={`
+            w-full font-semibold text-[13px] h-10 rounded-xl
+            transition-all duration-300
+            ${isReal
+              ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm hover:shadow-md hover:-translate-y-0.5'
+              : 'btn-premium'
+            }
+          `}
         >
           View Details
         </Button>

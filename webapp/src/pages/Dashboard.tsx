@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Wifi, MapPin, Bell, Map, FileText,
-  ChevronRight, LogOut, Camera, AlertTriangle, Grid3x3, List, Activity
+  MapPin, LogOut, Grid3x3, Activity,
+  AlertTriangle, Cpu, BarChart3, Shield, Sparkles, Bot
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -13,12 +13,12 @@ import CrackDetailModal from "@/components/CrackDetailModal";
 import BottomNav from "@/components/BottomNav";
 import { Button } from "@/components/ui/button";
 
+const BASE = import.meta.env.BASE_URL;       // e.g. /e21-3yp-RAID/webapp/
+
 export default function Dashboard() {
   const navigate = useNavigate();
   const { signOut } = useAuth();
 
-  // Load balancing demo: show 3 devices
-  const [viewMode, setViewMode] = useState<'grid' | 'detailed'>('grid');
   const [selectedDevice, setSelectedDevice] = useState<string | null>(null);
   const [selectedCrack, setSelectedCrack] = useState<any>(null);
   const [showCrackDetail, setShowCrackDetail] = useState(false);
@@ -35,29 +35,22 @@ export default function Dashboard() {
 
   const applyOverrides = (cracks: any[]) => cracks.map(c => {
     const key = getCrackKey(c);
-    return {
-      ...c,
-      status: (key && statusOverrides[key]) ? statusOverrides[key] : c.status
-    };
+    return { ...c, status: (key && statusOverrides[key]) ? statusOverrides[key] : c.status };
   });
 
-  // Real ESP32 device "esp-001" has 3 sensor positions: LEFT, RIGHT, CENTER.
-  // Each is a separate DynamoDB partition key, so we need 3 queries.
   const sensorLeft   = useTelemetry("esp-001", "LEFT");
   const sensorRight  = useTelemetry("esp-001", "RIGHT");
   const sensorCenter = useTelemetry("esp-001", "CENTER");
-
-  // Also fetch historical heartbeats — stored under SensorID="HEARTBEAT" in DynamoDB
   const sensorHeartbeat = useTelemetry("esp-001", "HEARTBEAT");
 
-  // Merge all three sensor streams into one "device1" object
   const device1Raw = applyOverrides([
     ...sensorLeft.liveCracks,
     ...sensorRight.liveCracks,
     ...sensorCenter.liveCracks,
   ].sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime()));
 
-  const isHeartbeat = (c: any) => c.crackDetected === false || c.status === 'HEARTBEAT' || c.status === 'NOMINAL_HEARTBEAT';
+  const isHeartbeat = (c: any) =>
+    c.crackDetected === false || c.status === 'HEARTBEAT' || c.status === 'NOMINAL_HEARTBEAT';
 
   const device1 = {
     liveCracks: device1Raw.filter((c: any) => !isHeartbeat(c)),
@@ -65,7 +58,6 @@ export default function Dashboard() {
     isConnected: sensorLeft.isConnected || sensorRight.isConnected || sensorCenter.isConnected,
   };
 
-  // Device 2 & 3: Mock data (for load balancing demo — keep as-is)
   const device2MockHook = useMockTelemetry("esp-002-mock", "IR_Bottom");
   const device3MockHook = useMockTelemetry("esp-003-mock", "IR_Bottom");
 
@@ -83,25 +75,23 @@ export default function Dashboard() {
     heartbeats: device3Raw.filter(isHeartbeat),
   };
 
-  // Aggregate all heartbeats — include historical ones from DynamoDB (SensorID="HEARTBEAT")
   const allHeartbeats = [
-    ...sensorHeartbeat.liveCracks,   // ← historical from DynamoDB
-    ...device1.heartbeats,           // ← real-time via WebSocket
+    ...sensorHeartbeat.liveCracks,
+    ...device1.heartbeats,
     ...device2.heartbeats,
-    ...device3.heartbeats
+    ...device3.heartbeats,
   ]
-  .filter(isHeartbeat) // make sure no cracks sneak in
-  .sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())
-  // de-duplicate by timestamp+deviceId in case a real-time event overlaps with a historical one
-  .filter((c, idx, arr) => arr.findIndex(x => x.timestamp === c.timestamp && x.deviceId === c.deviceId) === idx);
+    .filter(isHeartbeat)
+    .sort((a, b) => new Date(b.timestamp ?? 0).getTime() - new Date(a.timestamp ?? 0).getTime())
+    .filter((c, idx, arr) =>
+      arr.findIndex(x => x.timestamp === c.timestamp && x.deviceId === c.deviceId) === idx
+    );
 
-  // Total number of detected events across all devices
   const totalCracks = device1.liveCracks.length + device2.liveCracks.length + device3.liveCracks.length;
   const totalCritical = [device1, device2, device3]
     .flatMap(d => d.liveCracks)
     .filter(c => c.status === 'approved' || c.status === 'confirmed').length;
 
-  // Load Balancing Metrics
   const device1Load = device1.liveCracks.length;
   const device2Load = device2.liveCracks.length;
   const device3Load = device3.liveCracks.length;
@@ -111,465 +101,339 @@ export default function Dashboard() {
   const device3Percent = totalCracks > 0 ? Math.round((device3Load / totalCracks) * 100) : 0;
 
   const avgLoad = totalCracks > 0 ? Math.round(totalCracks / 3) : 0;
-  const loadBalance = Math.round(((Math.max(device1Load, device2Load, device3Load) - Math.min(device1Load, device2Load, device3Load)) / Math.max(1, avgLoad)) * 100);
+  const loadBalance = Math.round(
+    ((Math.max(device1Load, device2Load, device3Load) - Math.min(device1Load, device2Load, device3Load))
+     / Math.max(1, avgLoad)) * 100
+  );
   const isBalanced = loadBalance < 30;
 
-  // Logout user and redirect to home page
   const handleLogout = async () => {
     await signOut();
     navigate("/");
   };
 
-  // Handle device detail view
   const handleViewDevice = (deviceId: string) => {
     setSelectedDevice(deviceId);
-    setViewMode('detailed');
   };
 
-  // Handle crack click to open detail modal
   const handleCrackClick = (crack: any) => {
     setSelectedCrack(crack);
     setShowCrackDetail(true);
   };
 
-  // Handle crack status update
   const handleCrackStatusUpdate = (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => {
     setStatusOverrides(prev => ({ ...prev, [crackId]: newStatus }));
-
-    // Update selected crack if it's the one being updated
     const selectedKey = getCrackKey(selectedCrack || {});
     if (selectedKey === crackId?.toString()) {
       setSelectedCrack({ ...selectedCrack, status: newStatus });
     }
   };
 
+  const onlineCount = [device1, device2, device3].filter(d => d.isConnected).length;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 pb-24">
+    <div className="min-h-screen bg-background pb-28 mesh-bg">
 
-      {/* ================= HEADER SECTION ================= */}
-      <div className="bg-slate-900 rounded-b-[2rem] px-6 py-8 shadow-lg">
+      {/* ═══════════ HERO / HEADER ═══════════ */}
+      <div className="header-gradient px-5 pt-6 pb-6">
 
-        {/* Title + connection status */}
-        <div className="flex items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">
-              Mission Control
+        {/* Decorative floating blobs */}
+        <div className="absolute top-4 left-8 w-32 h-32 rounded-full bg-blue-400/20 blur-2xl float-slow pointer-events-none" />
+        <div className="absolute top-16 right-4 w-24 h-24 rounded-full bg-cyan-400/15 blur-2xl float-slower pointer-events-none" />
+
+        {/* Title row */}
+        <div className="flex items-center justify-between mb-5 relative z-10">
+          <div className="animate-fade-in-up">
+            <div className="flex items-center gap-2 mb-1.5">
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-blue-200 text-[10px] font-bold tracking-widest uppercase shadow-sm">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
+                Live System
+              </span>
+            </div>
+            <h1 className="text-2xl font-extrabold text-white tracking-tight leading-none">
+              RailSafe Monitor
             </h1>
-            <p className="text-sm text-slate-400 mt-1">Load Balancing Demo • {new Date().toLocaleString()}</p>
+            <p className="text-[12px] text-blue-200/80 mt-1.5 font-medium tabular-nums">
+              Track Inspection Dashboard · {new Date().toLocaleString()}
+            </p>
           </div>
 
-          {/* Logout button */}
-          <Button onClick={handleLogout} variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
-            <LogOut size={20} />
-          </Button>
-        </div>
-
-        {/* Fleet Overview Stats */}
-        <div className="grid grid-cols-2 gap-4 mb-6">
-          <div className="bg-slate-800 rounded-lg px-4 py-3 border border-slate-700">
-            <p className="text-xs text-slate-400 uppercase font-semibold">Total Detections</p>
-            <p className="text-2xl font-bold text-white mt-1">{totalCracks}</p>
-          </div>
-          <div className="bg-rose-900 rounded-lg px-4 py-3 border border-rose-700">
-            <p className="text-xs text-rose-200 uppercase font-semibold">Critical Alerts</p>
-            <p className="text-2xl font-bold text-rose-200 mt-1">{totalCritical}</p>
-          </div>
-          <div className="bg-emerald-900 rounded-lg px-4 py-3 border border-emerald-700 col-span-2">
-            <p className="text-xs text-emerald-200 uppercase font-semibold">Fleet Status</p>
-            <div className="flex items-center gap-4 mt-2">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                <span className="text-sm text-emerald-200">raid-robot-01: Live</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                <span className="text-sm text-emerald-200">esp-002-mock: Streaming</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex h-2 w-2 bg-emerald-400 rounded-full animate-pulse"></span>
-                <span className="text-sm text-emerald-200">esp-003-mock: Streaming</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* View Mode Toggle */}
-        <div className="flex gap-2">
+          {/* Logout */}
           <Button
-            onClick={() => setViewMode('grid')}
-            variant={viewMode === 'grid' ? 'default' : 'outline'}
-            className="text-sm"
+            onClick={handleLogout}
+            variant="ghost"
+            className="text-blue-200 hover:text-white hover:bg-white/10 rounded-xl h-10 w-10 p-0 transition-all duration-200 hover:scale-105"
           >
-            <Grid3x3 size={16} className="mr-1" />
-            Fleet Overview
-          </Button>
-          <Button
-            onClick={() => setViewMode('detailed')}
-            variant={viewMode === 'detailed' ? 'default' : 'outline'}
-            className="text-sm"
-          >
-            <List size={16} className="mr-1" />
-            Detailed View
+            <LogOut size={18} />
           </Button>
         </div>
 
-        {/* Load Balancing Analytics */}
-        <div className="mt-6 pt-6 border-t border-slate-700">
-          <h3 className="text-sm font-bold text-slate-300 uppercase mb-4">📊 Load Distribution</h3>
+        {/* ─── Hero Image Banner ─── */}
+        <div className="hero-image-section mb-5 relative z-10 animate-fade-in-up" style={{ animationDelay: '0.1s' }}>
+          <img
+            src={`${BASE}rail-hero.png`}
+            alt="Railway inspection robot monitoring tracks"
+          />
+          <div className="hero-image-overlay" />
+        </div>
 
-          <div className="space-y-3">
-            {/* Device 1 Load Bar */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-300 font-semibold">esp-001 (Real)</span>
-                <span className="text-xs font-bold text-amber-300">{device1Percent}% ({device1Load} events)</span>
+        {/* ─── Key Metrics Grid ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4 relative z-10 stagger-children">
+          {/* Total Detections */}
+          <div className="glass-card-dark rounded-2xl px-4 py-4 border border-white/10 shadow-sm transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="p-1.5 bg-blue-500/20 rounded-lg">
+                <Sparkles size={12} className="text-blue-400" />
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-amber-400 to-amber-500 h-full rounded-full transition-all"
-                  style={{ width: `${Math.max(device1Percent, 5)}%` }}
-                ></div>
-              </div>
+              <p className="text-[10px] text-blue-200/80 uppercase font-bold tracking-widest">Detections</p>
             </div>
+            <p className="text-3xl font-extrabold text-white tabular-nums">{totalCracks}</p>
+          </div>
 
-            {/* Device 2 Load Bar */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-300 font-semibold">esp-002 (Mock)</span>
-                <span className="text-xs font-bold text-indigo-300">{device2Percent}% ({device2Load} events)</span>
+          {/* Critical Alerts */}
+          <div className="bg-rose-500/10 backdrop-blur-sm rounded-2xl px-4 py-4 border border-rose-500/20 shadow-sm transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="p-1.5 bg-rose-500/20 rounded-lg">
+                <AlertTriangle size={12} className="text-rose-400" />
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-indigo-400 to-indigo-500 h-full rounded-full transition-all"
-                  style={{ width: `${Math.max(device2Percent, 5)}%` }}
-                ></div>
-              </div>
+              <p className="text-[10px] text-rose-300 uppercase font-bold tracking-widest">Critical</p>
             </div>
+            <p className="text-3xl font-extrabold text-rose-400 tabular-nums">{totalCritical}</p>
+          </div>
 
-            {/* Device 3 Load Bar */}
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-slate-300 font-semibold">esp-003 (Mock)</span>
-                <span className="text-xs font-bold text-cyan-300">{device3Percent}% ({device3Load} events)</span>
+          {/* Active Fleet */}
+          <div className="bg-emerald-500/10 backdrop-blur-sm rounded-2xl px-4 py-4 border border-emerald-500/20 shadow-sm transition-transform duration-200 hover:scale-[1.02]">
+            <div className="flex items-center gap-2 mb-1.5">
+              <div className="p-1.5 bg-emerald-500/20 rounded-lg">
+                <Activity size={12} className="text-emerald-400" />
               </div>
-              <div className="w-full bg-slate-700 rounded-full h-2 overflow-hidden">
-                <div
-                  className="bg-gradient-to-r from-cyan-400 to-cyan-500 h-full rounded-full transition-all"
-                  style={{ width: `${Math.max(device3Percent, 5)}%` }}
-                ></div>
+              <p className="text-[10px] text-emerald-300 uppercase font-bold tracking-widest">Active Fleet</p>
+            </div>
+            <p className="text-3xl font-extrabold text-emerald-400 tabular-nums">{onlineCount}/3</p>
+          </div>
+        </div>
+
+        {/* ─── Detailed Status Panels ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-2 relative z-10">
+          
+          {/* Fleet Status List */}
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl px-5 py-4 border border-white/10 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="p-1.5 bg-blue-500/30 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] border border-blue-400/20">
+                <Cpu size={14} className="text-blue-300" />
               </div>
+              <h3 className="text-[13px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-100 to-cyan-300 uppercase tracking-widest drop-shadow-sm">
+                Live Fleet Status
+              </h3>
+            </div>
+            
+            <div className="flex flex-col justify-center gap-2 h-[calc(100%-2rem)]">
+              {[
+                { name: 'raid-robot-01', note: 'Live', isLive: true, Icon: Bot },
+                { name: 'esp-002-mock',  note: 'Streaming', isLive: true, Icon: Cpu },
+                { name: 'esp-003-mock',  note: 'Streaming', isLive: true, Icon: Cpu },
+              ].map(({ name, note, isLive, Icon }) => (
+                <div key={name} className="group flex items-center justify-between p-2.5 rounded-xl hover:bg-white/10 transition-all duration-300 hover:scale-[1.02] cursor-pointer border border-transparent hover:border-blue-500/30 hover:shadow-[0_0_15px_rgba(59,130,246,0.15)]">
+                  <div className="flex items-center gap-3">
+                    <span className="relative flex h-2 w-2">
+                      {isLive && <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-60" />}
+                      <span className={`relative inline-flex rounded-full h-2 w-2 ${isLive ? 'bg-emerald-400' : 'bg-slate-400'}`} />
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Icon size={14} className="text-blue-300/80 group-hover:text-blue-200 transition-colors" />
+                      <span className="text-[14px] text-blue-50 font-bold tracking-wide group-hover:text-white group-hover:drop-shadow-[0_0_8px_rgba(255,255,255,0.4)] transition-all">
+                        {name}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`text-[12px] font-bold px-2.5 py-1 rounded-md transition-colors ${isLive ? "bg-emerald-500/10 text-emerald-400 group-hover:bg-emerald-500/20" : "bg-slate-500/10 text-slate-400"}`}>
+                    {note}
+                  </span>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Load Balance Status */}
-          <div className={`mt-4 px-3 py-2 rounded-lg text-xs font-semibold flex items-center gap-2 ${isBalanced
-              ? 'bg-emerald-900 text-emerald-200 border border-emerald-700'
-              : 'bg-amber-900 text-amber-200 border border-amber-700'
-            }`}>
-            <span className={`inline-flex h-2 w-2 rounded-full ${isBalanced ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
-            {isBalanced ? '✓ Load Balanced' : '⚠ Imbalanced Load'} • Variance: {loadBalance}%
+          {/* Load Distribution */}
+          <div className="bg-white/5 backdrop-blur-md rounded-2xl px-5 py-4 border border-white/10 animate-fade-in-up" style={{ animationDelay: '0.25s' }}>
+            <div className="flex items-center gap-2.5 mb-5">
+              <div className="p-1.5 bg-blue-500/30 rounded-lg shadow-[0_0_15px_rgba(59,130,246,0.3)] border border-blue-400/20">
+                <BarChart3 size={14} className="text-blue-300" />
+              </div>
+              <h3 className="text-[13px] font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-100 to-cyan-300 uppercase tracking-widest drop-shadow-sm">
+                Load Distribution
+              </h3>
+            </div>
+
+            <div className="space-y-3.5">
+              {[
+                { label: 'Robot-01 (Real)', percent: device1Percent, load: device1Load, barClass: 'progress-bar-amber',  textClass: 'text-amber-400' },
+                { label: 'Robot-02 (Mock)', percent: device2Percent, load: device2Load, barClass: 'progress-bar-indigo', textClass: 'text-indigo-400' },
+                { label: 'Robot-03 (Mock)', percent: device3Percent, load: device3Load, barClass: 'progress-bar-cyan',   textClass: 'text-cyan-400' },
+              ].map(({ label, percent, load, barClass, textClass }) => (
+                <div key={label} className="group">
+                  <div className="flex justify-between items-center mb-1.5 cursor-default">
+                    <span className="text-[13px] text-blue-50 font-bold group-hover:text-white group-hover:drop-shadow-[0_0_5px_rgba(255,255,255,0.3)] transition-all">{label}</span>
+                    <span className={`text-[12px] font-bold tabular-nums group-hover:scale-105 transition-transform ${textClass}`}>
+                      {percent}% · {load}
+                    </span>
+                  </div>
+                  <div className="w-full bg-white/10 rounded-full h-1.5 overflow-hidden shadow-inner">
+                    <div
+                      className={`${barClass} h-full rounded-full transition-all duration-700 ease-out`}
+                      style={{ width: `${Math.max(percent, 4)}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Balance status */}
+            <div className={`
+              mt-4 px-3 py-2 rounded-xl text-[11px] font-semibold flex items-center justify-center gap-2
+              transition-all duration-200 border
+              ${isBalanced
+                ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+              }
+            `}>
+              <span className={`inline-flex h-1.5 w-1.5 rounded-full ${isBalanced ? 'bg-emerald-400 animate-pulse' : 'bg-amber-400 animate-pulse'}`} />
+              {isBalanced ? 'Load Balanced' : 'Imbalanced Load'} · Variance: {loadBalance}%
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ================= MAIN CONTENT ================= */}
-      <div className="px-6 mt-8">
-
-        {viewMode === 'grid' ? (
-          /* ========== GRID VIEW: 3 Device Cards ========== */
-          <>
-            <h2 className="text-2xl font-bold text-slate-900 mb-6">Active Device Fleet</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              {/* Device 1: Real Data */}
-              <DeviceCard
-                deviceId="esp-001"
-                deviceName="Robot-01"
-                isReal={true}
-                isConnected={device1.isConnected}
-                liveCracks={device1.liveCracks}
-                onViewDetails={() => handleViewDevice("esp-001")}
-                onCrackClick={handleCrackClick}
-              />
-
-              {/* Device 2: Mock Data */}
-              <DeviceCard
-                deviceId="esp-002-mock"
-                deviceName="Robot-02"
-                isReal={false}
-                isConnected={device2.isConnected}
-                liveCracks={device2.liveCracks}
-                onViewDetails={() => handleViewDevice("esp-002-mock")}
-                onCrackClick={handleCrackClick}
-              />
-
-              {/* Device 3: Mock Data */}
-              <DeviceCard
-                deviceId="esp-003-mock"
-                deviceName="Robot-03"
-                isReal={false}
-                isConnected={device3.isConnected}
-                liveCracks={device3.liveCracks}
-                onViewDetails={() => handleViewDevice("esp-003-mock")}
-                onCrackClick={handleCrackClick}
-              />
+      {/* ═══════════ MAIN CONTENT ═══════════ */}
+      <div className="px-5 mt-6">
+        {/* ─── Fleet Header ─── */}
+        <div className="flex items-center justify-between mb-5">
+          <h2 className="text-lg font-bold text-slate-800 tracking-tight flex items-center gap-2">
+            <div className="p-1.5 bg-blue-100 rounded-lg">
+              <Cpu size={16} className="text-blue-600" />
             </div>
+            Active Device Fleet
+          </h2>
+          <span className="status-badge bg-blue-50 text-blue-700 ring-1 ring-blue-200 text-[11px] font-bold">
+            {onlineCount}/3 Online
+          </span>
+        </div>
 
-            {/* ========== HEARTBEATS SECTION ========== */}
-            <div className="mt-12">
-              <h2 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <Activity className="text-blue-500" /> System Heartbeats
-              </h2>
-              <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                <HeartbeatsList heartbeats={allHeartbeats} />
-              </div>
-            </div>
-          </>
-        ) : (
-          /* ========== DETAILED VIEW: Single Device Details ========== */
-          <>
-            <div className="flex items-center gap-3 mb-6">
-              <Button
-                onClick={() => setViewMode('grid')}
-                variant="outline"
-                size="sm"
-              >
-                ← Back to Fleet
-              </Button>
-              <h2 className="text-2xl font-bold text-slate-900">
-                {selectedDevice === 'esp-001' && 'Robot-01 Details'}
-                {selectedDevice === 'esp-002-mock' && 'Robot-02 Details (Mock)'}
-                {selectedDevice === 'esp-003-mock' && 'Robot-03 Details (Mock)'}
-              </h2>
-            </div>
+        {/* ─── Device Cards Grid ─── */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 stagger-children">
+          <DeviceCard
+            deviceId="esp-001" deviceName="Robot-01" isReal={true}
+            isConnected={device1.isConnected} liveCracks={device1.liveCracks}
+            onViewDetails={() => handleViewDevice("esp-001")}
+            onCrackClick={handleCrackClick}
+          />
+          <DeviceCard
+            deviceId="esp-002-mock" deviceName="Robot-02" isReal={false}
+            isConnected={device2.isConnected} liveCracks={device2.liveCracks}
+            onViewDetails={() => handleViewDevice("esp-002-mock")}
+            onCrackClick={handleCrackClick}
+          />
+          <DeviceCard
+            deviceId="esp-003-mock" deviceName="Robot-03" isReal={false}
+            isConnected={device3.isConnected} liveCracks={device3.liveCracks}
+            onViewDetails={() => handleViewDevice("esp-003-mock")}
+            onCrackClick={handleCrackClick}
+          />
+        </div>
 
-            {selectedDevice === 'esp-001' && (
-              <DetailedDeviceView
-                deviceId="esp-001"
-                deviceName="Robot-01"
-                isReal={true}
-                liveCracks={device1.liveCracks}
-                onCrackClick={handleCrackClick}
-                onCrackStatusUpdate={handleCrackStatusUpdate}
-              />
-            )}
-            {selectedDevice === 'esp-002-mock' && (
-              <DetailedDeviceView
-                deviceId="esp-002-mock"
-                deviceName="Robot-02 (Mock)"
-                isReal={false}
-                liveCracks={device2.liveCracks}
-                onCrackClick={handleCrackClick}
-                onCrackStatusUpdate={handleCrackStatusUpdate}
-              />
-            )}
-            {selectedDevice === 'esp-003-mock' && (
-              <DetailedDeviceView
-                deviceId="esp-003-mock"
-                deviceName="Robot-03 (Mock)"
-                isReal={false}
-                liveCracks={device3.liveCracks}
-                onCrackClick={handleCrackClick}
-                onCrackStatusUpdate={handleCrackStatusUpdate}
-              />
-            )}
-          </>
-        )}
+        {/* ─── Heartbeats ─── */}
+        <div className="mt-10 animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+          <h2 className="text-lg font-bold text-slate-800 mb-4 flex items-center gap-2 tracking-tight">
+            <div className="p-1.5 bg-emerald-50 rounded-lg">
+              <Activity className="text-emerald-600" size={16} />
+            </div>
+            System Heartbeats
+          </h2>
+          <div className="bg-white rounded-2xl shadow-md-blue border border-blue-100/40 overflow-hidden">
+            <HeartbeatsList heartbeats={allHeartbeats} />
+          </div>
+        </div>
       </div>
 
-      {/* Crack Detail Modal */}
       <CrackDetailModal
         crack={selectedCrack}
         isOpen={showCrackDetail}
         onClose={() => setShowCrackDetail(false)}
         onStatusUpdate={handleCrackStatusUpdate}
       />
-      
-      {/* Bottom navigation bar */}
+
       <BottomNav />
     </div>
   );
 }
 
-/**
- * Detailed view component showing all crack detections for a single device
- */
-function DetailedDeviceView({ 
-  deviceId, 
-  deviceName, 
-  isReal, 
-  liveCracks,
-  onCrackClick,
-  onCrackStatusUpdate
-}: {
-  deviceId: string;
-  deviceName: string;
-  isReal: boolean;
-  liveCracks: any[];
-  onCrackClick: (crack: any) => void;
-  onCrackStatusUpdate?: (crackId: string | number, newStatus: 'pending' | 'approved' | 'ignored') => void;
-}) {
-  const total = liveCracks.length;
-  const pending = liveCracks.filter(c => c.status === 'pending' || c.status !== 'ignored').length;
-
-  return (
-    <>
-      {/* Summary stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <p className="text-sm text-slate-600 font-semibold">Total Detections</p>
-          <p className="text-3xl font-bold text-slate-900 mt-2">{total}</p>
-        </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <p className="text-sm text-slate-600 font-semibold">Pending Review</p>
-          <p className="text-3xl font-bold text-amber-600 mt-2">{pending}</p>
-        </div>
-        <div className="bg-white rounded-lg p-4 border border-slate-200">
-          <p className="text-sm text-slate-600 font-semibold">Data Source</p>
-          <p className={`text-sm font-bold mt-2 ${isReal ? 'text-amber-600' : 'text-indigo-600'}`}>
-            {isReal ? '🔴 Real Data' : '📊 Mock Data'}
-          </p>
-        </div>
-      </div>
-
-      {/* Detailed table */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden">
-        <table className="w-full text-left text-sm">
-          <thead className="bg-slate-50 border-b border-slate-200">
-            <tr>
-              <th className="p-4 font-semibold text-slate-600">Sensor</th>
-              <th className="p-4 font-semibold text-slate-600">Time</th>
-              <th className="p-4 font-semibold text-slate-600">Location</th>
-              <th className="p-4 font-semibold text-slate-600">Status</th>
-              <th className="p-4 font-semibold text-slate-600 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {liveCracks.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="p-8 text-center text-slate-400 italic">
-                  No detections yet. Awaiting telemetry data.
-                </td>
-              </tr>
-            ) : (
-              liveCracks.map((crack, index) => (
-                <tr key={index} className="hover:bg-slate-50 transition-colors">
-                  <td className="p-4">
-                    {crack.sensorId && (
-                      <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                        crack.sensorId === 'LEFT'   ? 'bg-blue-100 text-blue-700' :
-                        crack.sensorId === 'RIGHT'  ? 'bg-purple-100 text-purple-700' :
-                        crack.sensorId === 'CENTER' ? 'bg-orange-100 text-orange-700' :
-                        'bg-slate-100 text-slate-600'
-                      }`}>
-                        {crack.sensorId}
-                      </span>
-                    )}
-                  </td>
-                  <td className="p-4 font-medium text-slate-900">
-                    {crack.timestamp ? new Date(crack.timestamp).toLocaleTimeString() : 'N/A'}
-                  </td>
-                  <td className="p-4">
-  <div className="text-slate-900 font-medium text-xs">
-    {crack.location?.lat || crack.latitude
-      ? `${Number(crack.location?.lat ?? crack.latitude).toFixed(4)}° N`
-      : 'No GPS'}
-  </div>
-  <div className="text-xs text-slate-500 flex items-center gap-1 mt-0.5">
-    <MapPin size={12} />
-    {crack.location?.lng || crack.longitude
-      ? `${Number(crack.location?.lng ?? crack.longitude).toFixed(4)}° E`
-      : ''}
-  </div>
-</td>
-                  <td className="p-4">
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        const key = crack.id?.toString() || crack.timestamp?.toString();
-                        if (onCrackStatusUpdate && key) {
-                          const isPending = !(crack.status === 'approved' || crack.status === 'confirmed' || crack.status === 'ignored');
-                          if (isPending) {
-                            onCrackStatusUpdate(key, 'approved');
-                          }
-                        }
-                      }}
-                      className={`px-2 py-1 rounded text-xs font-bold cursor-pointer hover:opacity-80 transition-opacity ${
-                        crack.status === 'approved' || crack.status === 'confirmed'
-                          ? 'bg-rose-100 text-rose-700'
-                          : crack.status === 'ignored'
-                            ? 'bg-slate-100 text-slate-600'
-                            : 'bg-emerald-100 text-emerald-700'
-                      }`}>
-                      {crack.status === 'approved' || crack.status === 'confirmed' ? 'confirmed' : crack.status === 'ignored' ? 'ignored' : 'pending'}
-                    </button>
-                  </td>
-                  <td className="p-4 text-right">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => onCrackClick(crack)}
-                      className="font-semibold"
-                    >
-                      View Details
-                    </Button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
-
+/* ─────────────────────────────────────────────────
+   HeartbeatsList
+───────────────────────────────────────────────── */
 function HeartbeatsList({ heartbeats }: { heartbeats: any[] }) {
   if (heartbeats.length === 0) {
-    return <div className="p-8 text-center text-slate-400 italic">No heartbeats received yet. Waiting for system pings...</div>;
+    return (
+      <div className="p-10 text-center text-slate-400 text-[13px] bg-slate-50/50 m-2 rounded-xl border border-dashed border-slate-200">
+        <Activity size={32} className="mx-auto mb-2 text-blue-200 animate-pulse" />
+        No heartbeats received yet. Waiting for system pings...
+      </div>
+    );
   }
-  
+
   return (
-    <table className="w-full text-left text-sm">
-      <thead className="bg-slate-50 border-b border-slate-200">
-        <tr>
-          <th className="p-4 font-semibold text-slate-600">Device</th>
-          <th className="p-4 font-semibold text-slate-600">Sensor</th>
-          <th className="p-4 font-semibold text-slate-600">Time</th>
-          <th className="p-4 font-semibold text-slate-600">Status</th>
-          <th className="p-4 font-semibold text-slate-600 text-right">Uptime</th>
-        </tr>
-      </thead>
-      <tbody className="divide-y divide-slate-100">
-        {heartbeats.slice(0, 8).map((hb, idx) => (
-          <tr key={idx} className="hover:bg-slate-50 transition-colors">
-            <td className="p-4 font-medium text-slate-900">{hb.deviceId || 'Unknown'}</td>
-            <td className="p-4">
-              {hb.sensorId && (
-                <span className={`px-2 py-1 rounded text-[10px] font-bold ${
-                  hb.sensorId === 'LEFT'   ? 'bg-blue-100 text-blue-700' :
-                  hb.sensorId === 'RIGHT'  ? 'bg-purple-100 text-purple-700' :
-                  hb.sensorId === 'CENTER' ? 'bg-orange-100 text-orange-700' :
-                  'bg-slate-100 text-slate-600'
-                }`}>
-                  {hb.sensorId}
-                </span>
-              )}
-            </td>
-            <td className="p-4 font-medium text-slate-900">
-              {hb.timestamp ? new Date(hb.timestamp).toLocaleTimeString() : 'N/A'}
-            </td>
-            <td className="p-4">
-              <span className="px-2 py-1 rounded text-[10px] font-bold bg-emerald-100 text-emerald-700 flex items-center gap-1 w-max">
-                <Activity size={12} />
-                {hb.status === 'NOMINAL_HEARTBEAT' ? 'Nominal Heartbeat' : (hb.status || 'HEARTBEAT')}
-              </span>
-            </td>
-            <td className="p-4 text-right text-slate-500 font-mono text-xs">
-               {hb.uptime ? `${hb.uptime}s` : '-'}
-            </td>
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm whitespace-nowrap">
+        <thead className="bg-slate-50 border-b border-slate-100">
+          <tr>
+            {['Device', 'Sensor', 'Time', 'Status'].map((h) => (
+              <th
+                key={h}
+                className="px-5 py-4 font-bold text-slate-500 text-[10px] uppercase tracking-widest"
+              >
+                {h}
+              </th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody className="divide-y divide-slate-50 bg-white">
+          {heartbeats.slice(0, 8).map((hb, idx) => (
+            <tr key={idx} className="hover:bg-blue-50/50 transition-colors group cursor-default">
+              <td className="px-5 py-3.5">
+                <div className="flex items-center gap-3">
+                  <div className="p-1.5 bg-blue-50 text-blue-600 rounded-lg group-hover:bg-blue-100/80 transition-colors">
+                    <Cpu size={14} />
+                  </div>
+                  <span className="font-semibold text-slate-700 text-[13px]">{hb.deviceId || 'Unknown'}</span>
+                </div>
+              </td>
+              <td className="px-5 py-3.5">
+                {hb.sensorId ? (
+                  <span className={`inline-flex items-center px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                    hb.sensorId === 'LEFT'   ? 'bg-blue-50 text-blue-600'   :
+                    hb.sensorId === 'RIGHT'  ? 'bg-indigo-50 text-indigo-600' :
+                    hb.sensorId === 'CENTER' ? 'bg-cyan-50 text-cyan-600' :
+                    'bg-slate-50 text-slate-600'
+                  }`}>
+                    {hb.sensorId}
+                  </span>
+                ) : <span className="text-slate-300 text-[13px]">-</span>}
+              </td>
+              <td className="px-5 py-3.5 font-medium text-slate-600 text-[13px] tabular-nums">
+                {hb.timestamp ? new Date(hb.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'N/A'}
+              </td>
+              <td className="px-5 py-3.5">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[11px] font-bold tracking-wide">
+                  <span className="relative flex h-1.5 w-1.5">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                    <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-emerald-500"></span>
+                  </span>
+                  {hb.status === 'NOMINAL_HEARTBEAT' ? 'Nominal' : (hb.status || 'Heartbeat')}
+                </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
