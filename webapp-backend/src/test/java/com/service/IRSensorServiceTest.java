@@ -1,23 +1,33 @@
 package com.service;
 
+import java.util.Collections;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isNull;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
+import org.mockito.junit.jupiter.MockitoExtension;
+
 import com.dto.sensor.IRSensorDataDTO;
 import com.dto.sensor.LocationDTO;
 import com.mapper.IRSensorMapper;
 import com.model.irsensorData;
 import com.repositary.IRSensorRepository;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
-
-import java.util.Collections;
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class IRSensorServiceTest {
@@ -122,6 +132,28 @@ class IRSensorServiceTest {
     // ───────── saveSensorData tests ─────────
 
     @Test
+    void saveSensorData_nullDto_returnsNullWithoutSaving() {
+        when(crackEventHandler.toEntityForPersistence(isNull(), eq(mapper))).thenReturn(null);
+
+        IRSensorDataDTO result = service.saveSensorData(null);
+
+        assertNull(result);
+        verify(crackEventHandler).toEntityForPersistence(null, mapper);
+        verifyNoInteractions(repository);
+    }
+
+    @Test
+    void saveSensorData_invalidCrack_returnsNullWithoutSaving() {
+        when(crackEventHandler.toEntityForPersistence(eq(sampleDto), eq(mapper)))
+                .thenReturn(null);
+
+        IRSensorDataDTO result = service.saveSensorData(sampleDto);
+
+        assertNull(result);
+        verify(repository, never()).save(any());
+    }
+
+    @Test
     void saveSensorData_validCrack_savesAndReturnsDTO() {
         when(crackEventHandler.toEntityForPersistence(eq(sampleDto), eq(mapper)))
                 .thenReturn(sampleEntity);
@@ -136,13 +168,14 @@ class IRSensorServiceTest {
     }
 
     @Test
-    void saveSensorData_invalidCrack_returnsNullWithoutSaving() {
+    void saveSensorData_repositoryFailure_propagatesException() {
         when(crackEventHandler.toEntityForPersistence(eq(sampleDto), eq(mapper)))
-                .thenReturn(null);
+                .thenReturn(sampleEntity);
+        when(repository.save(sampleEntity)).thenThrow(new IllegalStateException("ddb down"));
 
-        IRSensorDataDTO result = service.saveSensorData(sampleDto);
+        IllegalStateException ex = assertThrows(IllegalStateException.class,
+                () -> service.saveSensorData(sampleDto));
 
-        assertNull(result);
-        verify(repository, never()).save(any());
+        assertEquals("ddb down", ex.getMessage());
     }
 }

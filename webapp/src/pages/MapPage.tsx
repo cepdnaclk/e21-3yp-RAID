@@ -18,7 +18,7 @@ type CrackLocation = {
     severity: number;
 };
 
-const parsePayload = (payload: unknown): CrackLocation | null => {
+export const parsePayload = (payload: unknown): CrackLocation | null => {
     if (typeof payload !== "object" || payload === null) return null;
     const obj = payload as Record<string, unknown>;
 
@@ -51,13 +51,13 @@ const wsToSockJsUrl = (wsUrl: string): string => {
 const MapPage = () => {
     const apiBaseUrl = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? "http://localhost:8080";
     const wsUrl = (import.meta.env.VITE_WS_URL as string | undefined) ?? "ws://localhost:8080/ws";
-const [searchParams] = useSearchParams();
-const focusLat = Number(searchParams.get("lat"));
-const focusLng = Number(searchParams.get("lng"));
-const focusId = searchParams.get("focus");
-    
+    const [searchParams] = useSearchParams();
+    const focusLat = Number(searchParams.get("lat"));
+    const focusLng = Number(searchParams.get("lng"));
+    const focusId = searchParams.get("focus");
+
     const [locations, setLocations] = useState<CrackMarker[]>([]);
-const [activeFlyToId, setActiveFlyToId] = useState<string | null>(null);
+    const [activeFlyToId, setActiveFlyToId] = useState<string | null>(null);
 
     const upsertLocation = useCallback((incoming: CrackMarker) => {
         setLocations((prev) => {
@@ -66,19 +66,19 @@ const [activeFlyToId, setActiveFlyToId] = useState<string | null>(null);
         });
     }, []);
     useEffect(() => {
-    console.log("focusId:", focusId);
-    console.log("locations ids:", locations.map(l => l.id));
-    console.log("activeFlyToId:", activeFlyToId);
-}, [focusId, locations, activeFlyToId]);
-useEffect(() => {
-    console.log("Current URL:", window.location.href);
-    console.log("Search string:", window.location.search);
-}, []);
+        console.log("focusId:", focusId);
+        console.log("locations ids:", locations.map(l => l.id));
+        console.log("activeFlyToId:", activeFlyToId);
+    }, [focusId, locations, activeFlyToId]);
     useEffect(() => {
-    if (focusId && locations.length > 0) {
-        setActiveFlyToId(focusId);
-    }
-}, [focusId, locations]);
+        console.log("Current URL:", window.location.href);
+        console.log("Search string:", window.location.search);
+    }, []);
+    useEffect(() => {
+        if (focusId && locations.length > 0) {
+            setActiveFlyToId(focusId);
+        }
+    }, [focusId, locations]);
 
     useEffect(() => {
         const loadHistory = async () => {
@@ -98,9 +98,9 @@ useEffect(() => {
         });
     }, [apiBaseUrl]);
 
- 
 
-  
+
+
 
     useEffect(() => {
         const sockJsUrl = wsToSockJsUrl(wsUrl);
@@ -133,14 +133,14 @@ useEffect(() => {
     }, [upsertLocation, wsUrl]);
 
     return (
-  <div className="w-full h-[calc(100vh-80px)]">
-    <MapComponent
-  markers={locations}
-  center={focusLat && focusLng ? [focusLng, focusLat] : undefined}
-  zoom={focusId ? 17 : 12}
-  flyToId={activeFlyToId}
-/>
-  </div>
-);
+        <div className="w-full h-[calc(100vh-80px)]">
+            <MapComponent
+                markers={locations}
+                center={focusLat && focusLng ? [focusLng, focusLat] : undefined}
+                zoom={focusId ? 17 : 12}
+                flyToId={activeFlyToId}
+            />
+        </div>
+    );
 };
 export default MapPage;
