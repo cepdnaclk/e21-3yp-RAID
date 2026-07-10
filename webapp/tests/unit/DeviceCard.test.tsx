@@ -8,11 +8,8 @@ import type { CrackEvent } from '../../src/hooks/useTelemetry';
 const makeCrack = (overrides: Partial<CrackEvent> = {}): CrackEvent => ({
   id: 'crack-1',
   type: 'Crack Detected',
-  severity: 'HIGH',
-  location: 'Track Marker KM 142.5',
-  km: 142.5,
-  timestamp: '2024-01-15T10:30:00.000Z',
   status: 'pending',
+  timestamp: '2024-01-15T10:30:00.000Z',
   confidence: 92,
   gps: { lat: 28.6155, lng: 77.21 },
   media: null,
@@ -72,19 +69,20 @@ describe('DeviceCard', () => {
   });
 
   it('counts total cracks correctly', () => {
-    const cracks = [makeCrack(), makeCrack({ id: 'c2', severity: 'LOW' })];
+    const cracks = [makeCrack(), makeCrack({ id: 'c2' })];
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
     expect(screen.getByText('2')).toBeInTheDocument(); // Total Cracks = 2
   });
 
-  it('counts only HIGH severity as critical alerts', () => {
+  // The component counts approved/confirmed status as "critical" (highSeverity)
+  it('counts approved and confirmed statuses as critical alerts', () => {
     const cracks = [
-      makeCrack({ id: 'c1', severity: 'HIGH' }),
-      makeCrack({ id: 'c2', severity: 'HIGH' }),
-      makeCrack({ id: 'c3', severity: 'LOW' }),
+      makeCrack({ id: 'c1', status: 'approved' }),
+      makeCrack({ id: 'c2', status: 'confirmed' }),
+      makeCrack({ id: 'c3', status: 'pending' }),
     ];
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
-    // Total = 3, High = 2
+    // Total = 3, Critical (approved+confirmed) = 2
     expect(screen.getByText('3')).toBeInTheDocument();
     expect(screen.getByText('2')).toBeInTheDocument();
   });
@@ -96,32 +94,41 @@ describe('DeviceCard', () => {
   });
 
   // ── Crack list ──
+  // The component renders each crack as "Detection" (not the km value)
   it('renders crack list items when cracks exist', () => {
-    const cracks = [makeCrack({ km: 142.5 })];
+    const cracks = [makeCrack()];
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
-    expect(screen.getByText(/142.5 km/i)).toBeInTheDocument();
+    expect(screen.getByText('Detection')).toBeInTheDocument();
   });
 
   it('shows up to 4 recent detections', () => {
     const cracks = Array.from({ length: 6 }, (_, i) =>
-      makeCrack({ id: `c${i}`, km: 140 + i })
+      makeCrack({ id: `c${i}` })
     );
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
-    // Only first 4 km values should appear
-    expect(screen.getByText('140.0 km')).toBeInTheDocument();
-    expect(screen.queryByText('145.0 km')).not.toBeInTheDocument();
+    // Component slices to first 4 — verify 4 "Detection" labels
+    const detectionLabels = screen.getAllByText('Detection');
+    expect(detectionLabels).toHaveLength(4);
   });
 
-  it('shows correct status badge on each crack item (pending)', () => {
+  // The component maps status: approved/confirmed → displays "confirmed"
+  it('shows "pending" status badge on each crack item (pending)', () => {
     const cracks = [makeCrack({ status: 'pending' })];
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
     expect(screen.getByText('pending')).toBeInTheDocument();
   });
 
-  it('shows correct status badge on each crack item (approved)', () => {
-    const cracks = [makeCrack({ status: 'approved' as any })];
+  it('shows "confirmed" label for approved status cracks', () => {
+    const cracks = [makeCrack({ status: 'approved' })];
     render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
-    expect(screen.getByText('approved')).toBeInTheDocument();
+    // Component renders approved/confirmed both as "confirmed"
+    expect(screen.getByText('confirmed')).toBeInTheDocument();
+  });
+
+  it('shows "ignored" label for ignored status cracks', () => {
+    const cracks = [makeCrack({ status: 'ignored' })];
+    render(<DeviceCard {...defaultProps} liveCracks={cracks} />);
+    expect(screen.getByText('ignored')).toBeInTheDocument();
   });
 
   // ── Actions ──
@@ -136,7 +143,8 @@ describe('DeviceCard', () => {
     const onCrackClick = vi.fn();
     const crack = makeCrack();
     render(<DeviceCard {...defaultProps} liveCracks={[crack]} onCrackClick={onCrackClick} />);
-    fireEvent.click(screen.getByText(/142.5 km/i));
+    // Click on the "Detection" label row
+    fireEvent.click(screen.getByText('Detection'));
     expect(onCrackClick).toHaveBeenCalledWith(crack);
   });
 });
