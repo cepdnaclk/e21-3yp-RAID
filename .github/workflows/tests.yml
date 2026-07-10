@@ -1,0 +1,54 @@
+name: Run Automated Tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  backend-tests:
+    name: Backend Unit Tests (Spring Boot + JUnit/Mockito)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Make Maven Wrapper Executable
+        run: chmod +x webapp-backend/mvnw
+
+      - name: Run Backend Tests
+        run: |
+          cd webapp-backend
+          ./mvnw test
+
+  frontend-tests:
+    name: Frontend Unit Tests (Vite + Vitest)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: webapp/package-lock.json
+
+      - name: Install Dependencies
+        run: |
+          cd webapp
+          npm ci
+
+      - name: Run Frontend Tests
+        run: |
+          cd webapp
+          npm run test
