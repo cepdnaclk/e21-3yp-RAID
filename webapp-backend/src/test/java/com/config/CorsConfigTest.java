@@ -26,7 +26,8 @@ class CorsConfigTest {
         verify(registration).allowedOrigins(
                 "https://cepdnaclk.github.io",
                 "http://localhost:3000",
-                "http://localhost:5173"
+                "http://localhost:5173",
+                "http://localhost:5174"
         );
         verify(registration).allowedMethods("GET", "POST", "PUT", "DELETE", "OPTIONS");
         verify(registration).allowedHeaders("*");
