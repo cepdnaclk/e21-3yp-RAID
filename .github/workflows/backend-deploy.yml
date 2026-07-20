@@ -18,6 +18,10 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      - name: Make mvnw executable
+        working-directory: webapp-backend
+        run: chmod +x mvnw
+
       - name: Build jar
         working-directory: webapp-backend
         run: ./mvnw clean package -DskipTests
