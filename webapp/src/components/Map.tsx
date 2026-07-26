@@ -27,6 +27,33 @@ export default function MapComponent({ markers, center = [80.7718, 7.8731], zoom
   const markersRef = useRef<Record<string, mapboxgl.Marker>>({});
   const mapReadyRef = useRef(false);
 
+  const fitMapToMarkers = () => {
+    if (!mapRef.current || markers.length === 0) {
+      return;
+    }
+
+    if (markers.length === 1) {
+      const singleMarker = markers[0];
+      mapRef.current.flyTo({
+        center: [singleMarker.lng, singleMarker.lat],
+        zoom: 17,
+        speed: 1.2,
+      });
+      return;
+    }
+
+    const bounds = new mapboxgl.LngLatBounds(
+      [markers[0].lng, markers[0].lat],
+      [markers[0].lng, markers[0].lat]
+    );
+
+    markers.forEach((marker) => {
+      bounds.extend([marker.lng, marker.lat]);
+    });
+
+    mapRef.current.fitBounds(bounds, { padding: 50 });
+  };
+
   // Initialize map
   useEffect(() => {
     if (mapRef.current || !containerRef.current) return;
@@ -98,6 +125,20 @@ const color = severityNum >= 0.7 ? "#dc2626" : severityNum >= 0.4 ? "#f59e0b" : 
     });
   }, [markers]);
 
+
+  // Fit the map to all marker points whenever the marker data changes.
+  useEffect(() => {
+    if (!mapRef.current || markers.length === 0) {
+      return;
+    }
+
+    if (mapReadyRef.current) {
+      fitMapToMarkers();
+      return;
+    }
+
+    mapRef.current.once("load", fitMapToMarkers);
+  }, [markers]);
   // Fly to and highlight
   useEffect(() => {
     if (!flyToId || !mapRef.current) return;
