@@ -9,7 +9,14 @@ import org.springframework.boot.test.context.SpringBootTest;
 				+ "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
 				+ "org.springframework.boot.autoconfigure.orm.jpa.HibernateJpaAutoConfiguration,"
 				+ "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration",
-		"aws.iot.auto-startup=false"
+		"aws.iot.auto-startup=false",
+		"aws.iot.broker.url=ssl://localhost:8883",
+		"aws.iot.broker.clientId=test-client-id",
+		"aws.iot.topic.filter=test/topic",
+		"aws.region=eu-north-1",
+		"aws.accessKeyId=test-access-key",
+		"aws.secretKey=test-secret-key",
+		"aws.dynamodb.tableName=test-table"
 })
 class WebappBackendApplicationTests {
 
